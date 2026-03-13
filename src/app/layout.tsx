@@ -25,9 +25,7 @@ export default function RootLayout({
       <body
         className={`${manrope.variable} antialiased min-h-screen flex flex-col`}
       >
-        <ClerkProvider>
-          {children}
-        </ClerkProvider>
+        <ClerkProvider>{children}</ClerkProvider>
       </body>
     </html>
   );

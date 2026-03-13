@@ -1,8 +1,6 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -14,6 +12,10 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
+import { SidebarProfile } from "@/components/layout/SidebarProfile";
+import { NavListItem } from "@/components/layout/NavListItem";
+import { usePathname } from "next/navigation";
+import { AddProductModal } from "@/components/stock/addProductModal";
 
 interface SidebarProps {
   isOpenMobile: boolean;
@@ -27,9 +29,49 @@ const navItems = [
   { href: "/settings", icon: Settings, label: "Settings" },
 ];
 
+interface SidebarActionButtonProps {
+  label: string;
+  title: string;
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+  isCollapsed: boolean;
+  onClick?: () => void;
+}
+
+function SidebarActionButton({
+  label,
+  title,
+  icon: Icon,
+  isCollapsed,
+  onClick,
+}: SidebarActionButtonProps) {
+  return (
+    <button
+      className={cn(
+        "bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-bold flex items-center justify-center transition-all shadow-[0_0_20px_-5px_rgba(145,128,168,0.4)] hover:shadow-[0_10px_40px_-10px_rgba(145,128,168,0.6)] group",
+        isCollapsed ? "md:px-0" : "px-4 gap-2",
+      )}
+      title={title}
+      onClick={onClick}
+    >
+      <Icon className="w-5 h-5 shrink-0" />
+      <span
+        className={cn(
+          "transition-all duration-300 whitespace-nowrap",
+          isCollapsed
+            ? "md:opacity-0 md:w-0 overflow-hidden"
+            : "opacity-100",
+        )}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
 export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
-  const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const pathname = usePathname();
+  const showQuickAdd = pathname === "/dashboard";
 
   return (
     <>
@@ -49,16 +91,17 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
           isOpenMobile
             ? "translate-x-0 w-64"
             : "-translate-x-full md:translate-x-0",
-          // Desktop collapsed state
-          isCollapsed ? "xl:w-22" : "xl:w-64",
+          // Desktop collapsed state (md and up)
+          isCollapsed ? "md:w-22" : "md:w-64",
         )}
       >
         <div className="flex flex-col gap-8 h-full">
+          {/* Logo */}
           <div className="flex items-center justify-between">
             <div
               className={cn(
                 "flex items-center gap-3",
-                isCollapsed && "xl:justify-center",
+                isCollapsed && "md:justify-center",
               )}
             >
               <div className="w-10 h-10 min-w-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shrink-0">
@@ -68,7 +111,7 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
                 className={cn(
                   "text-xl font-extrabold tracking-tight transition-opacity duration-300",
                   isCollapsed
-                    ? "xl:opacity-0 xl:w-0 overflow-hidden"
+                    ? "md:opacity-0 md:w-0 overflow-hidden"
                     : "opacity-100",
                 )}
               >
@@ -85,66 +128,55 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
             </button>
           </div>
 
+          {/* Nav */}
           <nav className="flex flex-col gap-2 flex-1">
-            {navItems.map((item) => {
-              const isActive = pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center py-2.5 rounded-lg transition-colors group relative",
-                    isCollapsed ? "px-4 xl:px-0 xl:justify-center" : "gap-3 px-4",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-primary/5 hover:text-foreground",
-                  )}
-                  title={isCollapsed ? item.label : undefined}
-                >
-                  <item.icon className="w-5 h-5 shrink-0" />
-                  <span
-                    className={cn(
-                      "font-semibold text-sm whitespace-nowrap transition-all duration-300",
-                      isCollapsed
-                        ? "xl:opacity-0 xl:w-0 overflow-hidden"
-                        : "opacity-100",
-                    )}
-                  >
-                    {item.label}
-                  </span>
-                </Link>
-              );
-            })}
+            {navItems.map((item) => (
+              <NavListItem
+                key={item.href}
+                href={item.href}
+                icon={item.icon}
+                label={item.label}
+                isCollapsed={isCollapsed}
+              />
+            ))}
           </nav>
 
-          <div className="flex flex-col gap-6 mt-auto">
-            {/* Quick Add Button */}
-            <button
-              className={cn(
-                "bg-primary hover:bg-primary/90 text-primary-foreground py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_-5px_rgba(145,128,168,0.4)] hover:shadow-[0_10px_40px_-10px_rgba(145,128,168,0.6)] group",
-                isCollapsed ? "xl:px-0" : "px-4",
-              )}
-              title="Quick Add"
-            >
-              <PlusCircle className="w-5 h-5 shrink-0" />
-              <span
-                className={cn(
-                  "transition-all duration-300 whitespace-nowrap",
-                  isCollapsed
-                    ? "xl:opacity-0 xl:w-0 overflow-hidden"
-                    : "opacity-100",
+          {/* Bottom actions */}
+          <div className="flex flex-col gap-4 mt-auto">
+            {/* Quick Add Button – only on Dashboard */}
+            {showQuickAdd && (
+              <SidebarActionButton
+                label="Quick Add"
+                title="Quick Add"
+                icon={PlusCircle}
+                isCollapsed={isCollapsed}
+              />
+            )}
+
+            {/* Add Product Button – only on Stock page */}
+            {pathname === "/stock" && (
+              <AddProductModal>
+                {(open) => (
+                  <SidebarActionButton
+                    label="Add Product"
+                    title="Add Product"
+                    icon={PlusCircle}
+                    isCollapsed={isCollapsed}
+                    onClick={open}
+                  />
                 )}
-              >
-                Quick Add
-              </span>
-            </button>
+              </AddProductModal>
+            )}
+
+            {/* Profile */}
+            <SidebarProfile isCollapsed={isCollapsed} />
           </div>
         </div>
 
         {/* Desktop Collapse Toggle */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden xl:flex absolute -right-3 top-20 w-6 h-6 bg-background border border-primary/20 rounded-full items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors z-50 shadow-sm"
+          className="hidden md:flex absolute -right-3 top-20 w-6 h-6 bg-background border border-primary/20 rounded-full items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors z-50 shadow-sm"
         >
           {isCollapsed ? (
             <ChevronRight className="w-4 h-4" />

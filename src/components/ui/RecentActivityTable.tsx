@@ -1,36 +1,8 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-// Mock data matching the Stitch design
-const recentActivities = [
-  {
-    id: 1,
-    itemName: "Ergonomic Chair Pro",
-    type: "Sale Out",
-    units: 240,
-    cost: "+ $50.00",
-    costColor: "text-emerald-500",
-    date: "2 mins ago",
-  },
-  {
-    id: 2,
-    itemName: "Mechanical Keyboard",
-    type: "Inventory Update",
-    units: 12,
-    cost: "- $30.00",
-    costColor: "text-destructive", // using our destructive color
-    date: "1 hour ago",
-  },
-  {
-    id: 3,
-    itemName: "4K Studio Monitor",
-    type: "Sale Out",
-    units: 899,
-    cost: "+ $50.00",
-    costColor: "text-emerald-500",
-    date: "5 hours ago",
-  },
-];
+// TODO: Replace with real Sale records in the future
+const recentActivities: any[] = [];
 
 export function RecentActivityTable({ className }: { className?: string }) {
   return (
@@ -42,7 +14,10 @@ export function RecentActivityTable({ className }: { className?: string }) {
     >
       <div className="p-4 sm:p-6 border-b border-primary/10 flex justify-between items-center">
         <h4 className="text-lg font-bold text-foreground">Recent Activity</h4>
-        <button className="text-primary text-sm font-bold hover:underline">
+        <button
+          className="text-primary text-sm font-bold hover:underline"
+          disabled
+        >
           View All
         </button>
       </div>
@@ -58,37 +33,48 @@ export function RecentActivityTable({ className }: { className?: string }) {
             </tr>
           </thead>
           <tbody className="divide-y divide-primary/5">
-            {recentActivities.map((activity) => (
-              <tr
-                key={activity.id}
-                className="hover:bg-primary/5 transition-colors"
-              >
-                <td className="px-4 sm:px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-foreground">
-                      {activity.itemName}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-4 sm:px-6 py-4 text-sm text-muted-foreground">
-                  {activity.type}
-                </td>
-                <td className="px-4 sm:px-6 py-4 text-sm font-bold text-muted-foreground">
-                  {activity.units} Units
-                </td>
+            {recentActivities.length === 0 ? (
+              <tr>
                 <td
-                  className={cn(
-                    "px-4 sm:px-6 py-4 text-sm font-bold",
-                    activity.costColor,
-                  )}
+                  colSpan={5}
+                  className="px-4 py-8 text-center text-muted-foreground text-sm"
                 >
-                  {activity.cost}
-                </td>
-                <td className="px-4 sm:px-6 py-4 text-sm text-muted-foreground">
-                  {activity.date}
+                  No recent activity found.
                 </td>
               </tr>
-            ))}
+            ) : (
+              recentActivities.map((activity) => (
+                <tr
+                  key={activity.id}
+                  className="hover:bg-primary/5 transition-colors"
+                >
+                  <td className="px-4 sm:px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-semibold text-foreground">
+                        {activity.itemName}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 text-sm text-muted-foreground">
+                    {activity.type}
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 text-sm font-bold text-muted-foreground">
+                    {activity.units} Units
+                  </td>
+                  <td
+                    className={cn(
+                      "px-4 sm:px-6 py-4 text-sm font-bold",
+                      activity.costColor,
+                    )}
+                  >
+                    {activity.cost}
+                  </td>
+                  <td className="px-4 sm:px-6 py-4 text-sm text-muted-foreground">
+                    {activity.date}
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

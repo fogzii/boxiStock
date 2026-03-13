@@ -4,22 +4,36 @@ import * as React from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { cn } from "@/lib/utils";
 
-const data = [
-  { name: "Jan", total: 1200 },
-  { name: "Feb", total: 2100 },
-  { name: "Mar", total: 1800 },
-  { name: "Apr", total: 2400 },
-  { name: "May", total: 2000 },
-  { name: "Jun", total: 3200 },
-  { name: "Jul", total: 2900 },
-  { name: "Aug", total: 3800 },
-  { name: "Sep", total: 3400 },
-  { name: "Oct", total: 4200 },
-  { name: "Nov", total: 3900 },
-  { name: "Dec", total: 4800 },
+const weeklyData = [
+  { name: "W1", total: 820 },
+  { name: "W2", total: 1040 },
+  { name: "W3", total: 1320 },
+  { name: "W4", total: 1180 },
+  { name: "W5", total: 1460 },
+  { name: "W6", total: 1720 },
+  { name: "W7", total: 1610 },
+  { name: "W8", total: 1890 },
+];
+
+const monthlyData = [
+  { name: "Jan", total: 3200 },
+  { name: "Feb", total: 2900 },
+  { name: "Mar", total: 3400 },
+  { name: "Apr", total: 3600 },
+  { name: "May", total: 3800 },
+  { name: "Jun", total: 4100 },
+  { name: "Jul", total: 4300 },
+  { name: "Aug", total: 4500 },
+  { name: "Sep", total: 4700 },
+  { name: "Oct", total: 4900 },
+  { name: "Nov", total: 5100 },
+  { name: "Dec", total: 5400 },
 ];
 
 export function ProfitChart({ className }: { className?: string }) {
+  const [mode, setMode] = React.useState<"weekly" | "monthly">("weekly");
+  const chartData = mode === "weekly" ? weeklyData : monthlyData;
+
   return (
     <div
       className={cn(
@@ -34,15 +48,33 @@ export function ProfitChart({ className }: { className?: string }) {
           </h4>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-muted-foreground text-sm">
-              Last 12 Months
+              {mode === "weekly" ? "Last 8 Weeks" : "Last 12 Months"}
             </span>
           </div>
         </div>
         <div className="flex bg-primary/5 p-1 rounded-lg border border-primary/10 w-full sm:w-auto">
-          <button className="flex-1 px-4 py-1.5 rounded-md text-xs font-bold bg-primary text-background shadow-sm">
-            Yearly
+          <button
+            type="button"
+            onClick={() => setMode("weekly")}
+            className={cn(
+              "flex-1 px-4 py-1.5 rounded-md text-xs font-bold transition-colors",
+              mode === "weekly"
+                ? "bg-primary text-background shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            Weekly
           </button>
-          <button className="flex-1 px-4 py-1.5 rounded-md text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
+          <button
+            type="button"
+            onClick={() => setMode("monthly")}
+            className={cn(
+              "flex-1 px-4 py-1.5 rounded-md text-xs font-bold transition-colors",
+              mode === "monthly"
+                ? "bg-primary text-background shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
             Monthly
           </button>
         </div>
@@ -52,7 +84,7 @@ export function ProfitChart({ className }: { className?: string }) {
       <div className="relative h-[300px] sm:h-[400px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart
-            data={data}
+            data={chartData}
             margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
           >
             <defs>

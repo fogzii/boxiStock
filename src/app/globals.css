@@ -95,4 +95,54 @@
   html {
     font-family: var(--font-sans);
   }
+  h1 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    font-size: 1.75rem;
+    line-height: 1.2;
+  }
+  @media (min-width: 640px) {
+    h1 {
+      font-size: 1.875rem;
+    }
+  }
+  @media (min-width: 1024px) {
+    h1 {
+      font-size: 2rem;
+    }
+  }
+  html,
+  body {
+    scrollbar-width: thin;
+    scrollbar-color: #27272a var(--background);
+  }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  html::-webkit-scrollbar-track,
+  body::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+  html::-webkit-scrollbar-thumb,
+  body::-webkit-scrollbar-thumb {
+    background-color: #3f3f46;
+    border-radius: 999px;
+    border: 2px solid var(--background);
+  }
+}
+
+/* Clerk UserButton popup — hide snap then fade in */
+@keyframes clerkPopoverFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.cl-userButtonPopoverCard {
+  animation: clerkPopoverFadeIn 120ms ease 60ms both;
 }
