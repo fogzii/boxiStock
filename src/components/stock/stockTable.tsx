@@ -200,6 +200,7 @@ function ProductRow({ product }: { product: ProductWithLots }) {
                 <LotCard
                   key={lot.id}
                   lot={lot}
+                  productName={product.name}
                   onMarkStocked={handleMarkStocked}
                   onDelete={handleDelete}
                   isUpdating={isUpdating}

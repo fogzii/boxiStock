@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CustomTooltip } from "@/components/ui/tooltip";
 import { Tag, PackageCheck, Trash2, ShoppingCart } from "lucide-react";
+import { SellUnitsModal } from "./sellUnitsModal";
 
 export type StockLot = {
   id: string;
@@ -19,6 +20,7 @@ export type StockLot = {
 
 interface LotCardProps {
   lot: StockLot;
+  productName: string;
   onMarkStocked: (lotId: string) => Promise<void>;
   onDelete: (lotId: string) => Promise<void>;
   isUpdating: string | null;
@@ -26,6 +28,7 @@ interface LotCardProps {
 
 export function LotCard({
   lot,
+  productName,
   onMarkStocked,
   onDelete,
   isUpdating,
@@ -41,7 +44,7 @@ export function LotCard({
         <div className="p-1.5 rounded-lg bg-primary/10 text-primary mt-0.5">
           <Tag className="w-4 h-4" />
         </div>
-        <div>
+        <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <p className="text-sm font-semibold text-foreground">
               {lot.lotIdentity ? lot.lotIdentity : `Lot #${lotRef}`}
@@ -65,7 +68,7 @@ export function LotCard({
       </div>
 
       {/* Quantity & Unit Price */}
-      <div className="w-[250px] text-right">
+      <div className="w-[250px] text-right flex flex-col gap-1">
         <p className="text-sm font-medium text-foreground">
           {lot.remainingQuantity} units @ ${lot.buyPrice.toFixed(2)}
         </p>
@@ -100,15 +103,19 @@ export function LotCard({
         )}
 
         {lot.isStocked && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-muted-foreground hover:text-foreground"
-            disabled
-          >
-            <ShoppingCart className="w-3.5 h-3.5 mr-1" />
-            Sell
-          </Button>
+          <SellUnitsModal lot={lot} productName={productName}>
+            {(open) => (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={open}
+                className="text-muted-foreground hover:text-foreground cursor-pointer"
+              >
+                <ShoppingCart className="w-3.5 h-3.5 mr-1" />
+                Sell
+              </Button>
+            )}
+          </SellUnitsModal>
         )}
 
         <Button
@@ -116,7 +123,7 @@ export function LotCard({
           variant="ghost"
           onClick={() => onDelete(lot.id)}
           disabled={isProcessing}
-          className="text-muted-foreground hover:text-destructive"
+          className="text-muted-foreground hover:text-destructive cursor-pointer"
         >
           <Trash2 className="w-3.5 h-3.5" />
         </Button>

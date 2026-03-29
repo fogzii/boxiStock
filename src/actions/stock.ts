@@ -144,11 +144,37 @@ export async function deleteLot(lotId: string) {
   revalidatePath("/stock");
 }
 
-export async function recordSale() {
+export async function sellLotUnits(lotId: string, quantitySold: number, salePricePerUnit: number) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
-  // TODO: Implement recordSale with FIFO logic
+  const lot = await prisma.stockLot.findFirst({
+    where: { id: lotId, product: { userId } },
+    include: { product: true }
+  });
+
+  if (!lot) throw new Error("Lot not found or unauthorized");
+  if (lot.remainingQuantity < quantitySold) throw new Error("Quantity exceeds stock");
+
+  const totalSalePrice = quantitySold * salePricePerUnit;
+  const totalProfit = totalSalePrice - (quantitySold * lot.buyPrice);
+
+  await prisma.$transaction([
+    prisma.stockLot.update({
+      where: { id: lotId },
+      data: { remainingQuantity: lot.remainingQuantity - quantitySold }
+    }),
+    prisma.sale.create({
+      data: {
+        productId: lot.productId,
+        quantitySold,
+        totalSalePrice,
+        totalProfit
+      }
+    })
+  ]);
+
+  revalidatePath("/stock");
 }
 
 export async function seedMockData() {
