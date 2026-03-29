@@ -84,13 +84,13 @@ export function SellUnitsModal({ children, lot, productName }: SellUnitsModalPro
           </div>
           
           <div className="flex justify-end gap-3 mt-2">
-            <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>
+            <Button type="button" variant="ghost" onClick={() => setIsOpen(false)} className="cursor-pointer">
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting || lot.remainingQuantity === 0}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer"
             >
               {isSubmitting ? "Processing..." : "Confirm Sale"}
             </Button>

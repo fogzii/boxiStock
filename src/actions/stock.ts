@@ -144,6 +144,38 @@ export async function deleteLot(lotId: string) {
   revalidatePath("/stock");
 }
 
+export async function deleteLotUnits(lotId: string, quantity: number) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const lot = await prisma.stockLot.findFirst({
+    where: {
+      id: lotId,
+      product: { userId },
+    },
+  });
+
+  if (!lot) throw new Error("Lot not found or unauthorized");
+  if (lot.remainingQuantity < quantity) throw new Error("Quantity exceeds stock");
+
+  if (lot.remainingQuantity === quantity) {
+    await prisma.stockLot.delete({ where: { id: lotId } });
+    const remainingLots = await prisma.stockLot.count({
+      where: { productId: lot.productId },
+    });
+    if (remainingLots === 0) {
+      await prisma.product.delete({ where: { id: lot.productId } });
+    }
+  } else {
+    await prisma.stockLot.update({
+      where: { id: lotId },
+      data: { remainingQuantity: lot.remainingQuantity - quantity }
+    });
+  }
+
+  revalidatePath("/stock");
+}
+
 export async function sellLotUnits(lotId: string, quantitySold: number, salePricePerUnit: number) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");

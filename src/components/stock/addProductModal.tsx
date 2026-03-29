@@ -121,13 +121,14 @@ export function AddProductModal({ children }: AddProductModalProps) {
               type="button"
               variant="ghost"
               onClick={() => setIsOpen(false)}
+              className="cursor-pointer"
             >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer"
             >
               {isSubmitting ? "Adding..." : "Add Product"}
             </Button>

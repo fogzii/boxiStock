@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CustomTooltip } from "@/components/ui/tooltip";
 import { Tag, PackageCheck, Trash2, ShoppingCart } from "lucide-react";
 import { SellUnitsModal } from "./sellUnitsModal";
+import { DeleteUnitsModal } from "./deleteUnitsModal";
 
 export type StockLot = {
   id: string;
@@ -118,15 +119,19 @@ export function LotCard({
           </SellUnitsModal>
         )}
 
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => onDelete(lot.id)}
-          disabled={isProcessing}
-          className="text-muted-foreground hover:text-destructive cursor-pointer"
-        >
-          <Trash2 className="w-3.5 h-3.5" />
-        </Button>
+        <DeleteUnitsModal lot={lot} productName={productName}>
+          {(open) => (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={open}
+              disabled={isProcessing}
+              className="text-muted-foreground hover:text-destructive cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          )}
+        </DeleteUnitsModal>
       </div>
     </div>
   );
