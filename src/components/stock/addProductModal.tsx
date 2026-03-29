@@ -28,9 +28,13 @@ export function AddProductModal({ children }: AddProductModalProps) {
       10,
     );
     const buyPrice = parseFloat(formData.get("buyPrice") as string);
+    const dateAcquiredStr = formData.get("date") as string;
+    const lotIdentity = formData.get("lotIdentity") as string;
+
+    const dateAcquired = dateAcquiredStr ? new Date(dateAcquiredStr) : new Date();
 
     try {
-      await addProduct({ name, initialQuantity, buyPrice, isStocked: false });
+      await addProduct({ name, initialQuantity, buyPrice, isStocked: false, dateAcquired, lotIdentity });
       setIsOpen(false);
       router.refresh();
     } catch (error) {
@@ -58,6 +62,30 @@ export function AddProductModal({ children }: AddProductModalProps) {
               required
               className="bg-background border-border/50"
             />
+          </div>
+
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="space-y-2 flex-1">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                name="date"
+                type="date"
+                defaultValue={new Date().toLocaleDateString("en-CA")} // gets YYYY-MM-DD
+                required
+                className="bg-background border-border/50"
+              />
+            </div>
+            <div className="space-y-2 flex-1">
+              <Label htmlFor="lotIdentity">Lot Identity</Label>
+              <Input
+                id="lotIdentity"
+                name="lotIdentity"
+                defaultValue={`L-${new Date().toLocaleDateString("en-CA").replace(/-/g, "")}-1`}
+                placeholder="e.g. L-20260328-1"
+                className="bg-background border-border/50"
+              />
+            </div>
           </div>
 
           <div className="flex flex-col md:flex-row gap-4">

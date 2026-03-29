@@ -4,6 +4,7 @@ import * as React from "react";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CustomTooltip } from "@/components/ui/tooltip";
 import { Tag, PackageCheck, Trash2, ShoppingCart } from "lucide-react";
 
 export type StockLot = {
@@ -13,6 +14,7 @@ export type StockLot = {
   buyPrice: number;
   isStocked: boolean;
   dateAcquired: Date;
+  lotIdentity?: string | null;
 };
 
 interface LotCardProps {
@@ -28,7 +30,7 @@ export function LotCard({
   onDelete,
   isUpdating,
 }: LotCardProps) {
-  const lotRef = lot.id.slice(-6).toUpperCase();
+  const lotRef = lot.lotIdentity || lot.id.slice(-6).toUpperCase();
   const totalValue = lot.remainingQuantity * lot.buyPrice;
   const isProcessing = isUpdating === lot.id;
 
@@ -40,9 +42,21 @@ export function LotCard({
           <Tag className="w-4 h-4" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-foreground">
-            Lot #{lotRef}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-foreground">
+              {lot.lotIdentity ? lot.lotIdentity : `Lot #${lotRef}`}
+            </p>
+            <Badge
+              variant={lot.isStocked ? "default" : "secondary"}
+              className={
+                lot.isStocked
+                  ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20 px-1.5 py-0 text-[10px]"
+                  : "bg-amber-500/15 text-amber-400 border-amber-500/20 px-1.5 py-0 text-[10px]"
+              }
+            >
+              {lot.isStocked ? "In Stock" : "Pending"}
+            </Badge>
+          </div>
           <p className="text-xs text-muted-foreground">
             {lot.isStocked ? "Received" : "Created"}{" "}
             {format(new Date(lot.dateAcquired), "MMM dd, yyyy")}
@@ -62,38 +76,40 @@ export function LotCard({
 
       {/* Status & Actions */}
       <div className="flex items-center gap-2 w-[250px] justify-end flex-wrap">
-        <Badge
-          variant={lot.isStocked ? "default" : "secondary"}
-          className={
-            lot.isStocked
-              ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
-              : "bg-amber-500/15 text-amber-400 border-amber-500/20"
-          }
-        >
-          {lot.isStocked ? "In Stock" : "Pending"}
-        </Badge>
-
         {!lot.isStocked && (
-          <Button
-            size="sm"
-            onClick={() => onMarkStocked(lot.id)}
-            disabled={isProcessing}
-            className="bg-primary/20 hover:bg-primary/30 text-primary border-none"
+          <CustomTooltip
+            content={
+              <span>
+                Click to move the item status into{" "}
+                <code className="bg-primary/20 text-primary px-1 py-0.5 rounded font-mono text-[10px]">
+                  in stock
+                </code>
+              </span>
+            }
           >
-            <PackageCheck className="w-3.5 h-3.5 mr-1" />
-            {isProcessing ? "..." : "Stocked"}
-          </Button>
+            <Button
+              size="sm"
+              onClick={() => onMarkStocked(lot.id)}
+              disabled={isProcessing}
+              className="bg-primary/20 hover:bg-primary/30 text-primary border-none cursor-pointer"
+            >
+              <PackageCheck className="w-3.5 h-3.5 mr-1" />
+              {isProcessing ? "..." : "Stocked"}
+            </Button>
+          </CustomTooltip>
         )}
 
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground hover:text-foreground"
-          disabled
-        >
-          <ShoppingCart className="w-3.5 h-3.5 mr-1" />
-          Sell
-        </Button>
+        {lot.isStocked && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="text-muted-foreground hover:text-foreground"
+            disabled
+          >
+            <ShoppingCart className="w-3.5 h-3.5 mr-1" />
+            Sell
+          </Button>
+        )}
 
         <Button
           size="sm"

@@ -25,6 +25,7 @@ model StockLot {
   id                String      @id @default(cuid())
   productId         String
   product           Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  lotIdentity       String?     // Optional user-defined lot identity
   initialQuantity   Int
   remainingQuantity Int         // Used for FIFO logic
   buyPrice          Float       // Price per unit

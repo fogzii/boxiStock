@@ -26,6 +26,8 @@ export async function addProduct(data: {
   initialQuantity: number;
   buyPrice: number;
   isStocked: boolean;
+  dateAcquired?: Date;
+  lotIdentity?: string;
 }) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -40,6 +42,8 @@ export async function addProduct(data: {
           remainingQuantity: data.initialQuantity,
           buyPrice: data.buyPrice,
           isStocked: data.isStocked,
+          dateAcquired: data.dateAcquired ?? new Date(),
+          lotIdentity: data.lotIdentity,
         },
       },
     },
@@ -97,6 +101,22 @@ export async function markAsStocked(lotId: string) {
 
   revalidatePath("/stock");
   return updatedLot;
+}
+
+export async function updateProductName(productId: string, name: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const product = await prisma.product.updateMany({
+    where: { id: productId, userId },
+    data: { name },
+  });
+
+  if (product.count === 0) {
+    throw new Error("Product not found or unauthorized");
+  }
+
+  revalidatePath("/stock");
 }
 
 export async function deleteLot(lotId: string) {

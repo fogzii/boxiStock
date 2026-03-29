@@ -6,10 +6,14 @@ import {
   ChevronRight,
   Package,
   DollarSign,
+  Edit2,
+  Check,
+  X,
 } from "lucide-react";
 import { LotCard, type StockLot } from "@/components/stock/lotCard";
-import { markAsStocked, deleteLot } from "@/actions/stock";
+import { markAsStocked, deleteLot, updateProductName } from "@/actions/stock";
 import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -33,7 +37,28 @@ function ProductRow({ product }: { product: ProductWithLots }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [lots, setLots] = React.useState(product.lots);
   const [isUpdating, setIsUpdating] = React.useState<string | null>(null);
+  const [isEditingName, setIsEditingName] = React.useState(false);
+  const [editedName, setEditedName] = React.useState(product.name);
   const router = useRouter();
+
+  const handleEditName = async (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    if (!editedName.trim() || editedName === product.name) {
+      setIsEditingName(false);
+      setEditedName(product.name);
+      return;
+    }
+    try {
+      setIsUpdating("name");
+      await updateProductName(product.id, editedName);
+      setIsEditingName(false);
+      router.refresh();
+    } catch (error) {
+      console.error("Failed to update name:", error);
+    } finally {
+      setIsUpdating(null);
+    }
+  };
 
   const totalStock = lots.reduce(
     (acc, lot) => (lot.isStocked ? acc + lot.remainingQuantity : acc),
@@ -90,9 +115,62 @@ function ProductRow({ product }: { product: ProductWithLots }) {
             ) : (
               <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
             )}
-            <span className="font-semibold text-foreground text-sm">
-              {product.name}
-            </span>
+            {isEditingName ? (
+              <div 
+                className="flex items-center gap-2"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Input
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  className="h-7 text-sm font-semibold max-w-[200px]"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleEditName();
+                    if (e.key === "Escape") {
+                      setIsEditingName(false);
+                      setEditedName(product.name);
+                    }
+                  }}
+                  disabled={isUpdating === "name"}
+                />
+                <button
+                  type="button"
+                  onClick={handleEditName}
+                  disabled={isUpdating === "name"}
+                  className="p-1 hover:bg-primary/10 rounded-md transition-colors text-primary"
+                >
+                  <Check className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditingName(false);
+                    setEditedName(product.name);
+                  }}
+                  disabled={isUpdating === "name"}
+                  className="p-1 hover:bg-destructive/10 rounded-md transition-colors text-destructive"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 group/name">
+                <span className="font-semibold text-foreground text-sm">
+                  {product.name}
+                </span>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditingName(true);
+                  }}
+                  className="p-1 hover:bg-primary/10 rounded-md transition-all text-muted-foreground hover:text-primary"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         </TableCell>
         <TableCell className="px-5 py-2 text-right text-sm text-foreground w-[250px]">
