@@ -102,42 +102,36 @@ export default async function SalesPage({
 
       {/* Pagination Controls */}
       {history.totalPages > 1 && (
-        <div className="flex items-center justify-between mt-6 px-1">
+        <div className="flex flex-row items-center justify-between mt-6 px-1">
           <div className="text-sm text-muted-foreground">
             Showing <span className="font-medium text-foreground">{(currentPage - 1) * pageSize + 1}</span> to <span className="font-medium text-foreground">{Math.min(currentPage * pageSize, history.totalCount)}</span> of <span className="font-medium text-foreground">{history.totalCount}</span> transactions
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage <= 1}
-              asChild={currentPage > 1}
-              className="bg-card border-border/50 hover:bg-muted/20"
-            >
-              {currentPage > 1 ? (
-                <Link href={`/sales?page=${currentPage - 1}`}>
-                  <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-                </Link>
-              ) : (
-                <span className="flex items-center"><ChevronLeft className="w-4 h-4 mr-1" /> Previous</span>
-              )}
-            </Button>
-            
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage >= history.totalPages}
-              asChild={currentPage < history.totalPages}
-              className="bg-card border-border/50 hover:bg-muted/20"
-            >
-              {currentPage < history.totalPages ? (
-                <Link href={`/sales?page=${currentPage + 1}`}>
-                  Next <ChevronRight className="w-4 h-4 ml-1" />
-                </Link>
-              ) : (
-                <span className="flex items-center">Next <ChevronRight className="w-4 h-4 ml-1" /></span>
-              )}
-            </Button>
+          <div className="flex flex-row gap-2">
+            {currentPage > 1 ? (
+              <Link
+                href={`/sales?page=${currentPage - 1}`}
+                className="inline-flex items-center justify-center h-7 px-2.5 text-[0.8rem] font-medium rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+              </Link>
+            ) : (
+              <span className="inline-flex items-center justify-center h-7 px-2.5 text-[0.8rem] font-medium rounded-lg border border-border bg-card opacity-50 pointer-events-none">
+                <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+              </span>
+            )}
+
+            {currentPage < history.totalPages ? (
+              <Link
+                href={`/sales?page=${currentPage + 1}`}
+                className="inline-flex items-center justify-center h-7 px-2.5 text-[0.8rem] font-medium rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors"
+              >
+                Next <ChevronRight className="w-4 h-4 ml-1" />
+              </Link>
+            ) : (
+              <span className="inline-flex items-center justify-center h-7 px-2.5 text-[0.8rem] font-medium rounded-lg border border-border bg-card opacity-50 pointer-events-none">
+                Next <ChevronRight className="w-4 h-4 ml-1" />
+              </span>
+            )}
           </div>
         </div>
       )}

@@ -4,35 +4,33 @@ import * as React from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { cn } from "@/lib/utils";
 
-const weeklyData = [
-  { name: "W1", total: 820 },
-  { name: "W2", total: 1040 },
-  { name: "W3", total: 1320 },
-  { name: "W4", total: 1180 },
-  { name: "W5", total: 1460 },
-  { name: "W6", total: 1720 },
-  { name: "W7", total: 1610 },
-  { name: "W8", total: 1890 },
-];
+type ChartPoint = { name: string; total: number };
 
-const monthlyData = [
-  { name: "Jan", total: 3200 },
-  { name: "Feb", total: 2900 },
-  { name: "Mar", total: 3400 },
-  { name: "Apr", total: 3600 },
-  { name: "May", total: 3800 },
-  { name: "Jun", total: 4100 },
-  { name: "Jul", total: 4300 },
-  { name: "Aug", total: 4500 },
-  { name: "Sep", total: 4700 },
-  { name: "Oct", total: 4900 },
-  { name: "Nov", total: 5100 },
-  { name: "Dec", total: 5400 },
-];
+interface ProfitChartProps {
+  className?: string;
+  weeklyData: ChartPoint[];
+  monthlyData: ChartPoint[];
+  allTimeData: ChartPoint[];
+}
 
-export function ProfitChart({ className }: { className?: string }) {
-  const [mode, setMode] = React.useState<"weekly" | "monthly">("weekly");
-  const chartData = mode === "weekly" ? weeklyData : monthlyData;
+type Mode = "weekly" | "monthly" | "alltime";
+
+const modeLabels: Record<Mode, { label: string; sublabel: string }> = {
+  weekly: { label: "Weekly", sublabel: "Last 8 Weeks" },
+  monthly: { label: "Monthly", sublabel: "Last 12 Months" },
+  alltime: { label: "All Time", sublabel: "Entire History" },
+};
+
+export function ProfitChart({ className, weeklyData, monthlyData, allTimeData }: ProfitChartProps) {
+  const [mode, setMode] = React.useState<Mode>("weekly");
+
+  const chartData = mode === "weekly" ? weeklyData : mode === "monthly" ? monthlyData : allTimeData;
+
+  const formatter = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
+  });
 
   return (
     <div
@@ -48,35 +46,26 @@ export function ProfitChart({ className }: { className?: string }) {
           </h4>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-muted-foreground text-sm">
-              {mode === "weekly" ? "Last 8 Weeks" : "Last 12 Months"}
+              {modeLabels[mode].sublabel}
             </span>
           </div>
         </div>
         <div className="flex bg-primary/5 p-1 rounded-lg border border-primary/10 w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={() => setMode("weekly")}
-            className={cn(
-              "flex-1 px-4 py-1.5 rounded-md text-xs font-bold transition-colors",
-              mode === "weekly"
-                ? "bg-primary text-background shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Weekly
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("monthly")}
-            className={cn(
-              "flex-1 px-4 py-1.5 rounded-md text-xs font-bold transition-colors",
-              mode === "monthly"
-                ? "bg-primary text-background shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Monthly
-          </button>
+          {(Object.keys(modeLabels) as Mode[]).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setMode(m)}
+              className={cn(
+                "flex-1 px-4 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer",
+                mode === m
+                  ? "bg-primary text-background shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {modeLabels[m].label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -101,10 +90,6 @@ export function ProfitChart({ className }: { className?: string }) {
               axisLine={false}
               padding={{ left: 10, right: 10 }}
               interval="preserveStartEnd"
-              tickFormatter={(value: string, index: number) => {
-                // Only show odd index labels or specific ones on small screens if desired
-                return value;
-              }}
             />
             <Tooltip
               content={({ active, payload }: any) => {
@@ -115,7 +100,7 @@ export function ProfitChart({ className }: { className?: string }) {
                         {payload[0].payload.name}
                       </p>
                       <p className="text-sm text-primary font-bold">
-                        ${payload[0].value}
+                        {formatter.format(payload[0].value)}
                       </p>
                     </div>
                   );

@@ -28,6 +28,44 @@ export async function getInventory() {
   return products || [];
 }
 
+export async function getInventoryPaginated(page: number = 1, pageSize: number = 10) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = await createClient();
+
+  // Get total count of products
+  const { count, error: countError } = await supabase
+    .from("Product")
+    .select("*", { count: "exact", head: true })
+    .eq("userId", userId);
+
+  if (countError) throw new Error(countError.message);
+
+  // Get paginated products with their lots
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize - 1;
+
+  const { data: products, error } = await supabase
+    .from("Product")
+    .select("*, lots:StockLot(*)")
+    .eq("userId", userId)
+    .order("createdAt", { ascending: false })
+    .range(start, end);
+
+  if (error) throw new Error(error.message);
+
+  products?.forEach(p => {
+    p.lots = (p.lots || []).sort((a: any, b: any) => new Date(a.dateAcquired).getTime() - new Date(b.dateAcquired).getTime());
+  });
+
+  return {
+    products: products || [],
+    totalCount: count || 0,
+    totalPages: Math.ceil((count || 0) / pageSize),
+  };
+}
+
 export async function addProduct(data: {
   name: string;
   initialQuantity: number;
@@ -333,8 +371,8 @@ export async function getSalesMetrics() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday as start
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 7);
 
   // To keep things single-query, get all sales for user and filter in memory since we aren't likely to have massive amounts of rows, 
   // or use Supabase time filtering. For exact dates it's better to fetch records within the week.
@@ -342,7 +380,7 @@ export async function getSalesMetrics() {
     .from("Sale")
     .select("*, Product!inner(userId)")
     .eq("Product.userId", userId)
-    .gte("createdAt", startOfWeek.toISOString());
+    .gte("createdAt", sevenDaysAgo.toISOString());
 
   if (error) throw new Error(error.message);
 
@@ -370,3 +408,126 @@ export async function getSalesMetrics() {
   };
 }
 
+export async function getDashboardMetrics() {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = await createClient();
+
+  // Get all sales for lifetime profit
+  const { data: sales, error: salesError } = await supabase
+    .from("Sale")
+    .select("totalProfit, totalSalePrice, Product!inner(userId)")
+    .eq("Product.userId", userId);
+
+
+  if (salesError) throw new Error(salesError.message);
+
+  const totalLifetimeProfit = (sales || []).reduce(
+    (acc, s) => acc + (s.totalProfit || 0), 0
+  );
+
+  // Get all stock lots for inventory value and capital spent
+  const { data: lots, error: lotsError } = await supabase
+    .from("StockLot")
+    .select("remainingQuantity, initialQuantity, buyPrice, Product!inner(userId)")
+    .eq("Product.userId", userId);
+
+
+  if (lotsError) throw new Error(lotsError.message);
+
+  let currentInventoryValue = 0;
+  let totalCapitalSpent = 0;
+
+  for (const lot of lots || []) {
+    currentInventoryValue += lot.remainingQuantity * lot.buyPrice;
+    totalCapitalSpent += lot.initialQuantity * lot.buyPrice;
+  }
+
+
+  // ROI = (Total Profit / Total Capital Spent) * 100
+  const currentROI = totalCapitalSpent > 0
+    ? (totalLifetimeProfit / totalCapitalSpent) * 100
+    : 0;
+
+  return {
+    totalLifetimeProfit,
+    currentInventoryValue,
+    currentROI,
+  };
+}
+
+export async function getProfitChartData() {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = await createClient();
+
+  const { data: sales, error } = await supabase
+    .from("Sale")
+    .select("totalProfit, createdAt, Product!inner(userId)")
+    .eq("Product.userId", userId)
+    .order("createdAt", { ascending: true });
+
+  if (error) throw new Error(error.message);
+
+  const allSales = sales || [];
+  const now = new Date();
+
+  // --- Weekly: last 8 weeks ---
+  const weeklyData: { name: string; total: number }[] = [];
+  for (let i = 7; i >= 0; i--) {
+    const weekEnd = new Date(now);
+    weekEnd.setDate(now.getDate() - i * 7);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const weekStart = new Date(weekEnd);
+    weekStart.setDate(weekEnd.getDate() - 6);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekProfit = allSales
+      .filter(s => {
+        const d = new Date(s.createdAt);
+        return d >= weekStart && d <= weekEnd;
+      })
+      .reduce((acc, s) => acc + (s.totalProfit || 0), 0);
+
+    const label = `${weekStart.getDate()}/${weekStart.getMonth() + 1}`;
+    weeklyData.push({ name: label, total: parseFloat(weekProfit.toFixed(2)) });
+  }
+
+  // --- Monthly: last 12 months (current month on far right) ---
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthlyData: { name: string; total: number }[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const year = d.getFullYear();
+    const month = d.getMonth();
+
+    const monthProfit = allSales
+      .filter(s => {
+        const sd = new Date(s.createdAt);
+        return sd.getFullYear() === year && sd.getMonth() === month;
+      })
+      .reduce((acc, s) => acc + (s.totalProfit || 0), 0);
+
+    monthlyData.push({
+      name: `${monthNames[month]} ${year.toString().slice(-2)}`,
+      total: parseFloat(monthProfit.toFixed(2)),
+    });
+  }
+
+  // --- All Time: group by month across all data ---
+  const allTimeMap = new Map<string, number>();
+  for (const sale of allSales) {
+    const sd = new Date(sale.createdAt);
+    const key = `${monthNames[sd.getMonth()]} ${sd.getFullYear().toString().slice(-2)}`;
+    allTimeMap.set(key, (allTimeMap.get(key) || 0) + (sale.totalProfit || 0));
+  }
+  const allTimeData = Array.from(allTimeMap.entries()).map(([name, total]) => ({
+    name,
+    total: parseFloat(total.toFixed(2)),
+  }));
+
+  return { weeklyData, monthlyData, allTimeData };
+}

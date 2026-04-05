@@ -1,11 +1,19 @@
 import { StatCard } from "@/components/ui/StatCard";
 import { ProfitChart } from "@/components/ui/ProfitChart";
+import { Wallet, Package, Percent } from "lucide-react";
+import { getDashboardMetrics, getProfitChartData } from "@/actions/stock";
 
-import { Wallet, Package, Percent, Plus } from "lucide-react";
-import { AddStockModal } from "@/components/stock/addStockModal";
-import { Button } from "@/components/ui/button";
+export default async function DashboardPage() {
+  const [metrics, chartData] = await Promise.all([
+    getDashboardMetrics(),
+    getProfitChartData(),
+  ]);
 
-export default function DashboardPage() {
+  const formatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  });
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 sm:px-8 pt-6 sm:pt-8">
       <div className="mb-6 flex items-center justify-between">
@@ -18,24 +26,28 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <StatCard
           title="Total Lifetime Profit"
-          value="$128,430.00"
+          value={formatter.format(metrics.totalLifetimeProfit)}
           icon={Wallet}
         />
         <StatCard
           title="Current Inventory Value"
-          value="$45,210.50"
+          value={formatter.format(metrics.currentInventoryValue)}
           icon={Package}
         />
         <StatCard
           title="Current ROI"
-          value="34.2%"
+          value={`${metrics.currentROI.toFixed(1)}%`}
           icon={Percent}
         />
       </div>
 
       {/* Main Chart Card */}
       <div className="mb-8">
-        <ProfitChart />
+        <ProfitChart
+          weeklyData={chartData.weeklyData}
+          monthlyData={chartData.monthlyData}
+          allTimeData={chartData.allTimeData}
+        />
       </div>
 
     </div>
