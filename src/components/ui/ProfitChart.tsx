@@ -57,7 +57,7 @@ export function ProfitChart({ className, weeklyData, monthlyData, allTimeData }:
               type="button"
               onClick={() => setMode(m)}
               className={cn(
-                "flex-1 px-4 py-1.5 rounded-md text-xs font-bold transition-colors cursor-pointer",
+                "flex-1 px-4 py-1.5 whitespace-nowrap rounded-md text-xs font-bold transition-colors cursor-pointer",
                 mode === m
                   ? "bg-primary text-background shadow-sm"
                   : "text-muted-foreground hover:text-foreground",
