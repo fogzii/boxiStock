@@ -173,3 +173,85 @@ input[type="number"] {
   -moz-appearance: textfield; /* Firefox */
   appearance: textfield; /* Standard */
 }
+
+/* React Date Picker UI Overrides */
+.react-date-picker__wrapper {
+  border: 0 !important;
+  width: 100%;
+  padding-left: 0.75rem;
+  padding-right: 0.5rem;
+}
+
+.react-date-picker__inputGroup__input {
+  color: var(--foreground) !important;
+  outline: none;
+  background: transparent;
+}
+
+.react-date-picker__inputGroup__input:invalid {
+  background: transparent;
+}
+
+.react-date-picker__calendar-button svg {
+  stroke: var(--muted-foreground) !important;
+  color: var(--muted-foreground) !important;
+}
+
+.react-calendar {
+  background-color: var(--card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius-md) !important;
+  color: var(--foreground) !important;
+  font-family: inherit !important;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  padding: 0.5rem;
+  width: 100% !important;
+  max-width: 280px !important;
+  font-size: 0.85rem !important;
+}
+
+.react-calendar__navigation button {
+  color: var(--foreground) !important;
+  min-width: 44px;
+  background: none;
+}
+
+.react-calendar__navigation button:enabled:hover,
+.react-calendar__navigation button:enabled:focus {
+  background-color: var(--muted) !important;
+  border-radius: var(--radius-sm);
+}
+
+.react-calendar__month-view__weekdays {
+  color: var(--muted-foreground);
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.react-calendar__tile {
+  color: var(--foreground);
+}
+
+.react-calendar__tile:enabled:hover, 
+.react-calendar__tile:enabled:focus {
+  background-color: var(--muted) !important;
+  border-radius: var(--radius-sm);
+}
+
+.react-calendar__tile--now {
+  background: transparent !important;
+  border: 1px solid var(--primary) !important;
+  color: var(--primary) !important;
+  border-radius: var(--radius-sm);
+}
+
+.react-calendar__tile--active {
+  background: var(--primary) !important;
+  color: var(--primary-foreground) !important;
+  border-radius: var(--radius-sm);
+}
+
+.react-calendar__month-view__days__day--weekend {
+  color: var(--foreground) !important;
+}

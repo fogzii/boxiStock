@@ -108,9 +108,8 @@ export function LotCard({
             {(open) => (
               <Button
                 size="sm"
-                variant="ghost"
                 onClick={open}
-                className="text-muted-foreground hover:text-foreground cursor-pointer"
+                className="bg-primary/20 hover:bg-primary/30 text-primary border-none cursor-pointer"
               >
                 <ShoppingCart className="w-3.5 h-3.5 mr-1" />
                 Sell

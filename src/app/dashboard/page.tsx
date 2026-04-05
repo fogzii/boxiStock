@@ -1,13 +1,15 @@
 import { StatCard } from "@/components/ui/StatCard";
 import { ProfitChart } from "@/components/ui/ProfitChart";
-import { RecentActivityTable } from "@/components/ui/RecentActivityTable";
-import { Wallet, Package } from "lucide-react";
+
+import { Wallet, Package, Percent, Plus } from "lucide-react";
+import { AddStockModal } from "@/components/stock/addStockModal";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardPage() {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 sm:px-8 pt-6 sm:pt-8">
-      <div className="mb-6">
-      <h1 className="text-3xl font-bold tracking-tight text-foreground">
+      <div className="mb-6 flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground">
           Dashboard Overview
         </h1>
       </div>
@@ -24,6 +26,11 @@ export default function DashboardPage() {
           value="$45,210.50"
           icon={Package}
         />
+        <StatCard
+          title="Current ROI"
+          value="34.2%"
+          icon={Percent}
+        />
       </div>
 
       {/* Main Chart Card */}
@@ -31,10 +38,6 @@ export default function DashboardPage() {
         <ProfitChart />
       </div>
 
-      {/* Recent Activity */}
-      <div>
-        <RecentActivityTable />
-      </div>
     </div>
   );
 }

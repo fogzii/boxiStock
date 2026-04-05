@@ -47,7 +47,7 @@ function SidebarActionButton({
   return (
     <button
       className={cn(
-        "bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-bold flex items-center justify-center transition-all shadow-[0_0_20px_-5px_rgba(145,128,168,0.4)] hover:shadow-[0_10px_40px_-10px_rgba(145,128,168,0.6)] group",
+        "bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-bold flex items-center justify-center transition-all shadow-[0_0_20px_-5px_rgba(145,128,168,0.4)] hover:shadow-[0_10px_40px_-10px_rgba(145,128,168,0.6)] group cursor-pointer",
         isCollapsed ? "md:px-0" : "px-4 gap-2",
       )}
       title={title}
@@ -145,12 +145,17 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
           <div className="flex flex-col gap-4 mt-auto">
             {/* Quick Add Button – only on Dashboard */}
             {showQuickAdd && (
-              <SidebarActionButton
-                label="Quick Add"
-                title="Quick Add"
-                icon={PlusCircle}
-                isCollapsed={isCollapsed}
-              />
+              <AddProductModal>
+                {(open) => (
+                  <SidebarActionButton
+                    label="Quick Add"
+                    title="Quick Add"
+                    icon={PlusCircle}
+                    isCollapsed={isCollapsed}
+                    onClick={open}
+                  />
+                )}
+              </AddProductModal>
             )}
 
             {/* Add Product Button – only on Stock page */}

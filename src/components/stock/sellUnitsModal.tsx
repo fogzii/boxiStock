@@ -63,7 +63,7 @@ export function SellUnitsModal({ children, lot, productName }: SellUnitsModalPro
                 type="number"
                 min="1"
                 max={lot.remainingQuantity}
-                placeholder="e.g. 5"
+                defaultValue={lot.remainingQuantity}
                 required
                 className="bg-background border-border/50"
               />
@@ -76,7 +76,7 @@ export function SellUnitsModal({ children, lot, productName }: SellUnitsModalPro
                 type="number"
                 min="0.01"
                 step="0.01"
-                placeholder="e.g. 299.99"
+                defaultValue={lot.buyPrice.toFixed(2)}
                 required
                 className="bg-background border-border/50"
               />
