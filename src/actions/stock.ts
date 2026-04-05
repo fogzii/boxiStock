@@ -289,3 +289,84 @@ export async function seedMockData() {
   revalidatePath("/stock");
   return { success: true };
 }
+
+export async function getSalesHistory(page: number = 1, pageSize: number = 10) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = await createClient();
+
+  // Get total count
+  const { count, error: countError } = await supabase
+    .from("Sale")
+    .select("*, Product!inner(userId)", { count: "exact", head: true })
+    .eq("Product.userId", userId);
+
+  if (countError) throw new Error(countError.message);
+
+  // Get paginated data
+  const start = (page - 1) * pageSize;
+  const end = start + pageSize - 1;
+
+  const { data: sales, error } = await supabase
+    .from("Sale")
+    .select("*, Product!inner(name, userId)")
+    .eq("Product.userId", userId)
+    .order("createdAt", { ascending: false })
+    .range(start, end);
+
+  if (error) throw new Error(error.message);
+
+  return {
+    sales: sales || [],
+    totalCount: count || 0,
+    totalPages: Math.ceil((count || 0) / pageSize)
+  };
+}
+
+export async function getSalesMetrics() {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = await createClient();
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const startOfWeek = new Date(today);
+  startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday as start
+
+  // To keep things single-query, get all sales for user and filter in memory since we aren't likely to have massive amounts of rows, 
+  // or use Supabase time filtering. For exact dates it's better to fetch records within the week.
+  const { data: recentSales, error } = await supabase
+    .from("Sale")
+    .select("*, Product!inner(userId)")
+    .eq("Product.userId", userId)
+    .gte("createdAt", startOfWeek.toISOString());
+
+  if (error) throw new Error(error.message);
+
+  let totalSalesToday = 0;
+  let totalUnitsSoldWeek = 0;
+  let netProfitWeek = 0;
+
+  for (const sale of recentSales || []) {
+    const saleDate = new Date(sale.createdAt);
+    
+    // Accumulate week stats
+    totalUnitsSoldWeek += sale.quantitySold;
+    netProfitWeek += sale.totalProfit;
+
+    // Check if it's today
+    if (saleDate >= today) {
+      totalSalesToday += sale.totalSalePrice;
+    }
+  }
+
+  return {
+    totalSalesToday,
+    totalUnitsSoldWeek,
+    netProfitWeek,
+  };
+}
+
