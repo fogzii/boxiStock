@@ -109,7 +109,7 @@ export async function addProduct(data: {
 
   const { data: product, error: productError } = await supabase
     .from("Product")
-    .insert([{ id: crypto.randomUUID(), userId, name: data.name }])
+    .insert([{ id: crypto.randomUUID(), userId, name: data.name, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }])
     .select()
     .single();
 
@@ -126,6 +126,8 @@ export async function addProduct(data: {
       isStocked: data.isStocked,
       dateAcquired: data.dateAcquired ?? new Date().toISOString(),
       lotIdentity: data.lotIdentity,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     }]);
 
   if (lotError) throw new Error(lotError.message);
@@ -163,6 +165,8 @@ export async function addStockLot(data: {
       remainingQuantity: data.initialQuantity,
       buyPrice: data.buyPrice,
       isStocked: data.isStocked,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     }])
     .select()
     .single();
@@ -316,7 +320,8 @@ export async function sellLotUnits(lotId: string, quantitySold: number, salePric
       productId: lot.productId,
       quantitySold,
       totalSalePrice,
-      totalProfit
+      totalProfit,
+      createdAt: new Date().toISOString()
     }]);
     
   if (saleError) throw new Error(`Sale insert failed: ${saleError.message}`);
@@ -334,26 +339,26 @@ export async function seedMockData() {
 
   const { data: product1 } = await supabase
     .from("Product")
-    .insert([{ id: crypto.randomUUID(), userId, name: "Ergonomic Chair Pro" }])
+    .insert([{ id: crypto.randomUUID(), userId, name: "Ergonomic Chair Pro", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }])
     .select()
     .single();
 
   if (product1) {
     await supabase.from("StockLot").insert([
-      { id: crypto.randomUUID(), productId: product1.id, initialQuantity: 10, remainingQuantity: 10, buyPrice: 150.0, isStocked: true },
-      { id: crypto.randomUUID(), productId: product1.id, initialQuantity: 5, remainingQuantity: 5, buyPrice: 145.0, isStocked: false }
+      { id: crypto.randomUUID(), productId: product1.id, initialQuantity: 10, remainingQuantity: 10, buyPrice: 150.0, isStocked: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+      { id: crypto.randomUUID(), productId: product1.id, initialQuantity: 5, remainingQuantity: 5, buyPrice: 145.0, isStocked: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
     ]);
   }
 
   const { data: product2 } = await supabase
     .from("Product")
-    .insert([{ id: crypto.randomUUID(), userId, name: "Mechanical Keyboard" }])
+    .insert([{ id: crypto.randomUUID(), userId, name: "Mechanical Keyboard", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }])
     .select()
     .single();
 
   if (product2) {
     await supabase.from("StockLot").insert([
-      { id: crypto.randomUUID(), productId: product2.id, initialQuantity: 20, remainingQuantity: 12, buyPrice: 85.0, isStocked: true }
+      { id: crypto.randomUUID(), productId: product2.id, initialQuantity: 20, remainingQuantity: 12, buyPrice: 85.0, isStocked: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
     ]);
   }
 
