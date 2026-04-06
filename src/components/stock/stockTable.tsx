@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Package,
   DollarSign,
@@ -13,6 +14,7 @@ import {
 import { LotCard, type StockLot } from "@/components/stock/lotCard";
 import { markAsStocked, deleteLot, updateProductName } from "@/actions/stock";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -31,6 +33,10 @@ export type ProductWithLots = {
 
 interface StockTableProps {
   products: ProductWithLots[];
+  currentPage?: number;
+  totalCount?: number;
+  totalPages?: number;
+  pageSize?: number;
 }
 
 function ProductRow({ product }: { product: ProductWithLots }) {
@@ -40,6 +46,10 @@ function ProductRow({ product }: { product: ProductWithLots }) {
   const [isEditingName, setIsEditingName] = React.useState(false);
   const [editedName, setEditedName] = React.useState(product.name);
   const router = useRouter();
+
+  React.useEffect(() => {
+    setLots(product.lots);
+  }, [product.lots]);
 
   const handleEditName = async (e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -108,15 +118,19 @@ function ProductRow({ product }: { product: ProductWithLots }) {
         className="cursor-pointer hover:bg-primary/5 transition-colors"
         onClick={() => setIsOpen(!isOpen)}
       >
-        <TableCell className="px-5 py-2">
+        <TableCell className="px-5 py-4">
           <div className="flex items-center gap-3">
             {isOpen ? (
               <ChevronDown className="w-5 h-5 text-muted-foreground shrink-0" />
             ) : (
               <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
             )}
-            {isEditingName ? (
-              <div 
+            {isUpdating === "name" ? (
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-5 w-32" />
+              </div>
+            ) : isEditingName ? (
+              <div
                 className="flex items-center gap-2"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -173,10 +187,10 @@ function ProductRow({ product }: { product: ProductWithLots }) {
             )}
           </div>
         </TableCell>
-        <TableCell className="px-5 py-2 text-right text-sm text-foreground w-[250px]">
+        <TableCell className="px-5 py-4 text-right text-sm text-foreground w-[250px]">
           {totalStock} Units
         </TableCell>
-        <TableCell className="px-5 py-2 text-right text-sm font-semibold text-foreground w-[250px]">
+        <TableCell className="px-5 py-4 text-right text-sm font-semibold text-foreground w-[250px]">
           ${totalValue.toFixed(2)}
         </TableCell>
       </TableRow>
@@ -214,8 +228,17 @@ function ProductRow({ product }: { product: ProductWithLots }) {
   );
 }
 
-export function StockTable({ products }: StockTableProps) {
-  if (products.length === 0) {
+export function StockTable({ products, currentPage = 1, totalCount = 0, totalPages = 1, pageSize = 10 }: StockTableProps) {
+  const router = useRouter();
+  const [isPending, startTransition] = React.useTransition();
+
+  const handlePageChange = (page: number) => {
+    startTransition(() => {
+      router.push(`/stock?page=${page}`);
+    });
+  };
+
+  if (products.length === 0 && !isPending) {
     return (
       <div className="text-center py-16 bg-primary/5 rounded-2xl border border-primary/10">
         <Package className="w-12 h-12 text-primary/40 mx-auto mb-4" />
@@ -250,11 +273,54 @@ export function StockTable({ products }: StockTableProps) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {products.map((product) => (
-            <ProductRow key={product.id} product={product} />
-          ))}
+          {isPending ? (
+            Array.from({ length: 10 }).map((_, i) => (
+              <TableRow key={i} className="hover:bg-primary/5 transition-colors">
+                <TableCell className="px-5 py-4">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="w-5 h-5 rounded-md" />
+                    <Skeleton className="h-5 w-48" />
+                  </div>
+                </TableCell>
+                <TableCell className="px-5 py-4 w-[250px]">
+                  <div className="flex justify-end"><Skeleton className="h-4 w-20" /></div>
+                </TableCell>
+                <TableCell className="px-5 py-4 w-[250px]">
+                  <div className="flex justify-end"><Skeleton className="h-4 w-24" /></div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            products.map((product) => (
+              <ProductRow key={product.id} product={product} />
+            ))
+          )}
         </TableBody>
       </Table>
+
+      {totalPages > 1 && (
+        <div className="flex flex-row items-center justify-between p-4 border-t border-primary/10">
+          <div className="text-sm text-muted-foreground">
+            Showing <span className="font-medium text-foreground">{(currentPage - 1) * pageSize + 1}</span> to <span className="font-medium text-foreground">{Math.min(currentPage * pageSize, totalCount)}</span> of <span className="font-medium text-foreground">{totalCount}</span> products
+          </div>
+          <div className="flex flex-row gap-2">
+            <button
+              onClick={() => handlePageChange(currentPage - 1)}
+              disabled={currentPage <= 1 || isPending}
+              className="inline-flex items-center justify-center h-8 px-3 text-sm font-medium rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" /> Previous
+            </button>
+            <button
+              onClick={() => handlePageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages || isPending}
+              className="inline-flex items-center justify-center h-8 px-3 text-sm font-medium rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+            >
+              Next <ChevronRight className="w-4 h-4 ml-1" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

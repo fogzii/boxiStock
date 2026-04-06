@@ -81,7 +81,7 @@ export async function addProduct(data: {
 
   const { data: product, error: productError } = await supabase
     .from("Product")
-    .insert([{ userId, name: data.name }])
+    .insert([{ id: crypto.randomUUID(), userId, name: data.name }])
     .select()
     .single();
 
@@ -90,6 +90,7 @@ export async function addProduct(data: {
   const { error: lotError } = await supabase
     .from("StockLot")
     .insert([{
+      id: crypto.randomUUID(),
       productId: product.id,
       initialQuantity: data.initialQuantity,
       remainingQuantity: data.initialQuantity,
@@ -101,7 +102,7 @@ export async function addProduct(data: {
 
   if (lotError) throw new Error(lotError.message);
 
-  revalidatePath("/stock");
+  revalidatePath("/", "layout");
   return product;
 }
 
@@ -128,6 +129,7 @@ export async function addStockLot(data: {
   const { data: lot, error } = await supabase
     .from("StockLot")
     .insert([{
+      id: crypto.randomUUID(),
       productId: data.productId,
       initialQuantity: data.initialQuantity,
       remainingQuantity: data.initialQuantity,
@@ -139,7 +141,7 @@ export async function addStockLot(data: {
 
   if (error) throw new Error(error.message);
 
-  revalidatePath("/stock");
+  revalidatePath("/", "layout");
   return lot;
 }
 
@@ -167,7 +169,7 @@ export async function markAsStocked(lotId: string) {
     .single();
 
   if (error) throw new Error(error.message);
-  revalidatePath("/stock");
+  revalidatePath("/", "layout");
   return updatedLot;
 }
 
@@ -187,7 +189,7 @@ export async function updateProductName(productId: string, name: string) {
   if (error) throw new Error(error.message);
   if (!data || data.length === 0) throw new Error("Product not found or unauthorized");
 
-  revalidatePath("/stock");
+  revalidatePath("/", "layout");
 }
 
 export async function deleteLot(lotId: string) {
@@ -216,7 +218,7 @@ export async function deleteLot(lotId: string) {
     await supabase.from("Product").delete().eq("id", lot.productId);
   }
 
-  revalidatePath("/stock");
+  revalidatePath("/", "layout");
 }
 
 export async function deleteLotUnits(lotId: string, quantity: number) {
@@ -252,7 +254,7 @@ export async function deleteLotUnits(lotId: string, quantity: number) {
       .eq("id", lotId);
   }
 
-  revalidatePath("/stock");
+  revalidatePath("/", "layout");
 }
 
 export async function sellLotUnits(lotId: string, quantitySold: number, salePricePerUnit: number) {
@@ -279,16 +281,19 @@ export async function sellLotUnits(lotId: string, quantitySold: number, salePric
     .update({ remainingQuantity: lot.remainingQuantity - quantitySold })
     .eq("id", lotId);
 
-  await supabase
+  const { error: saleError } = await supabase
     .from("Sale")
     .insert([{
+      id: crypto.randomUUID(),
       productId: lot.productId,
       quantitySold,
       totalSalePrice,
       totalProfit
     }]);
+    
+  if (saleError) throw new Error(`Sale insert failed: ${saleError.message}`);
 
-  revalidatePath("/stock");
+  revalidatePath("/", "layout");
 }
 
 export async function seedMockData() {
@@ -301,30 +306,30 @@ export async function seedMockData() {
 
   const { data: product1 } = await supabase
     .from("Product")
-    .insert([{ userId, name: "Ergonomic Chair Pro" }])
+    .insert([{ id: crypto.randomUUID(), userId, name: "Ergonomic Chair Pro" }])
     .select()
     .single();
 
   if (product1) {
     await supabase.from("StockLot").insert([
-      { productId: product1.id, initialQuantity: 10, remainingQuantity: 10, buyPrice: 150.0, isStocked: true },
-      { productId: product1.id, initialQuantity: 5, remainingQuantity: 5, buyPrice: 145.0, isStocked: false }
+      { id: crypto.randomUUID(), productId: product1.id, initialQuantity: 10, remainingQuantity: 10, buyPrice: 150.0, isStocked: true },
+      { id: crypto.randomUUID(), productId: product1.id, initialQuantity: 5, remainingQuantity: 5, buyPrice: 145.0, isStocked: false }
     ]);
   }
 
   const { data: product2 } = await supabase
     .from("Product")
-    .insert([{ userId, name: "Mechanical Keyboard" }])
+    .insert([{ id: crypto.randomUUID(), userId, name: "Mechanical Keyboard" }])
     .select()
     .single();
 
   if (product2) {
     await supabase.from("StockLot").insert([
-      { productId: product2.id, initialQuantity: 20, remainingQuantity: 12, buyPrice: 85.0, isStocked: true }
+      { id: crypto.randomUUID(), productId: product2.id, initialQuantity: 20, remainingQuantity: 12, buyPrice: 85.0, isStocked: true }
     ]);
   }
 
-  revalidatePath("/stock");
+  revalidatePath("/", "layout");
   return { success: true };
 }
 
