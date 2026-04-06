@@ -3,27 +3,30 @@ import { StockTable } from "@/components/stock/stockTable";
 import { Button } from "@/components/ui/button";
 import { DatabaseZap, ChevronLeft, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { SearchInput } from "@/components/ui/SearchInput";
 
 export default async function StockPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>
+  searchParams: Promise<{ page?: string; search?: string }>
 }) {
   const resolvedParams = await searchParams;
   const currentPage = Number(resolvedParams?.page) || 1;
+  const searchParamStr = resolvedParams?.search;
   const pageSize = 10;
 
-  const { products, totalCount, totalPages } = await getInventoryPaginated(currentPage, pageSize);
+  const { products, totalCount, totalPages } = await getInventoryPaginated(currentPage, pageSize, searchParamStr);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 sm:px-8 pt-6 sm:pt-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        <h1 className="mb-6 text-3xl font-bold tracking-tight text-foreground">
           Stock Inventory
         </h1>
-        <div className="flex items-center gap-3">
-          {totalCount === 0 && (
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <SearchInput placeholder="Search products or lots..." />
+          {totalCount === 0 && !searchParamStr && (
             <form
               action={async () => {
                 "use server";
@@ -44,15 +47,10 @@ export default async function StockPage({
         </div>
       </div>
 
-      {/* Subtitle */}
-      <p className="text-muted-foreground mb-8">
-        Monitor levels and manage individual lot transitions.
-      </p>
-
       {/* Expandable Product Rows */}
       <div className="mb-4 pb-8">
-        <StockTable 
-          products={products} 
+        <StockTable
+          products={products}
           currentPage={currentPage}
           pageSize={pageSize}
           totalCount={totalCount}

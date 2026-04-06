@@ -28,17 +28,39 @@ export async function getInventory() {
   return products || [];
 }
 
-export async function getInventoryPaginated(page: number = 1, pageSize: number = 10) {
+export async function getInventoryPaginated(page: number = 1, pageSize: number = 10, search?: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
   const supabase = await createClient();
 
+  let matchedIds: string[] | null = null;
+  if (search && search.trim() !== '') {
+    const searchTerm = `%${search.trim()}%`;
+    const [pMatchesRes, lotMatchesRes] = await Promise.all([
+      supabase.from("Product").select("id").eq("userId", userId).ilike("name", searchTerm),
+      supabase.from("StockLot").select("productId, Product!inner(userId)").eq("Product.userId", userId).ilike("lotIdentity", searchTerm)
+    ]);
+    
+    const ids = new Set([
+      ...(pMatchesRes.data || []).map(p => p.id),
+      ...(lotMatchesRes.data || []).map(l => l.productId)
+    ]);
+    matchedIds = Array.from(ids);
+  }
+
   // Get total count of products
-  const { count, error: countError } = await supabase
+  let countQuery = supabase
     .from("Product")
     .select("*", { count: "exact", head: true })
     .eq("userId", userId);
+
+  if (matchedIds !== null) {
+    if (matchedIds.length === 0) return { products: [], totalCount: 0, totalPages: 0 };
+    countQuery = countQuery.in("id", matchedIds);
+  }
+
+  const { count, error: countError } = await countQuery;
 
   if (countError) throw new Error(countError.message);
 
@@ -46,12 +68,18 @@ export async function getInventoryPaginated(page: number = 1, pageSize: number =
   const start = (page - 1) * pageSize;
   const end = start + pageSize - 1;
 
-  const { data: products, error } = await supabase
+  let query = supabase
     .from("Product")
     .select("*, lots:StockLot(*)")
     .eq("userId", userId)
     .order("createdAt", { ascending: false })
     .range(start, end);
+
+  if (matchedIds !== null) {
+    query = query.in("id", matchedIds);
+  }
+
+  const { data: products, error } = await query;
 
   if (error) throw new Error(error.message);
 
@@ -333,17 +361,23 @@ export async function seedMockData() {
   return { success: true };
 }
 
-export async function getSalesHistory(page: number = 1, pageSize: number = 10) {
+export async function getSalesHistory(page: number = 1, pageSize: number = 10, search?: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
   const supabase = await createClient();
 
   // Get total count
-  const { count, error: countError } = await supabase
+  let countQuery = supabase
     .from("Sale")
-    .select("*, Product!inner(userId)", { count: "exact", head: true })
+    .select("*, Product!inner(name, userId)", { count: "exact", head: true })
     .eq("Product.userId", userId);
+
+  if (search && search.trim() !== '') {
+    countQuery = countQuery.ilike("Product.name", `%${search.trim()}%`);
+  }
+
+  const { count, error: countError } = await countQuery;
 
   if (countError) throw new Error(countError.message);
 
@@ -351,12 +385,18 @@ export async function getSalesHistory(page: number = 1, pageSize: number = 10) {
   const start = (page - 1) * pageSize;
   const end = start + pageSize - 1;
 
-  const { data: sales, error } = await supabase
+  let query = supabase
     .from("Sale")
     .select("*, Product!inner(name, userId)")
     .eq("Product.userId", userId)
     .order("createdAt", { ascending: false })
     .range(start, end);
+
+  if (search && search.trim() !== '') {
+    query = query.ilike("Product.name", `%${search.trim()}%`);
+  }
+
+  const { data: sales, error } = await query;
 
   if (error) throw new Error(error.message);
 
