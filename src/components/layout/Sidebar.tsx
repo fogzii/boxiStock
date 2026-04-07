@@ -11,11 +11,13 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import { SidebarProfile } from "@/components/layout/SidebarProfile";
 import { NavListItem } from "@/components/layout/NavListItem";
 import { usePathname } from "next/navigation";
 import { AddProductModal } from "@/components/stock/addProductModal";
+import { AIImportModal } from "@/components/stock/AIImportModal";
 
 interface SidebarProps {
   isOpenMobile: boolean;
@@ -160,17 +162,30 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
 
             {/* Add Product Button – only on Stock page */}
             {pathname === "/stock" && (
-              <AddProductModal>
-                {(open) => (
-                  <SidebarActionButton
-                    label="Add Product"
-                    title="Add Product"
-                    icon={PlusCircle}
-                    isCollapsed={isCollapsed}
-                    onClick={open}
-                  />
-                )}
-              </AddProductModal>
+              <>
+                <AddProductModal>
+                  {(open) => (
+                    <SidebarActionButton
+                      label="Add Product"
+                      title="Add Product"
+                      icon={PlusCircle}
+                      isCollapsed={isCollapsed}
+                      onClick={open}
+                    />
+                  )}
+                </AddProductModal>
+                <AIImportModal>
+                  {(open) => (
+                    <SidebarActionButton
+                      label="Add with AI"
+                      title="Add with AI"
+                      icon={Sparkles}
+                      isCollapsed={isCollapsed}
+                      onClick={open}
+                    />
+                  )}
+                </AIImportModal>
+              </>
             )}
 
             {/* Profile */}

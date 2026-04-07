@@ -20,12 +20,15 @@ export async function getInventory() {
     throw new Error(error.message);
   }
 
-  // To match the Prisma orderBy on lots
-  products?.forEach(p => {
-    p.lots = (p.lots || []).sort((a: any, b: any) => new Date(a.dateAcquired).getTime() - new Date(b.dateAcquired).getTime());
+  // To match the Prisma orderBy on lots and hide 0-quantity
+  const activeProducts = products?.filter(p => {
+    p.lots = (p.lots || [])
+      .filter((l: any) => l.remainingQuantity > 0)
+      .sort((a: any, b: any) => new Date(a.dateAcquired).getTime() - new Date(b.dateAcquired).getTime());
+    return p.lots.length > 0;
   });
 
-  return products || [];
+  return activeProducts || [];
 }
 
 export async function getInventoryPaginated(page: number = 1, pageSize: number = 10, search?: string) {
@@ -34,37 +37,52 @@ export async function getInventoryPaginated(page: number = 1, pageSize: number =
 
   const supabase = await createClient();
 
-  let matchedIds: string[] | null = null;
+  // 1. Get ALL active product IDs (products that have > 0 stock)
+  const { data: activeLotsData, error: activeLotsError } = await supabase
+    .from("StockLot")
+    .select("productId, Product!inner(userId)")
+    .gt("remainingQuantity", 0)
+    .eq("Product.userId", userId);
+    
+  if (activeLotsError) throw new Error(activeLotsError.message);
+  
+  const activeProductIds = Array.from(new Set(activeLotsData?.map(l => l.productId) || []));
+
+  if (activeProductIds.length === 0) {
+    return { products: [], totalCount: 0, totalPages: 0 };
+  }
+
+  let matchedIds: string[] = activeProductIds;
   if (search && search.trim() !== '') {
     const searchTerm = `%${search.trim()}%`;
     const [pMatchesRes, lotMatchesRes] = await Promise.all([
-      supabase.from("Product").select("id").eq("userId", userId).ilike("name", searchTerm),
-      supabase.from("StockLot").select("productId, Product!inner(userId)").eq("Product.userId", userId).ilike("lotIdentity", searchTerm)
+      supabase.from("Product").select("id").eq("userId", userId).ilike("name", searchTerm).in("id", activeProductIds),
+      supabase.from("StockLot").select("productId, Product!inner(userId)").eq("Product.userId", userId).ilike("lotIdentity", searchTerm).gt("remainingQuantity", 0)
     ]);
     
     const ids = new Set([
       ...(pMatchesRes.data || []).map(p => p.id),
       ...(lotMatchesRes.data || []).map(l => l.productId)
     ]);
-    matchedIds = Array.from(ids);
+    matchedIds = Array.from(ids).filter(id => activeProductIds.includes(id));
+  }
+
+  if (matchedIds.length === 0) {
+    return { products: [], totalCount: 0, totalPages: 0 };
   }
 
   // Get total count of products
   let countQuery = supabase
     .from("Product")
     .select("*", { count: "exact", head: true })
-    .eq("userId", userId);
-
-  if (matchedIds !== null) {
-    if (matchedIds.length === 0) return { products: [], totalCount: 0, totalPages: 0 };
-    countQuery = countQuery.in("id", matchedIds);
-  }
+    .eq("userId", userId)
+    .in("id", matchedIds);
 
   const { count, error: countError } = await countQuery;
 
   if (countError) throw new Error(countError.message);
 
-  // Get paginated products with their lots
+  // Get paginated products with their active lots
   const start = (page - 1) * pageSize;
   const end = start + pageSize - 1;
 
@@ -73,18 +91,17 @@ export async function getInventoryPaginated(page: number = 1, pageSize: number =
     .select("*, lots:StockLot(*)")
     .eq("userId", userId)
     .order("createdAt", { ascending: false })
-    .range(start, end);
-
-  if (matchedIds !== null) {
-    query = query.in("id", matchedIds);
-  }
+    .range(start, end)
+    .in("id", matchedIds);
 
   const { data: products, error } = await query;
 
   if (error) throw new Error(error.message);
 
   products?.forEach(p => {
-    p.lots = (p.lots || []).sort((a: any, b: any) => new Date(a.dateAcquired).getTime() - new Date(b.dateAcquired).getTime());
+    p.lots = (p.lots || [])
+      .filter((l: any) => l.remainingQuantity > 0)
+      .sort((a: any, b: any) => new Date(a.dateAcquired).getTime() - new Date(b.dateAcquired).getTime());
   });
 
   return {
@@ -580,4 +597,158 @@ export async function getProfitChartData() {
   }));
 
   return { weeklyData, monthlyData, allTimeData };
+}
+
+export async function bulkAddLotsAndProducts(items: { name: string, initialQuantity: number, buyPrice: number, isStocked: boolean }[]) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = await createClient();
+
+  for (const item of items) {
+    // Check if product exists case-insensitively
+    const { data: existingProducts } = await supabase
+      .from("Product")
+      .select("id")
+      .eq("userId", userId)
+      .ilike("name", item.name.trim());
+      
+    let productId = existingProducts?.[0]?.id;
+
+    if (!productId) {
+      const { data: newProduct, error: pError } = await supabase
+        .from("Product")
+        .insert([{ id: crypto.randomUUID(), userId, name: item.name.trim(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }])
+        .select()
+        .single();
+      if (pError) throw new Error(pError.message);
+      productId = newProduct.id;
+    }
+
+    const { error: lotError } = await supabase
+      .from("StockLot")
+      .insert([{
+        id: crypto.randomUUID(),
+        productId,
+        initialQuantity: item.initialQuantity,
+        remainingQuantity: item.initialQuantity,
+        buyPrice: item.buyPrice,
+        isStocked: item.isStocked,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }]);
+      
+    if (lotError) throw new Error(lotError.message);
+  }
+
+  revalidatePath("/", "layout");
+  return { success: true };
+}
+
+export async function bulkAddSales(items: { productName: string, quantitySold: number, salePricePerUnit: number, buyPrice?: number }[]) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = await createClient();
+
+  for (const item of items) {
+    const { data: products } = await supabase
+      .from("Product")
+      .select("id, lots:StockLot(id, remainingQuantity, buyPrice, createdAt)")
+      .eq("userId", userId)
+      .ilike("name", `%${item.productName.trim()}%`);
+
+    let product;
+
+    if (!products || products.length === 0) {
+      const buyPrice = item.buyPrice || 0;
+      const { data: newP, error: pError } = await supabase
+        .from("Product")
+        .insert([{ id: crypto.randomUUID(), userId, name: item.productName.trim(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }])
+        .select()
+        .single();
+      if (pError) throw new Error(pError.message);
+      
+      const newLotId = crypto.randomUUID();
+      const { error: lotError } = await supabase
+        .from("StockLot")
+        .insert([{
+          id: newLotId,
+          productId: newP.id,
+          initialQuantity: item.quantitySold,
+          remainingQuantity: item.quantitySold,
+          buyPrice: buyPrice,
+          isStocked: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }]);
+      if (lotError) throw new Error(lotError.message);
+
+      product = {
+        id: newP.id,
+        lots: [{ id: newLotId, remainingQuantity: item.quantitySold, buyPrice: buyPrice, createdAt: new Date().toISOString() }]
+      };
+    } else {
+      product = products[0];
+    }
+
+    const lots = (product.lots || []).filter((l: any) => l.remainingQuantity > 0).sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+    let remainingToSell = item.quantitySold;
+    
+    // Safety check for stock, if deficit, auto-create missing stock.
+    let totalStock = lots.reduce((acc: number, l: any) => acc + l.remainingQuantity, 0);
+    if (totalStock < item.quantitySold) {
+      const missingStock = item.quantitySold - totalStock;
+      const lastBuyPrice = lots.length > 0 ? lots[lots.length - 1].buyPrice : (item.buyPrice || 0);
+
+      const newLotId = crypto.randomUUID();
+      await supabase
+        .from("StockLot")
+        .insert([{
+          id: newLotId,
+          productId: product.id,
+          initialQuantity: missingStock,
+          remainingQuantity: missingStock,
+          buyPrice: lastBuyPrice,
+          isStocked: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }]);
+
+      lots.push({ id: newLotId, remainingQuantity: missingStock, buyPrice: lastBuyPrice, createdAt: new Date().toISOString() });
+    }
+
+    // Process FIFO
+    for (const lot of lots) {
+      if (remainingToSell <= 0) break;
+
+      const qtyFromLot = Math.min(lot.remainingQuantity, remainingToSell);
+      const totalSalePrice = qtyFromLot * item.salePricePerUnit;
+      const totalProfit = totalSalePrice - (qtyFromLot * lot.buyPrice);
+
+      await supabase
+        .from("StockLot")
+        .update({ remainingQuantity: lot.remainingQuantity - qtyFromLot })
+        .eq("id", lot.id);
+
+      const { error: saleError } = await supabase
+        .from("Sale")
+        .insert([{
+          id: crypto.randomUUID(),
+          productId: product.id,
+          quantitySold: qtyFromLot,
+          totalSalePrice,
+          totalProfit,
+          createdAt: new Date().toISOString()
+        }]);
+
+      if (saleError) throw new Error(`Sale insert failed: ${saleError.message}`);
+      
+      remainingToSell -= qtyFromLot;
+    }
+  }
+
+  revalidatePath("/", "layout");
+  return { success: true };
 }

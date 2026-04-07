@@ -77,11 +77,12 @@ export function DataManagement() {
         skipEmptyLines: true,
         complete: async (results) => {
           try {
-            const rows = results.data as CSVExportRow[];
-            if (!rows[0]?.productName || rows[0]?.quantitySold !== undefined) {
+            const rawRows = results.data as any[];
+            if (!rawRows[0]?.productName || rawRows[0]?.quantitySold !== undefined) {
               setMessage({ type: "error", text: "Invalid format. Are you sure this is an Inventory CSV?" });
               return;
             }
+            const rows = rawRows as CSVExportRow[];
             const response = await importInventoryData(rows);
             setMessage({ type: "success", text: `Successfully imported ${response.count} inventory items.` });
           } catch (err: any) {
