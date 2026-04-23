@@ -91,10 +91,10 @@ export function SalesTable({ history, currentPage, pageSize }: SalesTableProps) 
                     <td className="px-6 py-4">
                       {sale.quantitySold}
                     </td>
-                    <td className="px-6 py-4 font-medium text-emerald-400">
+                    <td className="px-6 py-4 font-medium text-primary">
                       {formatter.format(sale.totalSalePrice)}
                     </td>
-                    <td className="px-6 py-4 font-medium text-primary text-right">
+                    <td className="px-6 py-4 font-medium text-emerald-400 text-right">
                       +{formatter.format(sale.totalProfit)}
                     </td>
                   </tr>

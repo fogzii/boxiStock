@@ -584,11 +584,17 @@ export async function getProfitChartData() {
     });
   }
 
-  // --- All Time: group by month across all data ---
+  // --- All Time: group by month or year depending on data span ---
+  const firstSaleDate = allSales.length > 0 ? new Date(allSales[0].createdAt) : now;
+  const yearsDiff = now.getFullYear() - firstSaleDate.getFullYear();
+  const groupByYear = yearsDiff >= 3;
+
   const allTimeMap = new Map<string, number>();
   for (const sale of allSales) {
     const sd = new Date(sale.createdAt);
-    const key = `${monthNames[sd.getMonth()]} ${sd.getFullYear().toString().slice(-2)}`;
+    const key = groupByYear 
+      ? sd.getFullYear().toString()
+      : `${monthNames[sd.getMonth()]} ${sd.getFullYear().toString().slice(-2)}`;
     allTimeMap.set(key, (allTimeMap.get(key) || 0) + (sale.totalProfit || 0));
   }
   const allTimeData = Array.from(allTimeMap.entries()).map(([name, total]) => ({

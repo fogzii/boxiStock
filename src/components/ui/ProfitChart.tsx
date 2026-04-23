@@ -23,8 +23,18 @@ const modeLabels: Record<Mode, { label: string; sublabel: string }> = {
 
 export function ProfitChart({ className, weeklyData, monthlyData, allTimeData }: ProfitChartProps) {
   const [mode, setMode] = React.useState<Mode>("weekly");
+  const [isCumulative, setIsCumulative] = React.useState(false);
 
-  const chartData = mode === "weekly" ? weeklyData : mode === "monthly" ? monthlyData : allTimeData;
+  const rawData = mode === "weekly" ? weeklyData : mode === "monthly" ? monthlyData : allTimeData;
+  
+  const chartData = React.useMemo(() => {
+    if (!isCumulative) return rawData;
+    let runningTotal = 0;
+    return rawData.map((point) => {
+      runningTotal += point.total;
+      return { ...point, total: runningTotal };
+    });
+  }, [rawData, isCumulative]);
 
   const formatter = new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -50,8 +60,21 @@ export function ProfitChart({ className, weeklyData, monthlyData, allTimeData }:
             </span>
           </div>
         </div>
-        <div className="flex bg-primary/5 p-1 rounded-lg border border-primary/10 w-full sm:w-auto">
-          {(Object.keys(modeLabels) as Mode[]).map((m) => (
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setIsCumulative(!isCumulative)}
+            className={cn(
+              "px-3 py-1.5 rounded-md text-xs font-bold transition-colors border cursor-pointer text-center",
+              isCumulative
+                ? "bg-primary border-primary text-primary-foreground shadow-sm"
+                : "bg-transparent border-primary/20 text-muted-foreground hover:text-foreground hover:bg-primary/5"
+            )}
+          >
+            Cumulative
+          </button>
+          <div className="flex bg-primary/5 p-1 rounded-lg border border-primary/10">
+            {(Object.keys(modeLabels) as Mode[]).map((m) => (
             <button
               key={m}
               type="button"
@@ -66,6 +89,7 @@ export function ProfitChart({ className, weeklyData, monthlyData, allTimeData }:
               {modeLabels[m].label}
             </button>
           ))}
+          </div>
         </div>
       </div>
 
