@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ComponentType } from "react";
+import type { ComponentType } from "react";
 import { cn } from "@/lib/utils";
 
 interface NavListItemProps {
@@ -35,9 +35,7 @@ export function NavListItem({
       <span
         className={cn(
           "font-semibold text-sm whitespace-nowrap transition-all duration-300",
-          isCollapsed
-            ? "md:opacity-0 md:w-0 overflow-hidden"
-            : "opacity-100",
+          isCollapsed ? "md:opacity-0 md:w-0 overflow-hidden" : "opacity-100",
         )}
       >
         {label}
@@ -45,4 +43,3 @@ export function NavListItem({
     </Link>
   );
 }
-

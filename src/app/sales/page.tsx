@@ -1,16 +1,13 @@
-import { StatCard } from "@/components/ui/StatCard";
-import { TrendingUp, Wallet, Package } from "lucide-react";
+import { Package, TrendingUp, Wallet } from "lucide-react";
 import { getSalesHistory, getSalesMetrics } from "@/actions/stock";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SalesTable } from "@/components/sales/salesTable";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { StatCard } from "@/components/ui/StatCard";
 
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string }>
+  searchParams: Promise<{ page?: string; search?: string }>;
 }) {
   const unresolvedParams = await searchParams;
   const currentPage = Number(unresolvedParams?.page) || 1;
@@ -19,12 +16,12 @@ export default async function SalesPage({
 
   const [metrics, history] = await Promise.all([
     getSalesMetrics(),
-    getSalesHistory(currentPage, pageSize, searchParamStr)
+    getSalesHistory(currentPage, pageSize, searchParamStr),
   ]);
 
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  const formatter = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
   });
 
   return (

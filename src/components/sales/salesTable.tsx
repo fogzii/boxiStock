@@ -1,9 +1,9 @@
 "use client";
 
-import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import * as React from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TablePagination } from "@/components/ui/TablePagination";
 
 interface SaleItem {
   id: string;
@@ -26,7 +26,16 @@ interface SalesTableProps {
   pageSize: number;
 }
 
-export function SalesTable({ history, currentPage, pageSize }: SalesTableProps) {
+const SKELETON_ROW_KEYS = Array.from(
+  { length: 10 },
+  (_, i) => `sales-skeleton-${i}`,
+);
+
+export function SalesTable({
+  history,
+  currentPage,
+  pageSize,
+}: SalesTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
 
@@ -36,9 +45,9 @@ export function SalesTable({ history, currentPage, pageSize }: SalesTableProps) 
     });
   };
 
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  const formatter = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
   });
 
   return (
@@ -57,8 +66,8 @@ export function SalesTable({ history, currentPage, pageSize }: SalesTableProps) 
             </thead>
             <tbody className="divide-y divide-border/50">
               {isPending ? (
-                Array.from({ length: 10 }).map((_, i) => (
-                  <tr key={i} className="hover:bg-muted/10 transition-colors">
+                SKELETON_ROW_KEYS.map((key) => (
+                  <tr key={key} className="hover:bg-muted/10 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Skeleton className="h-5 w-32" />
                     </td>
@@ -72,25 +81,31 @@ export function SalesTable({ history, currentPage, pageSize }: SalesTableProps) 
                       <Skeleton className="h-5 w-20" />
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex justify-end"><Skeleton className="h-5 w-20" /></div>
+                      <div className="flex justify-end">
+                        <Skeleton className="h-5 w-20" />
+                      </div>
                     </td>
                   </tr>
                 ))
               ) : history.sales.length > 0 ? (
                 history.sales.map((sale) => (
-                  <tr key={sale.id} className="hover:bg-muted/10 transition-colors">
+                  <tr
+                    key={sale.id}
+                    className="hover:bg-muted/10 transition-colors"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
-                      {new Date(sale.createdAt).toLocaleDateString(undefined, { 
-                        year: 'numeric', month: 'short', day: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
+                      {new Date(sale.createdAt).toLocaleDateString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
                       })}
                     </td>
                     <td className="px-6 py-4 font-medium text-foreground">
                       {sale.Product?.name || "Unknown Product"}
                     </td>
-                    <td className="px-6 py-4">
-                      {sale.quantitySold}
-                    </td>
+                    <td className="px-6 py-4">{sale.quantitySold}</td>
                     <td className="px-6 py-4 font-medium text-primary">
                       {formatter.format(sale.totalSalePrice)}
                     </td>
@@ -101,7 +116,10 @@ export function SalesTable({ history, currentPage, pageSize }: SalesTableProps) 
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">
+                  <td
+                    colSpan={5}
+                    className="px-6 py-8 text-center text-muted-foreground"
+                  >
                     No sales history found.
                   </td>
                 </tr>
@@ -111,30 +129,16 @@ export function SalesTable({ history, currentPage, pageSize }: SalesTableProps) 
         </div>
       </div>
 
-      {/* Pagination Controls */}
-      {history.totalPages > 1 && (
-        <div className="flex flex-row items-center justify-between mt-6 px-1">
-          <div className="text-sm text-muted-foreground">
-            Showing <span className="font-medium text-foreground">{(currentPage - 1) * pageSize + 1}</span> to <span className="font-medium text-foreground">{Math.min(currentPage * pageSize, history.totalCount)}</span> of <span className="font-medium text-foreground">{history.totalCount}</span> transactions
-          </div>
-          <div className="flex flex-row gap-2">
-            <button
-              onClick={() => handlePageChange(currentPage - 1)}
-              disabled={currentPage <= 1 || isPending}
-              className="inline-flex items-center justify-center h-8 px-3 text-[0.8rem] rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
-            >
-              <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-            </button>
-            <button
-              onClick={() => handlePageChange(currentPage + 1)}
-              disabled={currentPage >= history.totalPages || isPending}
-              className="inline-flex items-center justify-center h-8 px-3 text-[0.8rem] rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
-            >
-              Next <ChevronRight className="w-4 h-4 ml-1" />
-            </button>
-          </div>
-        </div>
-      )}
+      <TablePagination
+        currentPage={currentPage}
+        pageSize={pageSize}
+        totalCount={history.totalCount}
+        totalPages={history.totalPages}
+        unitLabel="transactions"
+        isPending={isPending}
+        onPageChange={handlePageChange}
+        className="mt-6 px-1"
+      />
     </>
   );
 }

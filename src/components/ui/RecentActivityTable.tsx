@@ -1,8 +1,17 @@
-import * as React from "react";
 import { cn } from "@/lib/utils";
 
+interface RecentActivity {
+  id: string;
+  itemName: string;
+  type: string;
+  units: number;
+  cost: string;
+  costColor?: string;
+  date: string;
+}
+
 // TODO: Replace with real Sale records in the future
-const recentActivities: any[] = [];
+const recentActivities: RecentActivity[] = [];
 
 export function RecentActivityTable({ className }: { className?: string }) {
   return (
@@ -15,6 +24,7 @@ export function RecentActivityTable({ className }: { className?: string }) {
       <div className="p-4 sm:p-6 border-b border-primary/10 flex justify-between items-center">
         <h4 className="text-lg font-bold text-foreground">Recent Activity</h4>
         <button
+          type="button"
           className="text-primary text-sm font-bold hover:underline"
           disabled
         >

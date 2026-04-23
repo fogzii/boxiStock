@@ -1,9 +1,9 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { createClient } from "@/lib/supabase/server";
 import {
   assertArrayWithLimit,
   assertBoolean,
@@ -12,8 +12,8 @@ import {
   cleanOptionalString,
   cleanRequiredString,
   escapeLikePattern,
-  parseOptionalDate,
   MAX_LOT_IDENTITY_LENGTH,
+  parseOptionalDate,
 } from "@/lib/validation";
 
 // Single shared bucket for all stock mutations (addProduct, sellLotUnits, …).
@@ -53,12 +53,14 @@ export async function getInventory() {
     throw new Error(error.message);
   }
 
+  type LotLike = { remainingQuantity: number; dateAcquired: string };
+
   // To match the Prisma orderBy on lots and hide 0-quantity
   const activeProducts = products?.filter((p) => {
-    p.lots = (p.lots || [])
-      .filter((l: any) => l.remainingQuantity > 0)
+    p.lots = ((p.lots as LotLike[] | null) || [])
+      .filter((l) => l.remainingQuantity > 0)
       .sort(
-        (a: any, b: any) =>
+        (a, b) =>
           new Date(a.dateAcquired).getTime() -
           new Date(b.dateAcquired).getTime(),
       );
@@ -105,9 +107,24 @@ export async function getInventoryPaginated(
 
   if (error) throw new Error(error.message);
 
+  type PaginatedLot = {
+    id: string;
+    initialQuantity: number;
+    remainingQuantity: number;
+    buyPrice: number;
+    isStocked: boolean;
+    dateAcquired: Date;
+    lotIdentity?: string | null;
+  };
+  type PaginatedProduct = {
+    id: string;
+    name: string;
+    lots: PaginatedLot[];
+  };
+
   const payload = (data ?? {}) as {
     totalCount?: number;
-    products?: any[];
+    products?: PaginatedProduct[];
   };
   const totalCount = payload.totalCount ?? 0;
   const products = payload.products ?? [];
@@ -851,7 +868,15 @@ export async function bulkAddSales(
       .eq("userId", userId)
       .ilike("name", `%${escapedName}%`);
 
-    let product;
+    type AILot = {
+      id: string;
+      remainingQuantity: number;
+      buyPrice: number;
+      createdAt: string;
+    };
+    type AIProduct = { id: string; lots: AILot[] | null };
+
+    let product: AIProduct;
 
     if (!products || products.length === 0) {
       const buyPrice = item.buyPrice || 0;
@@ -897,23 +922,20 @@ export async function bulkAddSales(
         ],
       };
     } else {
-      product = products[0];
+      product = products[0] as AIProduct;
     }
 
     const lots = (product.lots || [])
-      .filter((l: any) => l.remainingQuantity > 0)
+      .filter((l) => l.remainingQuantity > 0)
       .sort(
-        (a: any, b: any) =>
+        (a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       );
 
     let remainingToSell = item.quantitySold;
 
     // Safety check for stock, if deficit, auto-create missing stock.
-    const totalStock = lots.reduce(
-      (acc: number, l: any) => acc + l.remainingQuantity,
-      0,
-    );
+    const totalStock = lots.reduce((acc, l) => acc + l.remainingQuantity, 0);
     if (totalStock < item.quantitySold) {
       const missingStock = item.quantitySold - totalStock;
       const lastBuyPrice =

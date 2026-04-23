@@ -1,13 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import * as React from "react";
-import { Modal } from "@/components/ui/modal";
+import { deleteLotUnits } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { deleteLotUnits } from "@/actions/stock";
-import { useRouter } from "next/navigation";
-import { StockLot } from "./lotCard";
+import { Modal } from "@/components/ui/modal";
+import type { StockLot } from "./lotCard";
 
 interface DeleteUnitsModalProps {
   children: (open: () => void) => React.ReactNode;
@@ -15,11 +15,15 @@ interface DeleteUnitsModalProps {
   productName: string;
 }
 
-export function DeleteUnitsModal({ children, lot, productName }: DeleteUnitsModalProps) {
+export function DeleteUnitsModal({
+  children,
+  lot,
+  productName,
+}: DeleteUnitsModalProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const router = useRouter();
-  
+
   const lotRef = lot.lotIdentity || lot.id.slice(-6).toUpperCase();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -44,14 +48,24 @@ export function DeleteUnitsModal({ children, lot, productName }: DeleteUnitsModa
   return (
     <>
       {children(() => setIsOpen(true))}
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Delete Units">
+      <Modal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Delete Units"
+      >
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div>
-             <p className="text-sm text-foreground/80 leading-relaxed bg-destructive/10 p-3 rounded-lg border border-destructive/20">
-               You are about to delete units from <strong className="text-foreground">{productName}</strong> (Lot <strong className="text-foreground">{lotRef}</strong>).
-               <br />
-               There are currently <strong className="text-destructive">{lot.remainingQuantity}</strong> units available in stock.
-             </p>
+            <p className="text-sm text-foreground/80 leading-relaxed bg-destructive/10 p-3 rounded-lg border border-destructive/20">
+              You are about to delete units from{" "}
+              <strong className="text-foreground">{productName}</strong> (Lot{" "}
+              <strong className="text-foreground">{lotRef}</strong>).
+              <br />
+              There are currently{" "}
+              <strong className="text-destructive">
+                {lot.remainingQuantity}
+              </strong>{" "}
+              units available in stock.
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="quantity">Number of units to delete</Label>
@@ -66,9 +80,14 @@ export function DeleteUnitsModal({ children, lot, productName }: DeleteUnitsModa
               className="bg-background border-border/50"
             />
           </div>
-          
+
           <div className="flex justify-end gap-3 mt-2">
-            <Button type="button" variant="ghost" onClick={() => setIsOpen(false)} className="cursor-pointer">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsOpen(false)}
+              className="cursor-pointer"
+            >
               Cancel
             </Button>
             <Button

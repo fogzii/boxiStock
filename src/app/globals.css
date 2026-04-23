@@ -174,16 +174,18 @@ input[type="number"] {
   appearance: textfield; /* Standard */
 }
 
-/* React Date Picker UI Overrides */
+/* React Date Picker UI Overrides.
+   Vendor CSS is imported before globals.css in app/layout.tsx,
+   so these rules override by natural source order (no !important needed). */
 .react-date-picker__wrapper {
-  border: 0 !important;
+  border: 0;
   width: 100%;
   padding-left: 0.75rem;
   padding-right: 0.5rem;
 }
 
 .react-date-picker__inputGroup__input {
-  color: var(--foreground) !important;
+  color: var(--foreground);
   outline: none;
   background: transparent;
 }
@@ -193,32 +195,32 @@ input[type="number"] {
 }
 
 .react-date-picker__calendar-button svg {
-  stroke: var(--muted-foreground) !important;
-  color: var(--muted-foreground) !important;
+  stroke: var(--muted-foreground);
+  color: var(--muted-foreground);
 }
 
 .react-calendar {
-  background-color: var(--card) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: var(--radius-md) !important;
-  color: var(--foreground) !important;
-  font-family: inherit !important;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--foreground);
+  font-family: inherit;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   padding: 0.5rem;
-  width: 100% !important;
-  max-width: 280px !important;
-  font-size: 0.85rem !important;
+  width: 100%;
+  max-width: 280px;
+  font-size: 0.85rem;
 }
 
 .react-calendar__navigation button {
-  color: var(--foreground) !important;
+  color: var(--foreground);
   min-width: 44px;
   background: none;
 }
 
 .react-calendar__navigation button:enabled:hover,
 .react-calendar__navigation button:enabled:focus {
-  background-color: var(--muted) !important;
+  background-color: var(--muted);
   border-radius: var(--radius-sm);
 }
 
@@ -233,25 +235,25 @@ input[type="number"] {
   color: var(--foreground);
 }
 
-.react-calendar__tile:enabled:hover, 
+.react-calendar__tile:enabled:hover,
 .react-calendar__tile:enabled:focus {
-  background-color: var(--muted) !important;
+  background-color: var(--muted);
   border-radius: var(--radius-sm);
 }
 
 .react-calendar__tile--now {
-  background: transparent !important;
-  border: 1px solid var(--primary) !important;
-  color: var(--primary) !important;
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
   border-radius: var(--radius-sm);
 }
 
 .react-calendar__tile--active {
-  background: var(--primary) !important;
-  color: var(--primary-foreground) !important;
+  background: var(--primary);
+  color: var(--primary-foreground);
   border-radius: var(--radius-sm);
 }
 
 .react-calendar__month-view__days__day--weekend {
-  color: var(--foreground) !important;
+  color: var(--foreground);
 }

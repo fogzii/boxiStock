@@ -1,23 +1,23 @@
 "use client";
 
-import * as React from "react";
-import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
-  Package,
-  History,
-  Settings,
-  PlusCircle,
-  X,
   ChevronLeft,
   ChevronRight,
+  History,
+  LayoutDashboard,
+  Package,
+  PlusCircle,
+  Settings,
   Sparkles,
+  X,
 } from "lucide-react";
-import { SidebarProfile } from "@/components/layout/SidebarProfile";
-import { NavListItem } from "@/components/layout/NavListItem";
 import { usePathname } from "next/navigation";
-import { AddProductModal } from "@/components/stock/addProductModal";
+import * as React from "react";
+import { NavListItem } from "@/components/layout/NavListItem";
+import { SidebarProfile } from "@/components/layout/SidebarProfile";
 import { AIImportModal } from "@/components/stock/AIImportModal";
+import { AddProductModal } from "@/components/stock/addProductModal";
+import { cn } from "@/lib/utils";
 
 interface SidebarProps {
   isOpenMobile: boolean;
@@ -48,6 +48,7 @@ function SidebarActionButton({
 }: SidebarActionButtonProps) {
   return (
     <button
+      type="button"
       className={cn(
         "bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-bold flex items-center justify-center transition-all shadow-[0_0_20px_-5px_rgba(145,128,168,0.4)] hover:shadow-[0_10px_40px_-10px_rgba(145,128,168,0.6)] group cursor-pointer",
         isCollapsed ? "md:px-0" : "px-4 gap-2",
@@ -59,9 +60,7 @@ function SidebarActionButton({
       <span
         className={cn(
           "transition-all duration-300 whitespace-nowrap",
-          isCollapsed
-            ? "md:opacity-0 md:w-0 overflow-hidden"
-            : "opacity-100",
+          isCollapsed ? "md:opacity-0 md:w-0 overflow-hidden" : "opacity-100",
         )}
       >
         {label}
@@ -79,8 +78,10 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
     <>
       {/* Mobile Backdrop */}
       {isOpenMobile && (
-        <div
-          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm md:hidden"
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm md:hidden cursor-default"
           onClick={onCloseMobile}
         />
       )}
@@ -123,7 +124,9 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
 
             {/* Close button for mobile */}
             <button
+              type="button"
               onClick={onCloseMobile}
+              aria-label="Close menu"
               className="md:hidden p-2 -mr-2 text-foreground/70 hover:text-foreground"
             >
               <X className="w-5 h-5" />
@@ -195,7 +198,9 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
 
         {/* Desktop Collapse Toggle */}
         <button
+          type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           className="hidden md:flex absolute -right-3 top-20 w-6 h-6 bg-background border border-primary/20 rounded-full items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors z-50 shadow-sm"
         >
           {isCollapsed ? (

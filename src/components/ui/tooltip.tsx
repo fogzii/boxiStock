@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import type * as React from "react";
 
 interface TooltipProps {
   children: React.ReactNode;
@@ -12,9 +12,7 @@ export function CustomTooltip({ children, content }: TooltipProps) {
   return (
     <TooltipPrimitive.Provider delayDuration={100}>
       <TooltipPrimitive.Root>
-        <TooltipPrimitive.Trigger asChild>
-          {children}
-        </TooltipPrimitive.Trigger>
+        <TooltipPrimitive.Trigger asChild>{children}</TooltipPrimitive.Trigger>
         <TooltipPrimitive.Portal>
           <TooltipPrimitive.Content
             side="top"
@@ -23,7 +21,11 @@ export function CustomTooltip({ children, content }: TooltipProps) {
             className="z-50 overflow-hidden rounded-md bg-neutral-950 border border-border/50 px-3 py-1.5 text-xs font-semibold text-neutral-50 shadow-lg animate-in fade-in-0 tracking-wide zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-5"
           >
             {content}
-            <TooltipPrimitive.Arrow className="fill-neutral-950" width={11} height={5} />
+            <TooltipPrimitive.Arrow
+              className="fill-neutral-950"
+              width={11}
+              height={5}
+            />
           </TooltipPrimitive.Content>
         </TooltipPrimitive.Portal>
       </TooltipPrimitive.Root>

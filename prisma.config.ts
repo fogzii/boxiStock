@@ -1,6 +1,6 @@
-import { defineConfig } from "prisma/config";
+import path from "node:path";
 import dotenv from "dotenv";
-import path from "path";
+import { defineConfig } from "prisma/config";
 
 dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
 
@@ -10,6 +10,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DIRECT_URL"],
+    url: process.env.DIRECT_URL,
   },
 });

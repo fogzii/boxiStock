@@ -1,7 +1,11 @@
 "use server";
 
-import { GoogleGenerativeAI, Schema, SchemaType } from "@google/generative-ai";
 import { auth } from "@clerk/nextjs/server";
+import {
+  GoogleGenerativeAI,
+  type Schema,
+  SchemaType,
+} from "@google/generative-ai";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { cleanRequiredString, MAX_AI_PROMPT_LENGTH } from "@/lib/validation";
 
@@ -120,9 +124,11 @@ ${cleanPrompt}
     const result = await model.generateContent(finalPrompt);
     const text = result.response.text();
     return JSON.parse(text);
-  } catch (error: any) {
+  } catch (error) {
     console.error("AI Stock Parsing Error:", error);
-    throw new Error(error.message);
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to parse AI response.",
+    );
   }
 }
 
@@ -155,8 +161,10 @@ ${cleanPrompt}
     const result = await model.generateContent(finalPrompt);
     const text = result.response.text();
     return JSON.parse(text);
-  } catch (error: any) {
+  } catch (error) {
     console.error("AI Sales Parsing Error:", error);
-    throw new Error(error.message);
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to parse AI response.",
+    );
   }
 }

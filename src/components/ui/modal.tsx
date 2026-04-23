@@ -1,9 +1,9 @@
 "use client";
 
+import { X } from "lucide-react";
 import * as React from "react";
 import * as ReactDOM from "react-dom";
 import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
 
 interface ModalProps {
   isOpen: boolean;
@@ -40,8 +40,10 @@ export function Modal({
 
   return ReactDOM.createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div
-        className="fixed inset-0 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
+      <button
+        type="button"
+        aria-label="Close modal"
+        className="fixed inset-0 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 cursor-default"
         onClick={onClose}
       />
       <div
@@ -53,7 +55,9 @@ export function Modal({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-bold text-foreground">{title}</h2>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close modal"
             className="p-1.5 text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-primary/10"
           >
             <X className="w-5 h-5" />

@@ -1,7 +1,6 @@
 "use client";
 
 import { Menu } from "lucide-react";
-import * as React from "react";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -18,6 +17,7 @@ export function DashboardHeader({ onToggleSidebar, className }: HeaderProps) {
       )}
     >
       <button
+        type="button"
         onClick={onToggleSidebar}
         className="md:hidden p-2 -ml-2 text-foreground/70 hover:text-foreground transition-colors hover:bg-primary/10 rounded-lg"
         aria-label="Toggle Menu"

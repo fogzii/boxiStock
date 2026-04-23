@@ -1,21 +1,24 @@
+import { DatabaseZap } from "lucide-react";
 import { getInventoryPaginated, seedMockData } from "@/actions/stock";
 import { StockTable } from "@/components/stock/stockTable";
 import { Button } from "@/components/ui/button";
-import { DatabaseZap, ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
 import { SearchInput } from "@/components/ui/SearchInput";
 
 export default async function StockPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string }>
+  searchParams: Promise<{ page?: string; search?: string }>;
 }) {
   const resolvedParams = await searchParams;
   const currentPage = Number(resolvedParams?.page) || 1;
   const searchParamStr = resolvedParams?.search;
   const pageSize = 10;
 
-  const { products, totalCount, totalPages } = await getInventoryPaginated(currentPage, pageSize, searchParamStr);
+  const { products, totalCount, totalPages } = await getInventoryPaginated(
+    currentPage,
+    pageSize,
+    searchParamStr,
+  );
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 sm:px-8 pt-6 sm:pt-8">

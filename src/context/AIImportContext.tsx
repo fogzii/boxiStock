@@ -1,6 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useState } from "react";
+import type React from "react";
+import { createContext, useContext, useState } from "react";
 
 export type ImportType = "stock" | "sales";
 
@@ -32,7 +33,9 @@ interface AIImportContextType {
   setImportData: (data: AIImportData | null) => void;
 }
 
-const AIImportContext = createContext<AIImportContextType | undefined>(undefined);
+const AIImportContext = createContext<AIImportContextType | undefined>(
+  undefined,
+);
 
 export function AIImportProvider({ children }: { children: React.ReactNode }) {
   const [importData, setImportData] = useState<AIImportData | null>(null);

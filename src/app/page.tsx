@@ -32,7 +32,10 @@ export default async function Home() {
             </Link>
           ) : (
             <SignUpButton mode="modal">
-              <button className="group relative bg-primary hover:bg-primary/90 text-white px-12 py-6 rounded-2xl font-black text-2xl md:text-3xl transition-all shadow-glow-primary hover:scale-105 active:scale-95 flex items-center gap-4 cursor-pointer">
+              <button
+                type="button"
+                className="group relative bg-primary hover:bg-primary/90 text-white px-12 py-6 rounded-2xl font-black text-2xl md:text-3xl transition-all shadow-glow-primary hover:scale-105 active:scale-95 flex items-center gap-4 cursor-pointer"
+              >
                 Get Started Now
                 <span className="font-bold text-3xl">→</span>
               </button>

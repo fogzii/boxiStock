@@ -1,16 +1,14 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import * as React from "react";
-import { Modal } from "@/components/ui/modal";
+import DatePicker from "react-date-picker";
+import { addProduct } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { addProduct } from "@/actions/stock";
-import { useRouter } from "next/navigation";
+import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
-import DatePicker from 'react-date-picker';
-import 'react-date-picker/dist/DatePicker.css';
-import 'react-calendar/dist/Calendar.css';
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
@@ -45,7 +43,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
         buyPrice,
         isStocked,
         dateAcquired: dateReceived as Date,
-        lotIdentity
+        lotIdentity,
       });
       setIsOpen(false);
       router.refresh();
@@ -64,16 +62,22 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
       {typeof children === "function" ? (
         children(() => setIsOpen(true))
       ) : (
-        <div onClick={() => setIsOpen(true)} className="inline-block cursor-pointer">
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className="inline-block cursor-pointer bg-transparent p-0 border-0 text-left"
+        >
           {trigger || children}
-        </div>
+        </button>
       )}
       <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Add Stock">
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div className="space-y-5">
             {/* Product Name */}
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-muted-foreground">Product Name</Label>
+              <Label htmlFor="name" className="text-muted-foreground">
+                Product Name
+              </Label>
               <Input
                 id="name"
                 name="name"
@@ -87,7 +91,9 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Quantity */}
               <div className="space-y-2">
-                <Label htmlFor="quantity" className="text-muted-foreground">Initial Lot Quantity</Label>
+                <Label htmlFor="quantity" className="text-muted-foreground">
+                  Initial Lot Quantity
+                </Label>
                 <Input
                   id="quantity"
                   name="quantity"
@@ -100,9 +106,13 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
               </div>
               {/* Unit Price */}
               <div className="space-y-2">
-                <Label htmlFor="buyPrice" className="text-muted-foreground">Unit Buy Price</Label>
+                <Label htmlFor="buyPrice" className="text-muted-foreground">
+                  Unit Buy Price
+                </Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                    $
+                  </span>
                   <Input
                     id="buyPrice"
                     name="buyPrice"
@@ -133,7 +143,9 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
 
               {/* Lot Identity */}
               <div className="space-y-2">
-                <Label htmlFor="lotIdentity" className="text-muted-foreground">Lot Identity</Label>
+                <Label htmlFor="lotIdentity" className="text-muted-foreground">
+                  Lot Identity
+                </Label>
                 <Input
                   id="lotIdentity"
                   name="lotIdentity"
@@ -155,7 +167,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
                     "flex-1 py-1.5 text-sm font-medium rounded-md transition-all cursor-pointer",
                     isStocked
                       ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   In Hand
@@ -167,7 +179,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
                     "flex-1 py-1.5 text-sm font-medium rounded-md transition-all cursor-pointer",
                     !isStocked
                       ? "bg-primary text-primary-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   Pending

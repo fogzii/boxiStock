@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Sidebar } from "@/components/layout/Sidebar";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import { Sidebar } from "@/components/layout/Sidebar";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);

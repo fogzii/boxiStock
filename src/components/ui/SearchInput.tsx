@@ -1,9 +1,9 @@
 "use client";
 
-import * as React from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import * as React from "react";
+import { Input } from "@/components/ui/input";
 
 interface SearchInputProps {
   placeholder?: string;
@@ -16,7 +16,9 @@ export function SearchInput({ placeholder = "Search..." }: SearchInputProps) {
   const [isPending, startTransition] = React.useTransition();
 
   // Local state for immediate typing feedback
-  const [searchTerm, setSearchTerm] = React.useState(searchParams.get("search") || "");
+  const [searchTerm, setSearchTerm] = React.useState(
+    searchParams.get("search") || "",
+  );
 
   // Update URL 300ms after user stops typing
   React.useEffect(() => {
@@ -32,7 +34,7 @@ export function SearchInput({ placeholder = "Search..." }: SearchInputProps) {
           params.delete("search");
         }
         // Assuming page is reset when searching
-        params.delete("page"); 
+        params.delete("page");
         router.push(`${pathname}?${params.toString()}`);
       });
     }, 300);
@@ -43,7 +45,9 @@ export function SearchInput({ placeholder = "Search..." }: SearchInputProps) {
   return (
     <div className="relative w-full max-w-sm">
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-        <Search className={`w-4 h-4 transition-colors ${isPending ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
+        <Search
+          className={`w-4 h-4 transition-colors ${isPending ? "text-primary animate-pulse" : "text-muted-foreground"}`}
+        />
       </div>
       <Input
         type="text"

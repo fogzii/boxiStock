@@ -1,7 +1,7 @@
-import { StatCard } from "@/components/ui/StatCard";
-import { ProfitChart } from "@/components/ui/ProfitChart";
-import { Wallet, Package, Percent } from "lucide-react";
+import { Package, Percent, Wallet } from "lucide-react";
 import { getDashboardMetrics, getProfitChartData } from "@/actions/stock";
+import { ProfitChart } from "@/components/ui/ProfitChart";
+import { StatCard } from "@/components/ui/StatCard";
 
 export default async function DashboardPage() {
   const [metrics, chartData] = await Promise.all([
@@ -9,9 +9,9 @@ export default async function DashboardPage() {
     getProfitChartData(),
   ]);
 
-  const formatter = new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
+  const formatter = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
   });
 
   return (
@@ -49,7 +49,6 @@ export default async function DashboardPage() {
           allTimeData={chartData.allTimeData}
         />
       </div>
-
     </div>
   );
 }

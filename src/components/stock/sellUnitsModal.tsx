@@ -1,13 +1,13 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import * as React from "react";
-import { Modal } from "@/components/ui/modal";
+import { sellLotUnits } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { sellLotUnits } from "@/actions/stock";
-import { useRouter } from "next/navigation";
-import { StockLot } from "./lotCard";
+import { Modal } from "@/components/ui/modal";
+import type { StockLot } from "./lotCard";
 
 interface SellUnitsModalProps {
   children: (open: () => void) => React.ReactNode;
@@ -15,11 +15,15 @@ interface SellUnitsModalProps {
   productName: string;
 }
 
-export function SellUnitsModal({ children, lot, productName }: SellUnitsModalProps) {
+export function SellUnitsModal({
+  children,
+  lot,
+  productName,
+}: SellUnitsModalProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const router = useRouter();
-  
+
   const lotRef = lot.lotIdentity || lot.id.slice(-6).toUpperCase();
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -45,14 +49,22 @@ export function SellUnitsModal({ children, lot, productName }: SellUnitsModalPro
   return (
     <>
       {children(() => setIsOpen(true))}
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Sell Units">
+      <Modal
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+        title="Sell Units"
+      >
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div>
-             <p className="text-sm text-foreground/80 leading-relaxed bg-primary/10 p-3 rounded-lg border border-primary/20">
-               You are selling units from <strong className="text-foreground">{productName}</strong> (Lot <strong className="text-foreground">{lotRef}</strong>).
-               <br />
-               There are currently <strong className="text-primary">{lot.remainingQuantity}</strong> units available in stock.
-             </p>
+            <p className="text-sm text-foreground/80 leading-relaxed bg-primary/10 p-3 rounded-lg border border-primary/20">
+              You are selling units from{" "}
+              <strong className="text-foreground">{productName}</strong> (Lot{" "}
+              <strong className="text-foreground">{lotRef}</strong>).
+              <br />
+              There are currently{" "}
+              <strong className="text-primary">{lot.remainingQuantity}</strong>{" "}
+              units available in stock.
+            </p>
           </div>
           <div className="flex flex-col md:flex-row gap-4">
             <div className="space-y-2 flex-1">
@@ -82,9 +94,14 @@ export function SellUnitsModal({ children, lot, productName }: SellUnitsModalPro
               />
             </div>
           </div>
-          
+
           <div className="flex justify-end gap-3 mt-2">
-            <Button type="button" variant="ghost" onClick={() => setIsOpen(false)} className="cursor-pointer">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setIsOpen(false)}
+              className="cursor-pointer"
+            >
               Cancel
             </Button>
             <Button

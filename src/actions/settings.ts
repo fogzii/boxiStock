@@ -1,17 +1,17 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { createClient } from "@/lib/supabase/server";
 import {
   assertArrayWithLimit,
   assertNonNegativeNumber,
   assertPositiveInt,
   cleanOptionalString,
   cleanRequiredString,
-  parseOptionalDate,
   MAX_LOT_IDENTITY_LENGTH,
+  parseOptionalDate,
 } from "@/lib/validation";
 
 export interface CSVExportRow {
@@ -190,18 +190,24 @@ export async function importInventoryData(rows: CSVExportRow[]) {
     }
   }
 
-  const lotsToInsert = validated.map((row) => ({
-    id: crypto.randomUUID(),
-    productId: productMap.get(row.productName.toLowerCase())!,
-    initialQuantity: row.initialQuantity,
-    remainingQuantity: row.remainingQuantity,
-    buyPrice: row.buyPrice,
-    isStocked: row.isStocked,
-    dateAcquired: row.dateAcquired.toISOString(),
-    lotIdentity: row.lotIdentity ?? null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  }));
+  const lotsToInsert = validated.map((row) => {
+    const productId = productMap.get(row.productName.toLowerCase());
+    if (!productId) {
+      throw new Error(`Missing product id for "${row.productName}".`);
+    }
+    return {
+      id: crypto.randomUUID(),
+      productId,
+      initialQuantity: row.initialQuantity,
+      remainingQuantity: row.remainingQuantity,
+      buyPrice: row.buyPrice,
+      isStocked: row.isStocked,
+      dateAcquired: row.dateAcquired.toISOString(),
+      lotIdentity: row.lotIdentity ?? null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  });
 
   const { error: lotError } = await supabase
     .from("StockLot")
@@ -293,14 +299,20 @@ export async function importSalesData(rows: CSVSalesExportRow[]) {
     }
   }
 
-  const salesToInsert = validated.map((row) => ({
-    id: crypto.randomUUID(),
-    productId: productMap.get(row.productName.toLowerCase())!,
-    quantitySold: row.quantitySold,
-    totalSalePrice: row.totalSalePrice,
-    totalProfit: row.totalProfit,
-    createdAt: row.createdAt.toISOString(),
-  }));
+  const salesToInsert = validated.map((row) => {
+    const productId = productMap.get(row.productName.toLowerCase());
+    if (!productId) {
+      throw new Error(`Missing product id for "${row.productName}".`);
+    }
+    return {
+      id: crypto.randomUUID(),
+      productId,
+      quantitySold: row.quantitySold,
+      totalSalePrice: row.totalSalePrice,
+      totalProfit: row.totalProfit,
+      createdAt: row.createdAt.toISOString(),
+    };
+  });
 
   const { error: saleError } = await supabase
     .from("Sale")

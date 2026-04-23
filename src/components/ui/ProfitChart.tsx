@@ -51,14 +51,25 @@ const modeLabels: Record<Mode, { label: string; sublabel: string }> = {
   alltime: { label: "All Time", sublabel: "Entire History" },
 };
 
-export function ProfitChart({ className, weeklyData, monthlyData, allTimeData }: ProfitChartProps) {
+export function ProfitChart({
+  className,
+  weeklyData,
+  monthlyData,
+  allTimeData,
+}: ProfitChartProps) {
   const [mode, setMode] = React.useState<Mode>("weekly");
   const [isCumulative, setIsCumulative] = React.useState(false);
-  const [chartContainerRef, { width, height }] = useElementSize<HTMLDivElement>();
+  const [chartContainerRef, { width, height }] =
+    useElementSize<HTMLDivElement>();
   const hasSize = width > 0 && height > 0;
 
-  const rawData = mode === "weekly" ? weeklyData : mode === "monthly" ? monthlyData : allTimeData;
-  
+  const rawData =
+    mode === "weekly"
+      ? weeklyData
+      : mode === "monthly"
+        ? monthlyData
+        : allTimeData;
+
   const chartData = React.useMemo(() => {
     if (!isCumulative) return rawData;
     let runningTotal = 0;
@@ -100,27 +111,27 @@ export function ProfitChart({ className, weeklyData, monthlyData, allTimeData }:
               "px-3 py-1.5 rounded-md text-xs font-bold transition-colors border cursor-pointer text-center",
               isCumulative
                 ? "bg-primary border-primary text-primary-foreground shadow-sm"
-                : "bg-transparent border-primary/20 text-muted-foreground hover:text-foreground hover:bg-primary/5"
+                : "bg-transparent border-primary/20 text-muted-foreground hover:text-foreground hover:bg-primary/5",
             )}
           >
             Cumulative
           </button>
           <div className="flex bg-primary/5 p-1 rounded-lg border border-primary/10">
             {(Object.keys(modeLabels) as Mode[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setMode(m)}
-              className={cn(
-                "flex-1 px-4 py-1.5 whitespace-nowrap rounded-md text-xs font-bold transition-colors cursor-pointer",
-                mode === m
-                  ? "bg-primary text-background shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {modeLabels[m].label}
-            </button>
-          ))}
+              <button
+                key={m}
+                type="button"
+                onClick={() => setMode(m)}
+                className={cn(
+                  "flex-1 px-4 py-1.5 whitespace-nowrap rounded-md text-xs font-bold transition-colors cursor-pointer",
+                  mode === m
+                    ? "bg-primary text-background shadow-sm"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {modeLabels[m].label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -154,15 +165,19 @@ export function ProfitChart({ className, weeklyData, monthlyData, allTimeData }:
               interval="preserveStartEnd"
             />
             <Tooltip
-              content={({ active, payload }: any) => {
-                if (active && payload && payload.length) {
+              content={({ active, payload }) => {
+                if (active && payload?.length) {
+                  const first = payload[0];
+                  const name = (first.payload as { name?: string } | undefined)
+                    ?.name;
+                  const value = Number(first.value ?? 0);
                   return (
                     <div className="bg-background border border-border p-3 rounded-xl shadow-xl">
                       <p className="text-sm font-bold text-foreground">
-                        {payload[0].payload.name}
+                        {name}
                       </p>
                       <p className="text-sm text-primary font-bold">
-                        {formatter.format(payload[0].value)}
+                        {formatter.format(value)}
                       </p>
                     </div>
                   );

@@ -1,17 +1,24 @@
 "use client";
 
-import { useState, useRef } from "react";
 import {
+  AlertTriangle,
+  BadgeDollarSign,
+  FileDown,
+  Loader2,
+  PackagePlus,
+  Trash2,
+} from "lucide-react";
+import Papa from "papaparse";
+import { useRef, useState } from "react";
+import {
+  type CSVExportRow,
+  type CSVSalesExportRow,
+  deleteAllUserData,
   exportInventoryData,
   exportSalesData,
   importInventoryData,
   importSalesData,
-  deleteAllUserData,
-  CSVExportRow,
-  CSVSalesExportRow
 } from "@/actions/settings";
-import Papa from "papaparse";
-import { Loader2, FileDown, PackagePlus, BadgeDollarSign, Trash2, AlertTriangle } from "lucide-react";
 
 export function DataManagement() {
   const [isExporting, setIsExporting] = useState(false);
@@ -19,12 +26,15 @@ export function DataManagement() {
   const [isImportingSales, setIsImportingSales] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const invInputRef = useRef<HTMLInputElement>(null);
   const salesInputRef = useRef<HTMLInputElement>(null);
 
-  const downloadCSV = (data: any[], filename: string) => {
+  const downloadCSV = <T extends object>(data: T[], filename: string) => {
     if (!data || data.length === 0) return false;
     const csvString = Papa.unparse(data, { header: true });
     const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
@@ -48,23 +58,40 @@ export function DataManagement() {
       const salesData = await exportSalesData();
 
       const dateStr = new Date().toISOString().split("T")[0];
-      const invSuccess = downloadCSV(invData, `inventory_export_${dateStr}.csv`);
-      const salesSuccess = downloadCSV(salesData, `sales_export_${dateStr}.csv`);
+      const invSuccess = downloadCSV(
+        invData,
+        `inventory_export_${dateStr}.csv`,
+      );
+      const salesSuccess = downloadCSV(
+        salesData,
+        `sales_export_${dateStr}.csv`,
+      );
 
       if (!invSuccess && !salesSuccess) {
-        setMessage({ type: "error", text: "No data found to export in either Inventory or Sales." });
+        setMessage({
+          type: "error",
+          text: "No data found to export in either Inventory or Sales.",
+        });
       } else {
-        setMessage({ type: "success", text: "Export completed successfully. (Check your downloads for multiple files if both contained data)" });
+        setMessage({
+          type: "success",
+          text: "Export completed successfully. (Check your downloads for multiple files if both contained data)",
+        });
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
-      setMessage({ type: "error", text: error.message || "Failed to export data." });
+      setMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Failed to export data.",
+      });
     } finally {
       setIsExporting(false);
     }
   };
 
-  const handleImportInventory = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportInventory = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -77,16 +104,31 @@ export function DataManagement() {
         skipEmptyLines: true,
         complete: async (results) => {
           try {
-            const rawRows = results.data as any[];
-            if (!rawRows[0]?.productName || rawRows[0]?.quantitySold !== undefined) {
-              setMessage({ type: "error", text: "Invalid format. Are you sure this is an Inventory CSV?" });
+            const rawRows = results.data as Array<Record<string, unknown>>;
+            if (
+              !rawRows[0]?.productName ||
+              rawRows[0]?.quantitySold !== undefined
+            ) {
+              setMessage({
+                type: "error",
+                text: "Invalid format. Are you sure this is an Inventory CSV?",
+              });
               return;
             }
-            const rows = rawRows as CSVExportRow[];
+            const rows = rawRows as unknown as CSVExportRow[];
             const response = await importInventoryData(rows);
-            setMessage({ type: "success", text: `Successfully imported ${response.count} inventory items.` });
-          } catch (err: any) {
-            setMessage({ type: "error", text: err.message || "Failed to process inventory import." });
+            setMessage({
+              type: "success",
+              text: `Successfully imported ${response.count} inventory items.`,
+            });
+          } catch (err) {
+            setMessage({
+              type: "error",
+              text:
+                err instanceof Error
+                  ? err.message
+                  : "Failed to process inventory import.",
+            });
           } finally {
             setIsImportingInv(false);
             if (invInputRef.current) invInputRef.current.value = "";
@@ -96,10 +138,13 @@ export function DataManagement() {
           setMessage({ type: "error", text: "Failed to parse CSV file." });
           setIsImportingInv(false);
           if (invInputRef.current) invInputRef.current.value = "";
-        }
+        },
       });
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.message || "Failed to read file." });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Failed to read file.",
+      });
       setIsImportingInv(false);
       if (invInputRef.current) invInputRef.current.value = "";
     }
@@ -120,13 +165,25 @@ export function DataManagement() {
           try {
             const rows = results.data as CSVSalesExportRow[];
             if (!rows[0]?.productName || rows[0]?.quantitySold === undefined) {
-              setMessage({ type: "error", text: "Invalid format. Are you sure this is a Sales CSV?" });
+              setMessage({
+                type: "error",
+                text: "Invalid format. Are you sure this is a Sales CSV?",
+              });
               return;
             }
             const response = await importSalesData(rows);
-            setMessage({ type: "success", text: `Successfully imported ${response.count} sales records.` });
-          } catch (err: any) {
-            setMessage({ type: "error", text: err.message || "Failed to process sales import." });
+            setMessage({
+              type: "success",
+              text: `Successfully imported ${response.count} sales records.`,
+            });
+          } catch (err) {
+            setMessage({
+              type: "error",
+              text:
+                err instanceof Error
+                  ? err.message
+                  : "Failed to process sales import.",
+            });
           } finally {
             setIsImportingSales(false);
             if (salesInputRef.current) salesInputRef.current.value = "";
@@ -136,10 +193,13 @@ export function DataManagement() {
           setMessage({ type: "error", text: "Failed to parse CSV file." });
           setIsImportingSales(false);
           if (salesInputRef.current) salesInputRef.current.value = "";
-        }
+        },
       });
-    } catch (error: any) {
-      setMessage({ type: "error", text: error.message || "Failed to read file." });
+    } catch (error) {
+      setMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Failed to read file.",
+      });
       setIsImportingSales(false);
       if (salesInputRef.current) salesInputRef.current.value = "";
     }
@@ -152,15 +212,19 @@ export function DataManagement() {
       await deleteAllUserData();
       setMessage({ type: "success", text: "All data successfully deleted." });
       setIsModalOpen(false);
-    } catch (error: any) {
+    } catch (error) {
       console.error(error);
-      setMessage({ type: "error", text: error.message || "Failed to delete data." });
+      setMessage({
+        type: "error",
+        text: error instanceof Error ? error.message : "Failed to delete data.",
+      });
     } finally {
       setIsDeleting(false);
     }
   };
 
-  const isAnyLoading = isExporting || isImportingInv || isImportingSales || isDeleting;
+  const isAnyLoading =
+    isExporting || isImportingInv || isImportingSales || isDeleting;
 
   return (
     <>
@@ -172,11 +236,13 @@ export function DataManagement() {
             <div>
               <h2 className="text-xl font-bold">Data Management</h2>
               <p className="text-muted-foreground text-sm mt-1">
-                Export your database to retain backups. Upload edited CSV files to patch your database.
+                Export your database to retain backups. Upload edited CSV files
+                to patch your database.
               </p>
             </div>
             {/* Delete All Data Button Next to Title */}
             <button
+              type="button"
               onClick={() => setIsModalOpen(true)}
               className="px-4 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive text-sm font-semibold rounded-xl flex items-center gap-2 transition-colors shrink-0 cursor-pointer"
             >
@@ -186,7 +252,9 @@ export function DataManagement() {
           </div>
 
           {message && (
-            <div className={`p-4 rounded-xl text-sm ${message.type === "error" ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"}`}>
+            <div
+              className={`p-4 rounded-xl text-sm ${message.type === "error" ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"}`}
+            >
               {message.text}
             </div>
           )}
@@ -194,17 +262,36 @@ export function DataManagement() {
           <div className="flex flex-col gap-4 mt-auto pt-2">
             {/* Main Export */}
             <button
+              type="button"
               onClick={handleExport}
               disabled={isAnyLoading}
               className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-[0_0_20px_-5px_rgba(145,128,168,0.4)] hover:shadow-[0_10px_40px_-10px_rgba(145,128,168,0.6)] disabled:opacity-50"
             >
-              {isExporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileDown className="w-5 h-5" />}
+              {isExporting ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <FileDown className="w-5 h-5" />
+              )}
               Export All Data
             </button>
 
             {/* Inputs */}
-            <input type="file" accept=".csv" ref={invInputRef} onChange={handleImportInventory} className="hidden" id="import-inv-csv" />
-            <input type="file" accept=".csv" ref={salesInputRef} onChange={handleImportSales} className="hidden" id="import-sales-csv" />
+            <input
+              type="file"
+              accept=".csv"
+              ref={invInputRef}
+              onChange={handleImportInventory}
+              className="hidden"
+              id="import-inv-csv"
+            />
+            <input
+              type="file"
+              accept=".csv"
+              ref={salesInputRef}
+              onChange={handleImportSales}
+              className="hidden"
+              id="import-sales-csv"
+            />
 
             {/* Import Controls */}
             <div className="flex flex-col sm:flex-row gap-4 mt-2">
@@ -212,7 +299,11 @@ export function DataManagement() {
                 htmlFor="import-inv-csv"
                 className={`flex-1 bg-muted hover:bg-muted/80 text-foreground border border-border/50 h-11 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${isAnyLoading ? "opacity-50 pointer-events-none" : ""}`}
               >
-                {isImportingInv ? <Loader2 className="w-4 h-4 animate-spin" /> : <PackagePlus className="w-4 h-4" />}
+                {isImportingInv ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <PackagePlus className="w-4 h-4" />
+                )}
                 Import Inventory
               </label>
 
@@ -220,7 +311,11 @@ export function DataManagement() {
                 htmlFor="import-sales-csv"
                 className={`flex-1 bg-muted hover:bg-muted/80 text-foreground border border-border/50 h-11 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${isAnyLoading ? "opacity-50 pointer-events-none" : ""}`}
               >
-                {isImportingSales ? <Loader2 className="w-4 h-4 animate-spin" /> : <BadgeDollarSign className="w-4 h-4" />}
+                {isImportingSales ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <BadgeDollarSign className="w-4 h-4" />
+                )}
                 Import Sales
               </label>
             </div>
@@ -238,11 +333,17 @@ export function DataManagement() {
             </div>
 
             <p className="text-muted-foreground mb-6">
-              This action represents a destructive operation. All of your <strong className="text-foreground">inventory products, lots, and sales history</strong> will be permanently deleted. This cannot be undone. Are you sure you want to proceed?
+              This action represents a destructive operation. All of your{" "}
+              <strong className="text-foreground">
+                inventory products, lots, and sales history
+              </strong>{" "}
+              will be permanently deleted. This cannot be undone. Are you sure
+              you want to proceed?
             </p>
 
             <div className="flex gap-4 w-full">
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
                 disabled={isDeleting}
                 className="flex-1 px-4 py-2.5 rounded-xl font-semibold bg-muted hover:bg-muted/80 text-foreground transition-colors disabled:opacity-50 cursor-pointer"
@@ -251,11 +352,16 @@ export function DataManagement() {
               </button>
 
               <button
+                type="button"
                 onClick={handleDeleteAll}
                 disabled={isDeleting}
                 className="flex-1 px-4 py-2.5 rounded-xl font-semibold bg-destructive hover:bg-destructive/90 text-destructive-foreground transition-all shadow-[0_0_20px_-5px_rgba(239,68,68,0.4)] disabled:opacity-50 flex items-center justify-center cursor-pointer"
               >
-                {isDeleting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Yes, Delete It All"}
+                {isDeleting ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  "Yes, Delete It All"
+                )}
               </button>
             </div>
           </div>

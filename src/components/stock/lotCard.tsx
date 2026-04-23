@@ -1,13 +1,12 @@
 "use client";
 
-import * as React from "react";
 import { format } from "date-fns";
+import { PackageCheck, ShoppingCart, Tag, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CustomTooltip } from "@/components/ui/tooltip";
-import { Tag, PackageCheck, Trash2, ShoppingCart } from "lucide-react";
-import { SellUnitsModal } from "./sellUnitsModal";
 import { DeleteUnitsModal } from "./deleteUnitsModal";
+import { SellUnitsModal } from "./sellUnitsModal";
 
 export type StockLot = {
   id: string;
@@ -31,7 +30,7 @@ export function LotCard({
   lot,
   productName,
   onMarkStocked,
-  onDelete,
+  onDelete: _onDelete,
   isUpdating,
 }: LotCardProps) {
   const lotRef = lot.lotIdentity || lot.id.slice(-6).toUpperCase();
@@ -135,4 +134,3 @@ export function LotCard({
     </div>
   );
 }
-

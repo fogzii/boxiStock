@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
+// Vendor CSS must be imported BEFORE globals.css so our overrides win
+// by natural source order, without needing !important.
+import "react-date-picker/dist/DatePicker.css";
+import "react-calendar/dist/Calendar.css";
 import "./globals.css";
-import { cn } from "@/lib/utils";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Manrope } from "next/font/google";
 import { AIImportProvider } from "@/context/AIImportContext";
+import { cn } from "@/lib/utils";
 
 const manrope = Manrope({
   subsets: ["latin"],
