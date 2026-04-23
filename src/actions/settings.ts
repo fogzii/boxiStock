@@ -3,6 +3,16 @@
 import { createClient } from "@/lib/supabase/server";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  assertArrayWithLimit,
+  assertNonNegativeNumber,
+  assertPositiveInt,
+  cleanOptionalString,
+  cleanRequiredString,
+  parseOptionalDate,
+  MAX_LOT_IDENTITY_LENGTH,
+} from "@/lib/validation";
 
 export interface CSVExportRow {
   productName: string;
@@ -25,6 +35,11 @@ export interface CSVSalesExportRow {
 export async function exportInventoryData(): Promise<CSVExportRow[]> {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await enforceRateLimit(
+    `settings:export:${userId}`,
+    RATE_LIMITS.export,
+    "export",
+  );
 
   const supabase = await createClient();
 
@@ -51,6 +66,11 @@ export async function exportInventoryData(): Promise<CSVExportRow[]> {
 export async function exportSalesData(): Promise<CSVSalesExportRow[]> {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await enforceRateLimit(
+    `settings:export:${userId}`,
+    RATE_LIMITS.export,
+    "export",
+  );
 
   const supabase = await createClient();
 
@@ -75,12 +95,62 @@ export async function exportSalesData(): Promise<CSVSalesExportRow[]> {
 export async function importInventoryData(rows: CSVExportRow[]) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await enforceRateLimit(
+    `settings:import:${userId}`,
+    RATE_LIMITS.bulk,
+    "import",
+  );
+
+  if (!rows || rows.length === 0) return { success: true, count: 0 };
+  assertArrayWithLimit(rows, "rows");
+
+  // Validate / normalize every row BEFORE touching the database so a bad row
+  // doesn't leave us with half-imported data.
+  const validated = rows.map((row, idx) => {
+    const productName = cleanRequiredString(
+      row?.productName,
+      `rows[${idx}].productName`,
+    );
+    const initialQuantity = Number(row?.initialQuantity);
+    const remainingQuantity = Number(row?.remainingQuantity);
+    const buyPrice = Number(row?.buyPrice);
+    assertPositiveInt(initialQuantity, `rows[${idx}].initialQuantity`);
+    if (
+      !Number.isInteger(remainingQuantity) ||
+      remainingQuantity < 0 ||
+      remainingQuantity > initialQuantity
+    ) {
+      throw new Error(
+        `Invalid rows[${idx}].remainingQuantity: must be 0..initialQuantity.`,
+      );
+    }
+    assertNonNegativeNumber(buyPrice, `rows[${idx}].buyPrice`);
+    const isStocked = String(row?.isStocked).toLowerCase() === "true";
+    const dateAcquired = parseOptionalDate(
+      row?.dateAcquired,
+      `rows[${idx}].dateAcquired`,
+    );
+    const lotIdentity = cleanOptionalString(
+      row?.lotIdentity,
+      `rows[${idx}].lotIdentity`,
+      { maxLength: MAX_LOT_IDENTITY_LENGTH },
+    );
+    return {
+      productName,
+      initialQuantity,
+      remainingQuantity,
+      buyPrice,
+      isStocked,
+      dateAcquired: dateAcquired ?? new Date(),
+      lotIdentity,
+    };
+  });
 
   const supabase = await createClient();
 
-  if (!rows || rows.length === 0) return { success: true, count: 0 };
-
-  const distinctProductNames = Array.from(new Set(rows.map((r) => r.productName)));
+  const distinctProductNames = Array.from(
+    new Set(validated.map((r) => r.productName)),
+  );
 
   const { data: existingProducts, error: pError } = await supabase
     .from("Product")
@@ -96,7 +166,7 @@ export async function importInventoryData(rows: CSVExportRow[]) {
   }
 
   const productsToCreate = distinctProductNames.filter(
-    (name) => !productMap.has(name.toLowerCase())
+    (name) => !productMap.has(name.toLowerCase()),
   );
 
   if (productsToCreate.length > 0) {
@@ -120,20 +190,22 @@ export async function importInventoryData(rows: CSVExportRow[]) {
     }
   }
 
-  const lotsToInsert = rows.map((row) => ({
+  const lotsToInsert = validated.map((row) => ({
     id: crypto.randomUUID(),
     productId: productMap.get(row.productName.toLowerCase())!,
-    initialQuantity: Number(row.initialQuantity) || 0,
-    remainingQuantity: Number(row.remainingQuantity) || 0,
-    buyPrice: Number(row.buyPrice) || 0,
-    isStocked: String(row.isStocked).toLowerCase() === "true",
-    dateAcquired: new Date(row.dateAcquired).toISOString(),
-    lotIdentity: row.lotIdentity || null,
+    initialQuantity: row.initialQuantity,
+    remainingQuantity: row.remainingQuantity,
+    buyPrice: row.buyPrice,
+    isStocked: row.isStocked,
+    dateAcquired: row.dateAcquired.toISOString(),
+    lotIdentity: row.lotIdentity ?? null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
   }));
 
-  const { error: lotError } = await supabase.from("StockLot").insert(lotsToInsert);
+  const { error: lotError } = await supabase
+    .from("StockLot")
+    .insert(lotsToInsert);
 
   if (lotError) throw new Error(lotError.message);
 
@@ -144,12 +216,44 @@ export async function importInventoryData(rows: CSVExportRow[]) {
 export async function importSalesData(rows: CSVSalesExportRow[]) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await enforceRateLimit(
+    `settings:import:${userId}`,
+    RATE_LIMITS.bulk,
+    "import",
+  );
+
+  if (!rows || rows.length === 0) return { success: true, count: 0 };
+  assertArrayWithLimit(rows, "rows");
+
+  const validated = rows.map((row, idx) => {
+    const productName = cleanRequiredString(
+      row?.productName,
+      `rows[${idx}].productName`,
+    );
+    const quantitySold = Number(row?.quantitySold);
+    const totalSalePrice = Number(row?.totalSalePrice);
+    const totalProfit = Number(row?.totalProfit);
+    assertPositiveInt(quantitySold, `rows[${idx}].quantitySold`);
+    assertNonNegativeNumber(totalSalePrice, `rows[${idx}].totalSalePrice`);
+    if (!Number.isFinite(totalProfit)) {
+      throw new Error(`Invalid rows[${idx}].totalProfit: must be a number.`);
+    }
+    const createdAt =
+      parseOptionalDate(row?.createdAt, `rows[${idx}].createdAt`) ?? new Date();
+    return {
+      productName,
+      quantitySold,
+      totalSalePrice,
+      totalProfit,
+      createdAt,
+    };
+  });
 
   const supabase = await createClient();
 
-  if (!rows || rows.length === 0) return { success: true, count: 0 };
-
-  const distinctProductNames = Array.from(new Set(rows.map((r) => r.productName)));
+  const distinctProductNames = Array.from(
+    new Set(validated.map((r) => r.productName)),
+  );
 
   const { data: existingProducts, error: pError } = await supabase
     .from("Product")
@@ -165,7 +269,7 @@ export async function importSalesData(rows: CSVSalesExportRow[]) {
   }
 
   const productsToCreate = distinctProductNames.filter(
-    (name) => !productMap.has(name.toLowerCase())
+    (name) => !productMap.has(name.toLowerCase()),
   );
 
   if (productsToCreate.length > 0) {
@@ -189,16 +293,18 @@ export async function importSalesData(rows: CSVSalesExportRow[]) {
     }
   }
 
-  const salesToInsert = rows.map((row) => ({
+  const salesToInsert = validated.map((row) => ({
     id: crypto.randomUUID(),
     productId: productMap.get(row.productName.toLowerCase())!,
-    quantitySold: Number(row.quantitySold) || 0,
-    totalSalePrice: Number(row.totalSalePrice) || 0,
-    totalProfit: Number(row.totalProfit) || 0,
-    createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : new Date().toISOString(),
+    quantitySold: row.quantitySold,
+    totalSalePrice: row.totalSalePrice,
+    totalProfit: row.totalProfit,
+    createdAt: row.createdAt.toISOString(),
   }));
 
-  const { error: saleError } = await supabase.from("Sale").insert(salesToInsert);
+  const { error: saleError } = await supabase
+    .from("Sale")
+    .insert(salesToInsert);
 
   if (saleError) throw new Error(saleError.message);
 
@@ -209,6 +315,11 @@ export async function importSalesData(rows: CSVSalesExportRow[]) {
 export async function deleteAllUserData() {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await enforceRateLimit(
+    `settings:destructive:${userId}`,
+    RATE_LIMITS.destructive,
+    "destructive action",
+  );
 
   const supabase = await createClient();
 

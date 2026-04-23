@@ -1,8 +1,38 @@
 "use client";
 
 import * as React from "react";
-import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
+import { Area, AreaChart, Tooltip, XAxis } from "recharts";
 import { cn } from "@/lib/utils";
+
+/**
+ * Measure a DOM element's size. We size the chart ourselves (instead of using
+ * Recharts' <ResponsiveContainer />) so that the chart only renders once a
+ * real, positive size is available — this avoids the repeated
+ * `width(-1)/height(-1)` warnings Recharts logs when its own measurement pass
+ * runs before the browser has laid the element out.
+ */
+function useElementSize<T extends HTMLElement>() {
+  const ref = React.useRef<T | null>(null);
+  const [size, setSize] = React.useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
+
+  React.useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      setSize({ width: rect.width, height: rect.height });
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return [ref, size] as const;
+}
 
 type ChartPoint = { name: string; total: number };
 
@@ -24,6 +54,8 @@ const modeLabels: Record<Mode, { label: string; sublabel: string }> = {
 export function ProfitChart({ className, weeklyData, monthlyData, allTimeData }: ProfitChartProps) {
   const [mode, setMode] = React.useState<Mode>("weekly");
   const [isCumulative, setIsCumulative] = React.useState(false);
+  const [chartContainerRef, { width, height }] = useElementSize<HTMLDivElement>();
+  const hasSize = width > 0 && height > 0;
 
   const rawData = mode === "weekly" ? weeklyData : mode === "monthly" ? monthlyData : allTimeData;
   
@@ -93,10 +125,16 @@ export function ProfitChart({ className, weeklyData, monthlyData, allTimeData }:
         </div>
       </div>
 
-      {/* Container needs a fixed height so Recharts can be responsive */}
-      <div className="relative h-[300px] sm:h-[400px] w-full">
-        <ResponsiveContainer width="100%" height="100%">
+      {/* Container has a fixed height; we measure its size ourselves and only
+          render the chart once we have a real, positive width and height. */}
+      <div
+        ref={chartContainerRef}
+        className="relative h-[300px] sm:h-[400px] w-full"
+      >
+        {hasSize ? (
           <AreaChart
+            width={width}
+            height={height}
             data={chartData}
             margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
           >
@@ -142,7 +180,9 @@ export function ProfitChart({ className, weeklyData, monthlyData, allTimeData }:
               fill="url(#colorProfit)"
             />
           </AreaChart>
-        </ResponsiveContainer>
+        ) : (
+          <div className="h-full w-full animate-pulse rounded-xl bg-primary/5" />
+        )}
       </div>
     </div>
   );

@@ -1,33 +1,32 @@
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 /**
- * If using Fluid compute: Don't put this client in a global variable. Always create a new client within each
- * function when using it.
+ * Server-only Supabase client.
+ *
+ * Uses a Supabase Secret API key (prefixed `sb_secret_`), which bypasses
+ * Row Level Security. This is safe because every server action
+ * authenticates the caller with Clerk (`auth()`) and scopes queries by
+ * `userId` before hitting the DB.
+ *
+ * Never import this file from client components. The secret key is
+ * server-only — it must NOT be prefixed with NEXT_PUBLIC_ and must never
+ * be sent to the browser. If it leaks, rotate it in the Supabase
+ * dashboard (Project Settings -> API Keys -> Secret keys).
  */
 export async function createClient() {
-  const cookieStore = await cookies()
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
-            )
-          } catch {
-            // The `setAll` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
-      },
-    }
-  )
+  if (!url || !secretKey) {
+    throw new Error(
+      "Supabase server client is misconfigured: missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY.",
+    );
+  }
+
+  return createSupabaseClient(url, secretKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
 }

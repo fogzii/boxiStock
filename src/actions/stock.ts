@@ -3,6 +3,39 @@
 import { createClient } from "@/lib/supabase/server";
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  assertArrayWithLimit,
+  assertBoolean,
+  assertNonNegativeNumber,
+  assertPositiveInt,
+  cleanOptionalString,
+  cleanRequiredString,
+  escapeLikePattern,
+  parseOptionalDate,
+  MAX_LOT_IDENTITY_LENGTH,
+} from "@/lib/validation";
+
+// Single shared bucket for all stock mutations (addProduct, sellLotUnits, …).
+// Caps bursty activity per user; 60/min is generous for real UI use but
+// cheap to hit with a runaway loop.
+async function gateStockMutation(userId: string) {
+  await enforceRateLimit(
+    `stock:mutation:${userId}`,
+    RATE_LIMITS.mutation,
+    "stock update",
+  );
+}
+
+// Tighter bucket for anything that fans out into many Supabase writes per
+// call (bulk imports, seed, AI-ingested batches).
+async function gateStockBulk(userId: string) {
+  await enforceRateLimit(
+    `stock:bulk:${userId}`,
+    RATE_LIMITS.bulk,
+    "bulk stock operation",
+  );
+}
 
 export async function getInventory() {
   const { userId } = await auth();
@@ -21,93 +54,68 @@ export async function getInventory() {
   }
 
   // To match the Prisma orderBy on lots and hide 0-quantity
-  const activeProducts = products?.filter(p => {
+  const activeProducts = products?.filter((p) => {
     p.lots = (p.lots || [])
       .filter((l: any) => l.remainingQuantity > 0)
-      .sort((a: any, b: any) => new Date(a.dateAcquired).getTime() - new Date(b.dateAcquired).getTime());
+      .sort(
+        (a: any, b: any) =>
+          new Date(a.dateAcquired).getTime() -
+          new Date(b.dateAcquired).getTime(),
+      );
     return p.lots.length > 0;
   });
 
   return activeProducts || [];
 }
 
-export async function getInventoryPaginated(page: number = 1, pageSize: number = 10, search?: string) {
+export async function getInventoryPaginated(
+  page: number = 1,
+  pageSize: number = 10,
+  search?: string,
+) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
+  // Clamp pagination inputs server-side: page >= 1, pageSize in [1, 100].
+  // Postgres function also clamps, but we mirror it here so the client math
+  // (totalPages) stays consistent.
+  const safePage = Number.isInteger(page) && page > 0 ? page : 1;
+  const safePageSize =
+    Number.isInteger(pageSize) && pageSize > 0 && pageSize <= 100
+      ? pageSize
+      : 10;
+
+  const safeSearch =
+    typeof search === "string" && search.trim() !== ""
+      ? search.trim().slice(0, 200)
+      : null;
+
   const supabase = await createClient();
 
-  // 1. Get ALL active product IDs (products that have > 0 stock)
-  const { data: activeLotsData, error: activeLotsError } = await supabase
-    .from("StockLot")
-    .select("productId, Product!inner(userId)")
-    .gt("remainingQuantity", 0)
-    .eq("Product.userId", userId);
-    
-  if (activeLotsError) throw new Error(activeLotsError.message);
-  
-  const activeProductIds = Array.from(new Set(activeLotsData?.map(l => l.productId) || []));
-
-  if (activeProductIds.length === 0) {
-    return { products: [], totalCount: 0, totalPages: 0 };
-  }
-
-  let matchedIds: string[] = activeProductIds;
-  if (search && search.trim() !== '') {
-    const searchTerm = `%${search.trim()}%`;
-    const [pMatchesRes, lotMatchesRes] = await Promise.all([
-      supabase.from("Product").select("id").eq("userId", userId).ilike("name", searchTerm).in("id", activeProductIds),
-      supabase.from("StockLot").select("productId, Product!inner(userId)").eq("Product.userId", userId).ilike("lotIdentity", searchTerm).gt("remainingQuantity", 0)
-    ]);
-    
-    const ids = new Set([
-      ...(pMatchesRes.data || []).map(p => p.id),
-      ...(lotMatchesRes.data || []).map(l => l.productId)
-    ]);
-    matchedIds = Array.from(ids).filter(id => activeProductIds.includes(id));
-  }
-
-  if (matchedIds.length === 0) {
-    return { products: [], totalCount: 0, totalPages: 0 };
-  }
-
-  // Get total count of products
-  let countQuery = supabase
-    .from("Product")
-    .select("*", { count: "exact", head: true })
-    .eq("userId", userId)
-    .in("id", matchedIds);
-
-  const { count, error: countError } = await countQuery;
-
-  if (countError) throw new Error(countError.message);
-
-  // Get paginated products with their active lots
-  const start = (page - 1) * pageSize;
-  const end = start + pageSize - 1;
-
-  let query = supabase
-    .from("Product")
-    .select("*, lots:StockLot(*)")
-    .eq("userId", userId)
-    .order("createdAt", { ascending: false })
-    .range(start, end)
-    .in("id", matchedIds);
-
-  const { data: products, error } = await query;
+  // Single round-trip to Postgres. The RPC does the stock filter, search,
+  // count, pagination, and lot embedding server-side, so we never build
+  // giant `id=in.(…)` URLs (those were pushing on Cloudflare URL limits
+  // and caused intermittent 525s under large inventories).
+  const { data, error } = await supabase.rpc("get_inventory_paginated", {
+    p_user_id: userId,
+    p_search: safeSearch,
+    p_page: safePage,
+    p_page_size: safePageSize,
+  });
 
   if (error) throw new Error(error.message);
 
-  products?.forEach(p => {
-    p.lots = (p.lots || [])
-      .filter((l: any) => l.remainingQuantity > 0)
-      .sort((a: any, b: any) => new Date(a.dateAcquired).getTime() - new Date(b.dateAcquired).getTime());
-  });
+  const payload = (data ?? {}) as {
+    totalCount?: number;
+    products?: any[];
+  };
+  const totalCount = payload.totalCount ?? 0;
+  const products = payload.products ?? [];
 
   return {
-    products: products || [],
-    totalCount: count || 0,
-    totalPages: Math.ceil((count || 0) / pageSize),
+    products,
+    totalCount,
+    totalPages: Math.ceil(totalCount / safePageSize),
   };
 }
 
@@ -121,31 +129,49 @@ export async function addProduct(data: {
 }) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const name = cleanRequiredString(data?.name, "product name");
+  assertPositiveInt(data?.initialQuantity, "initialQuantity");
+  assertNonNegativeNumber(data?.buyPrice, "buyPrice");
+  assertBoolean(data?.isStocked, "isStocked");
+  const dateAcquired = parseOptionalDate(data?.dateAcquired, "dateAcquired");
+  const lotIdentity = cleanOptionalString(data?.lotIdentity, "lotIdentity", {
+    maxLength: MAX_LOT_IDENTITY_LENGTH,
+  });
 
   const supabase = await createClient();
 
   const { data: product, error: productError } = await supabase
     .from("Product")
-    .insert([{ id: crypto.randomUUID(), userId, name: data.name, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }])
+    .insert([
+      {
+        id: crypto.randomUUID(),
+        userId,
+        name,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ])
     .select()
     .single();
 
   if (productError) throw new Error(productError.message);
 
-  const { error: lotError } = await supabase
-    .from("StockLot")
-    .insert([{
+  const { error: lotError } = await supabase.from("StockLot").insert([
+    {
       id: crypto.randomUUID(),
       productId: product.id,
       initialQuantity: data.initialQuantity,
       remainingQuantity: data.initialQuantity,
       buyPrice: data.buyPrice,
       isStocked: data.isStocked,
-      dateAcquired: data.dateAcquired ?? new Date().toISOString(),
-      lotIdentity: data.lotIdentity,
+      dateAcquired: (dateAcquired ?? new Date()).toISOString(),
+      lotIdentity,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-    }]);
+    },
+  ]);
 
   if (lotError) throw new Error(lotError.message);
 
@@ -161,13 +187,19 @@ export async function addStockLot(data: {
 }) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const productId = cleanRequiredString(data?.productId, "productId");
+  assertPositiveInt(data?.initialQuantity, "initialQuantity");
+  assertNonNegativeNumber(data?.buyPrice, "buyPrice");
+  assertBoolean(data?.isStocked, "isStocked");
 
   const supabase = await createClient();
 
   const { data: product } = await supabase
     .from("Product")
     .select("id")
-    .eq("id", data.productId)
+    .eq("id", productId)
     .eq("userId", userId)
     .single();
 
@@ -175,16 +207,18 @@ export async function addStockLot(data: {
 
   const { data: lot, error } = await supabase
     .from("StockLot")
-    .insert([{
-      id: crypto.randomUUID(),
-      productId: data.productId,
-      initialQuantity: data.initialQuantity,
-      remainingQuantity: data.initialQuantity,
-      buyPrice: data.buyPrice,
-      isStocked: data.isStocked,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }])
+    .insert([
+      {
+        id: crypto.randomUUID(),
+        productId,
+        initialQuantity: data.initialQuantity,
+        remainingQuantity: data.initialQuantity,
+        buyPrice: data.buyPrice,
+        isStocked: data.isStocked,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ])
     .select()
     .single();
 
@@ -197,6 +231,9 @@ export async function addStockLot(data: {
 export async function markAsStocked(lotId: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const cleanLotId = cleanRequiredString(lotId, "lotId");
 
   const supabase = await createClient();
 
@@ -204,7 +241,7 @@ export async function markAsStocked(lotId: string) {
   const { data: lot } = await supabase
     .from("StockLot")
     .select("id, Product!inner(userId)")
-    .eq("id", lotId)
+    .eq("id", cleanLotId)
     .eq("Product.userId", userId)
     .single();
 
@@ -213,7 +250,7 @@ export async function markAsStocked(lotId: string) {
   const { data: updatedLot, error } = await supabase
     .from("StockLot")
     .update({ isStocked: true })
-    .eq("id", lotId)
+    .eq("id", cleanLotId)
     .select()
     .single();
 
@@ -225,18 +262,23 @@ export async function markAsStocked(lotId: string) {
 export async function updateProductName(productId: string, name: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const cleanProductId = cleanRequiredString(productId, "productId");
+  const cleanName = cleanRequiredString(name, "product name");
 
   const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("Product")
-    .update({ name })
-    .eq("id", productId)
+    .update({ name: cleanName })
+    .eq("id", cleanProductId)
     .eq("userId", userId)
     .select();
 
   if (error) throw new Error(error.message);
-  if (!data || data.length === 0) throw new Error("Product not found or unauthorized");
+  if (!data || data.length === 0)
+    throw new Error("Product not found or unauthorized");
 
   revalidatePath("/", "layout");
 }
@@ -244,19 +286,22 @@ export async function updateProductName(productId: string, name: string) {
 export async function deleteLot(lotId: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const cleanLotId = cleanRequiredString(lotId, "lotId");
 
   const supabase = await createClient();
 
   const { data: lot } = await supabase
     .from("StockLot")
     .select("id, productId, Product!inner(userId)")
-    .eq("id", lotId)
+    .eq("id", cleanLotId)
     .eq("Product.userId", userId)
     .single();
 
   if (!lot) throw new Error("Lot not found or unauthorized");
 
-  await supabase.from("StockLot").delete().eq("id", lotId);
+  await supabase.from("StockLot").delete().eq("id", cleanLotId);
 
   const { count } = await supabase
     .from("StockLot")
@@ -273,21 +318,26 @@ export async function deleteLot(lotId: string) {
 export async function deleteLotUnits(lotId: string, quantity: number) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const cleanLotId = cleanRequiredString(lotId, "lotId");
+  assertPositiveInt(quantity, "quantity");
 
   const supabase = await createClient();
 
   const { data: lot } = await supabase
     .from("StockLot")
     .select("*, Product!inner(userId)")
-    .eq("id", lotId)
+    .eq("id", cleanLotId)
     .eq("Product.userId", userId)
     .single();
 
   if (!lot) throw new Error("Lot not found or unauthorized");
-  if (lot.remainingQuantity < quantity) throw new Error("Quantity exceeds stock");
+  if (lot.remainingQuantity < quantity)
+    throw new Error("Quantity exceeds stock");
 
   if (lot.remainingQuantity === quantity) {
-    await supabase.from("StockLot").delete().eq("id", lotId);
+    await supabase.from("StockLot").delete().eq("id", cleanLotId);
     const { count } = await supabase
       .from("StockLot")
       .select("*", { count: "exact", head: true })
@@ -300,47 +350,57 @@ export async function deleteLotUnits(lotId: string, quantity: number) {
     await supabase
       .from("StockLot")
       .update({ remainingQuantity: lot.remainingQuantity - quantity })
-      .eq("id", lotId);
+      .eq("id", cleanLotId);
   }
 
   revalidatePath("/", "layout");
 }
 
-export async function sellLotUnits(lotId: string, quantitySold: number, salePricePerUnit: number) {
+export async function sellLotUnits(
+  lotId: string,
+  quantitySold: number,
+  salePricePerUnit: number,
+) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const cleanLotId = cleanRequiredString(lotId, "lotId");
+  assertPositiveInt(quantitySold, "quantitySold");
+  assertNonNegativeNumber(salePricePerUnit, "salePricePerUnit");
 
   const supabase = await createClient();
 
   const { data: lot } = await supabase
     .from("StockLot")
     .select("*, Product!inner(userId)")
-    .eq("id", lotId)
+    .eq("id", cleanLotId)
     .eq("Product.userId", userId)
     .single();
 
   if (!lot) throw new Error("Lot not found or unauthorized");
-  if (lot.remainingQuantity < quantitySold) throw new Error("Quantity exceeds stock");
+  if (lot.remainingQuantity < quantitySold)
+    throw new Error("Quantity exceeds stock");
 
   const totalSalePrice = quantitySold * salePricePerUnit;
-  const totalProfit = totalSalePrice - (quantitySold * lot.buyPrice);
+  const totalProfit = totalSalePrice - quantitySold * lot.buyPrice;
 
   await supabase
     .from("StockLot")
     .update({ remainingQuantity: lot.remainingQuantity - quantitySold })
-    .eq("id", lotId);
+    .eq("id", cleanLotId);
 
-  const { error: saleError } = await supabase
-    .from("Sale")
-    .insert([{
+  const { error: saleError } = await supabase.from("Sale").insert([
+    {
       id: crypto.randomUUID(),
       productId: lot.productId,
       quantitySold,
       totalSalePrice,
       totalProfit,
-      createdAt: new Date().toISOString()
-    }]);
-    
+      createdAt: new Date().toISOString(),
+    },
+  ]);
+
   if (saleError) throw new Error(`Sale insert failed: ${saleError.message}`);
 
   revalidatePath("/", "layout");
@@ -349,6 +409,7 @@ export async function sellLotUnits(lotId: string, quantitySold: number, salePric
 export async function seedMockData() {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await gateStockBulk(userId);
 
   const supabase = await createClient();
 
@@ -356,26 +417,69 @@ export async function seedMockData() {
 
   const { data: product1 } = await supabase
     .from("Product")
-    .insert([{ id: crypto.randomUUID(), userId, name: "Ergonomic Chair Pro", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }])
+    .insert([
+      {
+        id: crypto.randomUUID(),
+        userId,
+        name: "Ergonomic Chair Pro",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ])
     .select()
     .single();
 
   if (product1) {
     await supabase.from("StockLot").insert([
-      { id: crypto.randomUUID(), productId: product1.id, initialQuantity: 10, remainingQuantity: 10, buyPrice: 150.0, isStocked: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-      { id: crypto.randomUUID(), productId: product1.id, initialQuantity: 5, remainingQuantity: 5, buyPrice: 145.0, isStocked: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+      {
+        id: crypto.randomUUID(),
+        productId: product1.id,
+        initialQuantity: 10,
+        remainingQuantity: 10,
+        buyPrice: 150.0,
+        isStocked: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: crypto.randomUUID(),
+        productId: product1.id,
+        initialQuantity: 5,
+        remainingQuantity: 5,
+        buyPrice: 145.0,
+        isStocked: false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     ]);
   }
 
   const { data: product2 } = await supabase
     .from("Product")
-    .insert([{ id: crypto.randomUUID(), userId, name: "Mechanical Keyboard", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }])
+    .insert([
+      {
+        id: crypto.randomUUID(),
+        userId,
+        name: "Mechanical Keyboard",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ])
     .select()
     .single();
 
   if (product2) {
     await supabase.from("StockLot").insert([
-      { id: crypto.randomUUID(), productId: product2.id, initialQuantity: 20, remainingQuantity: 12, buyPrice: 85.0, isStocked: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+      {
+        id: crypto.randomUUID(),
+        productId: product2.id,
+        initialQuantity: 20,
+        remainingQuantity: 12,
+        buyPrice: 85.0,
+        isStocked: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
     ]);
   }
 
@@ -383,9 +487,19 @@ export async function seedMockData() {
   return { success: true };
 }
 
-export async function getSalesHistory(page: number = 1, pageSize: number = 10, search?: string) {
+export async function getSalesHistory(
+  page: number = 1,
+  pageSize: number = 10,
+  search?: string,
+) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+
+  const safePage = Number.isInteger(page) && page > 0 ? page : 1;
+  const safePageSize =
+    Number.isInteger(pageSize) && pageSize > 0 && pageSize <= 100
+      ? pageSize
+      : 10;
 
   const supabase = await createClient();
 
@@ -395,17 +509,19 @@ export async function getSalesHistory(page: number = 1, pageSize: number = 10, s
     .select("*, Product!inner(name, userId)", { count: "exact", head: true })
     .eq("Product.userId", userId);
 
-  if (search && search.trim() !== '') {
-    countQuery = countQuery.ilike("Product.name", `%${search.trim()}%`);
+  if (search && typeof search === "string" && search.trim() !== "") {
+    countQuery = countQuery.ilike(
+      "Product.name",
+      `%${escapeLikePattern(search.trim().slice(0, 200))}%`,
+    );
   }
 
   const { count, error: countError } = await countQuery;
 
   if (countError) throw new Error(countError.message);
 
-  // Get paginated data
-  const start = (page - 1) * pageSize;
-  const end = start + pageSize - 1;
+  const start = (safePage - 1) * safePageSize;
+  const end = start + safePageSize - 1;
 
   let query = supabase
     .from("Sale")
@@ -414,8 +530,11 @@ export async function getSalesHistory(page: number = 1, pageSize: number = 10, s
     .order("createdAt", { ascending: false })
     .range(start, end);
 
-  if (search && search.trim() !== '') {
-    query = query.ilike("Product.name", `%${search.trim()}%`);
+  if (search && typeof search === "string" && search.trim() !== "") {
+    query = query.ilike(
+      "Product.name",
+      `%${escapeLikePattern(search.trim().slice(0, 200))}%`,
+    );
   }
 
   const { data: sales, error } = await query;
@@ -425,7 +544,7 @@ export async function getSalesHistory(page: number = 1, pageSize: number = 10, s
   return {
     sales: sales || [],
     totalCount: count || 0,
-    totalPages: Math.ceil((count || 0) / pageSize)
+    totalPages: Math.ceil((count || 0) / safePageSize),
   };
 }
 
@@ -441,8 +560,6 @@ export async function getSalesMetrics() {
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(today.getDate() - 7);
 
-  // To keep things single-query, get all sales for user and filter in memory since we aren't likely to have massive amounts of rows, 
-  // or use Supabase time filtering. For exact dates it's better to fetch records within the week.
   const { data: recentSales, error } = await supabase
     .from("Sale")
     .select("*, Product!inner(userId)")
@@ -457,12 +574,10 @@ export async function getSalesMetrics() {
 
   for (const sale of recentSales || []) {
     const saleDate = new Date(sale.createdAt);
-    
-    // Accumulate week stats
+
     totalUnitsSoldWeek += sale.quantitySold;
     netProfitWeek += sale.totalProfit;
 
-    // Check if it's today
     if (saleDate >= today) {
       totalSalesToday += sale.totalSalePrice;
     }
@@ -481,25 +596,24 @@ export async function getDashboardMetrics() {
 
   const supabase = await createClient();
 
-  // Get all sales for lifetime profit
   const { data: sales, error: salesError } = await supabase
     .from("Sale")
     .select("totalProfit, totalSalePrice, Product!inner(userId)")
     .eq("Product.userId", userId);
 
-
   if (salesError) throw new Error(salesError.message);
 
   const totalLifetimeProfit = (sales || []).reduce(
-    (acc, s) => acc + (s.totalProfit || 0), 0
+    (acc, s) => acc + (s.totalProfit || 0),
+    0,
   );
 
-  // Get all stock lots for inventory value and capital spent
   const { data: lots, error: lotsError } = await supabase
     .from("StockLot")
-    .select("remainingQuantity, initialQuantity, buyPrice, Product!inner(userId)")
+    .select(
+      "remainingQuantity, initialQuantity, buyPrice, Product!inner(userId)",
+    )
     .eq("Product.userId", userId);
-
 
   if (lotsError) throw new Error(lotsError.message);
 
@@ -511,11 +625,8 @@ export async function getDashboardMetrics() {
     totalCapitalSpent += lot.initialQuantity * lot.buyPrice;
   }
 
-
-  // ROI = (Total Profit / Total Capital Spent) * 100
-  const currentROI = totalCapitalSpent > 0
-    ? (totalLifetimeProfit / totalCapitalSpent) * 100
-    : 0;
+  const currentROI =
+    totalCapitalSpent > 0 ? (totalLifetimeProfit / totalCapitalSpent) * 100 : 0;
 
   return {
     totalLifetimeProfit,
@@ -553,7 +664,7 @@ export async function getProfitChartData() {
     weekStart.setHours(0, 0, 0, 0);
 
     const weekProfit = allSales
-      .filter(s => {
+      .filter((s) => {
         const d = new Date(s.createdAt);
         return d >= weekStart && d <= weekEnd;
       })
@@ -564,7 +675,20 @@ export async function getProfitChartData() {
   }
 
   // --- Monthly: last 12 months (current month on far right) ---
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
   const monthlyData: { name: string; total: number }[] = [];
   for (let i = 11; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
@@ -572,7 +696,7 @@ export async function getProfitChartData() {
     const month = d.getMonth();
 
     const monthProfit = allSales
-      .filter(s => {
+      .filter((s) => {
         const sd = new Date(s.createdAt);
         return sd.getFullYear() === year && sd.getMonth() === month;
       })
@@ -585,14 +709,15 @@ export async function getProfitChartData() {
   }
 
   // --- All Time: group by month or year depending on data span ---
-  const firstSaleDate = allSales.length > 0 ? new Date(allSales[0].createdAt) : now;
+  const firstSaleDate =
+    allSales.length > 0 ? new Date(allSales[0].createdAt) : now;
   const yearsDiff = now.getFullYear() - firstSaleDate.getFullYear();
   const groupByYear = yearsDiff >= 3;
 
   const allTimeMap = new Map<string, number>();
   for (const sale of allSales) {
     const sd = new Date(sale.createdAt);
-    const key = groupByYear 
+    const key = groupByYear
       ? sd.getFullYear().toString()
       : `${monthNames[sd.getMonth()]} ${sd.getFullYear().toString().slice(-2)}`;
     allTimeMap.set(key, (allTimeMap.get(key) || 0) + (sale.totalProfit || 0));
@@ -605,35 +730,63 @@ export async function getProfitChartData() {
   return { weeklyData, monthlyData, allTimeData };
 }
 
-export async function bulkAddLotsAndProducts(items: { name: string, initialQuantity: number, buyPrice: number, isStocked: boolean }[]) {
+export async function bulkAddLotsAndProducts(
+  items: {
+    name: string;
+    initialQuantity: number;
+    buyPrice: number;
+    isStocked: boolean;
+  }[],
+) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await gateStockBulk(userId);
+
+  assertArrayWithLimit(items, "items");
+  const validated = items.map((item, idx) => {
+    const name = cleanRequiredString(item?.name, `items[${idx}].name`);
+    assertPositiveInt(item?.initialQuantity, `items[${idx}].initialQuantity`);
+    assertNonNegativeNumber(item?.buyPrice, `items[${idx}].buyPrice`);
+    assertBoolean(item?.isStocked, `items[${idx}].isStocked`);
+    return {
+      name,
+      initialQuantity: item.initialQuantity,
+      buyPrice: item.buyPrice,
+      isStocked: item.isStocked,
+    };
+  });
 
   const supabase = await createClient();
 
-  for (const item of items) {
-    // Check if product exists case-insensitively
+  for (const item of validated) {
     const { data: existingProducts } = await supabase
       .from("Product")
       .select("id")
       .eq("userId", userId)
-      .ilike("name", item.name.trim());
-      
+      .ilike("name", escapeLikePattern(item.name));
+
     let productId = existingProducts?.[0]?.id;
 
     if (!productId) {
       const { data: newProduct, error: pError } = await supabase
         .from("Product")
-        .insert([{ id: crypto.randomUUID(), userId, name: item.name.trim(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }])
+        .insert([
+          {
+            id: crypto.randomUUID(),
+            userId,
+            name: item.name,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ])
         .select()
         .single();
       if (pError) throw new Error(pError.message);
       productId = newProduct.id;
     }
 
-    const { error: lotError } = await supabase
-      .from("StockLot")
-      .insert([{
+    const { error: lotError } = await supabase.from("StockLot").insert([
+      {
         id: crypto.randomUUID(),
         productId,
         initialQuantity: item.initialQuantity,
@@ -642,8 +795,9 @@ export async function bulkAddLotsAndProducts(items: { name: string, initialQuant
         isStocked: item.isStocked,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      }]);
-      
+      },
+    ]);
+
     if (lotError) throw new Error(lotError.message);
   }
 
@@ -651,18 +805,51 @@ export async function bulkAddLotsAndProducts(items: { name: string, initialQuant
   return { success: true };
 }
 
-export async function bulkAddSales(items: { productName: string, quantitySold: number, salePricePerUnit: number, buyPrice?: number }[]) {
+export async function bulkAddSales(
+  items: {
+    productName: string;
+    quantitySold: number;
+    salePricePerUnit: number;
+    buyPrice?: number;
+  }[],
+) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
+  await gateStockBulk(userId);
+
+  assertArrayWithLimit(items, "items");
+  const validated = items.map((item, idx) => {
+    const productName = cleanRequiredString(
+      item?.productName,
+      `items[${idx}].productName`,
+    );
+    assertPositiveInt(item?.quantitySold, `items[${idx}].quantitySold`);
+    assertNonNegativeNumber(
+      item?.salePricePerUnit,
+      `items[${idx}].salePricePerUnit`,
+    );
+    let buyPrice: number | undefined;
+    if (item?.buyPrice !== undefined && item.buyPrice !== null) {
+      assertNonNegativeNumber(item.buyPrice, `items[${idx}].buyPrice`);
+      buyPrice = item.buyPrice;
+    }
+    return {
+      productName,
+      quantitySold: item.quantitySold,
+      salePricePerUnit: item.salePricePerUnit,
+      buyPrice,
+    };
+  });
 
   const supabase = await createClient();
 
-  for (const item of items) {
+  for (const item of validated) {
+    const escapedName = escapeLikePattern(item.productName);
     const { data: products } = await supabase
       .from("Product")
       .select("id, lots:StockLot(id, remainingQuantity, buyPrice, createdAt)")
       .eq("userId", userId)
-      .ilike("name", `%${item.productName.trim()}%`);
+      .ilike("name", `%${escapedName}%`);
 
     let product;
 
@@ -670,15 +857,22 @@ export async function bulkAddSales(items: { productName: string, quantitySold: n
       const buyPrice = item.buyPrice || 0;
       const { data: newP, error: pError } = await supabase
         .from("Product")
-        .insert([{ id: crypto.randomUUID(), userId, name: item.productName.trim(), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }])
+        .insert([
+          {
+            id: crypto.randomUUID(),
+            userId,
+            name: item.productName,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+        ])
         .select()
         .single();
       if (pError) throw new Error(pError.message);
-      
+
       const newLotId = crypto.randomUUID();
-      const { error: lotError } = await supabase
-        .from("StockLot")
-        .insert([{
+      const { error: lotError } = await supabase.from("StockLot").insert([
+        {
           id: newLotId,
           productId: newP.id,
           initialQuantity: item.quantitySold,
@@ -687,31 +881,47 @@ export async function bulkAddSales(items: { productName: string, quantitySold: n
           isStocked: true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        }]);
+        },
+      ]);
       if (lotError) throw new Error(lotError.message);
 
       product = {
         id: newP.id,
-        lots: [{ id: newLotId, remainingQuantity: item.quantitySold, buyPrice: buyPrice, createdAt: new Date().toISOString() }]
+        lots: [
+          {
+            id: newLotId,
+            remainingQuantity: item.quantitySold,
+            buyPrice: buyPrice,
+            createdAt: new Date().toISOString(),
+          },
+        ],
       };
     } else {
       product = products[0];
     }
 
-    const lots = (product.lots || []).filter((l: any) => l.remainingQuantity > 0).sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    const lots = (product.lots || [])
+      .filter((l: any) => l.remainingQuantity > 0)
+      .sort(
+        (a: any, b: any) =>
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
 
     let remainingToSell = item.quantitySold;
-    
+
     // Safety check for stock, if deficit, auto-create missing stock.
-    let totalStock = lots.reduce((acc: number, l: any) => acc + l.remainingQuantity, 0);
+    const totalStock = lots.reduce(
+      (acc: number, l: any) => acc + l.remainingQuantity,
+      0,
+    );
     if (totalStock < item.quantitySold) {
       const missingStock = item.quantitySold - totalStock;
-      const lastBuyPrice = lots.length > 0 ? lots[lots.length - 1].buyPrice : (item.buyPrice || 0);
+      const lastBuyPrice =
+        lots.length > 0 ? lots[lots.length - 1].buyPrice : item.buyPrice || 0;
 
       const newLotId = crypto.randomUUID();
-      await supabase
-        .from("StockLot")
-        .insert([{
+      await supabase.from("StockLot").insert([
+        {
           id: newLotId,
           productId: product.id,
           initialQuantity: missingStock,
@@ -720,9 +930,15 @@ export async function bulkAddSales(items: { productName: string, quantitySold: n
           isStocked: true,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-        }]);
+        },
+      ]);
 
-      lots.push({ id: newLotId, remainingQuantity: missingStock, buyPrice: lastBuyPrice, createdAt: new Date().toISOString() });
+      lots.push({
+        id: newLotId,
+        remainingQuantity: missingStock,
+        buyPrice: lastBuyPrice,
+        createdAt: new Date().toISOString(),
+      });
     }
 
     // Process FIFO
@@ -731,26 +947,27 @@ export async function bulkAddSales(items: { productName: string, quantitySold: n
 
       const qtyFromLot = Math.min(lot.remainingQuantity, remainingToSell);
       const totalSalePrice = qtyFromLot * item.salePricePerUnit;
-      const totalProfit = totalSalePrice - (qtyFromLot * lot.buyPrice);
+      const totalProfit = totalSalePrice - qtyFromLot * lot.buyPrice;
 
       await supabase
         .from("StockLot")
         .update({ remainingQuantity: lot.remainingQuantity - qtyFromLot })
         .eq("id", lot.id);
 
-      const { error: saleError } = await supabase
-        .from("Sale")
-        .insert([{
+      const { error: saleError } = await supabase.from("Sale").insert([
+        {
           id: crypto.randomUUID(),
           productId: product.id,
           quantitySold: qtyFromLot,
           totalSalePrice,
           totalProfit,
-          createdAt: new Date().toISOString()
-        }]);
+          createdAt: new Date().toISOString(),
+        },
+      ]);
 
-      if (saleError) throw new Error(`Sale insert failed: ${saleError.message}`);
-      
+      if (saleError)
+        throw new Error(`Sale insert failed: ${saleError.message}`);
+
       remainingToSell -= qtyFromLot;
     }
   }

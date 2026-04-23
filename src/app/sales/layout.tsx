@@ -1,9 +1,9 @@
-import { DashboardShell } from "@/components/layout/DashboardShell";
+import { ProtectedShell } from "@/components/layout/ProtectedShell";
 
 export default function SalesLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <DashboardShell>{children}</DashboardShell>;
+  return <ProtectedShell>{children}</ProtectedShell>;
 }
