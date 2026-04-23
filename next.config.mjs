@@ -41,15 +41,6 @@ const securityHeaders = [
 
 const nextConfig = {
   poweredByHeader: false,
-  async redirects() {
-    return [
-      {
-        source: "/",
-        destination: "/dashboard",
-        permanent: true,
-      },
-    ];
-  },
   async headers() {
     return [
       {

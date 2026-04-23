@@ -1,9 +1,11 @@
 import { SignUpButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
 export default async function Home() {
   const { userId } = await auth();
+
+  if (userId) redirect("/dashboard");
 
   return (
     <main className="flex-grow flex flex-col items-center justify-center relative px-6 bg-background-dark text-slate-100 min-h-screen">
@@ -22,25 +24,15 @@ export default async function Home() {
             Automated FIFO for high-volume resellers
           </p>
 
-          {userId ? (
-            <Link
-              href="/dashboard"
-              className="group relative bg-primary hover:bg-primary/90 text-white px-12 py-6 rounded-2xl font-black text-2xl md:text-3xl transition-all shadow-glow-primary hover:scale-105 active:scale-95 flex items-center gap-4"
+          <SignUpButton mode="modal">
+            <button
+              type="button"
+              className="group relative bg-primary hover:bg-primary/90 text-white px-12 py-6 rounded-2xl font-black text-2xl md:text-3xl transition-all shadow-glow-primary hover:scale-105 active:scale-95 flex items-center gap-4 cursor-pointer"
             >
-              Go to Dashboard
+              Get Started Now
               <span className="font-bold text-3xl">→</span>
-            </Link>
-          ) : (
-            <SignUpButton mode="modal">
-              <button
-                type="button"
-                className="group relative bg-primary hover:bg-primary/90 text-white px-12 py-6 rounded-2xl font-black text-2xl md:text-3xl transition-all shadow-glow-primary hover:scale-105 active:scale-95 flex items-center gap-4 cursor-pointer"
-              >
-                Get Started Now
-                <span className="font-bold text-3xl">→</span>
-              </button>
-            </SignUpButton>
-          )}
+            </button>
+          </SignUpButton>
 
           <p className="text-slate-500 text-sm font-medium">
             Setup in 2 minutes • No credit card required
