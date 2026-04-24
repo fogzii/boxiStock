@@ -50,20 +50,28 @@ export function AIImportModal({
 
     try {
       if (importType === "stock") {
-        const stockLots = await parseInventoryWithAI(promptText);
+        const result = await parseInventoryWithAI(promptText);
+        if (!result.ok) {
+          setErrorMsg(result.error);
+          return;
+        }
         setImportData({
           type: "stock",
           prompt: promptText,
-          stockLots,
+          stockLots: result.data as never,
           sales: [],
         });
       } else {
-        const sales = await parseSalesWithAI(promptText);
+        const result = await parseSalesWithAI(promptText);
+        if (!result.ok) {
+          setErrorMsg(result.error);
+          return;
+        }
         setImportData({
           type: "sales",
           prompt: promptText,
           stockLots: [],
-          sales,
+          sales: result.data as never,
         });
       }
 
@@ -71,18 +79,9 @@ export function AIImportModal({
       onAfterGenerate?.();
       router.push("/stock/ai-import");
     } catch (error) {
+      // Fallback for truly unexpected errors (network failures, etc.)
       console.error("AI Parsing Error:", error);
-      const msg =
-        error instanceof Error
-          ? error.message
-          : "Failed to parse info with AI. Try again.";
-      if (msg.includes("503") || msg.toLowerCase().includes("high demand")) {
-        setErrorMsg(
-          "Gemini is currently experiencing high demand. Please wait a moment and try again.",
-        );
-      } else {
-        setErrorMsg(msg);
-      }
+      setErrorMsg("Something went wrong. Please try again.");
     } finally {
       setIsSubmitting(false);
     }

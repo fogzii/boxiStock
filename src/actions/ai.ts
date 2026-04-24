@@ -10,7 +10,7 @@ import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { cleanRequiredString, MAX_AI_PROMPT_LENGTH } from "@/lib/validation";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const MODEL_NAME = "gemini-2.5-flash"; // A fast and capable model supporting structured output
+const MODEL_NAME = "gemini-2.5-flash";
 
 async function enforceAiRateLimit(userId: string, kind: "stock" | "sales") {
   await enforceRateLimit(
@@ -19,6 +19,46 @@ async function enforceAiRateLimit(userId: string, kind: "stock" | "sales") {
     "AI import request",
   );
 }
+
+/** Map raw Gemini/network errors to safe, user-friendly messages. */
+function friendlyAiError(error: unknown): string {
+  const msg =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "Unknown error";
+  const lower = msg.toLowerCase();
+
+  if (
+    lower.includes("503") ||
+    lower.includes("overloaded") ||
+    lower.includes("high demand") ||
+    lower.includes("service unavailable")
+  ) {
+    return "Gemini is currently experiencing high demand. Please wait a moment and try again.";
+  }
+  if (
+    lower.includes("429") ||
+    lower.includes("quota") ||
+    lower.includes("rate limit")
+  ) {
+    return "AI request limit reached. Please wait a moment and try again.";
+  }
+  if (
+    lower.includes("401") ||
+    lower.includes("403") ||
+    lower.includes("api key")
+  ) {
+    return "AI service is misconfigured. Please contact support.";
+  }
+  if (lower.includes("400")) {
+    return "Invalid request sent to AI. Please check your input and try again.";
+  }
+  return "Failed to parse with AI. Please try again.";
+}
+
+export type AIResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
 const stockSchema: Schema = {
   type: SchemaType.ARRAY,
@@ -95,26 +135,29 @@ const salesSchema: Schema = {
   },
 };
 
-export async function parseInventoryWithAI(prompt: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+export async function parseInventoryWithAI(
+  prompt: string,
+): Promise<AIResult<unknown[]>> {
+  try {
+    const { userId } = await auth();
+    if (!userId) return { ok: false, error: "Unauthorized." };
 
-  const cleanPrompt = cleanRequiredString(prompt, "prompt", {
-    maxLength: MAX_AI_PROMPT_LENGTH,
-  });
-  await enforceAiRateLimit(userId, "stock");
+    const cleanPrompt = cleanRequiredString(prompt, "prompt", {
+      maxLength: MAX_AI_PROMPT_LENGTH,
+    });
+    await enforceAiRateLimit(userId, "stock");
 
-  const model = genAI.getGenerativeModel({
-    model: MODEL_NAME,
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: stockSchema,
-    },
-  });
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: stockSchema,
+      },
+    });
 
-  const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toISOString().split("T")[0];
 
-  const finalPrompt = `
+    const finalPrompt = `
 Extract the stock purchases from the following text and return a JSON array according to the schema.
 Extract as much information as possible.
 CRITICAL: You MUST extract the number of items purchased and map it to 'initialQuantity'. If words like "a", "an", "one" are used, map it to 1. If not specified at all, default to 1.
@@ -125,38 +168,38 @@ TEXT:
 ${cleanPrompt}
 `;
 
-  try {
     const result = await model.generateContent(finalPrompt);
     const text = result.response.text();
-    return JSON.parse(text);
+    return { ok: true, data: JSON.parse(text) };
   } catch (error) {
     console.error("AI Stock Parsing Error:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to parse AI response.",
-    );
+    return { ok: false, error: friendlyAiError(error) };
   }
 }
 
-export async function parseSalesWithAI(prompt: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+export async function parseSalesWithAI(
+  prompt: string,
+): Promise<AIResult<unknown[]>> {
+  try {
+    const { userId } = await auth();
+    if (!userId) return { ok: false, error: "Unauthorized." };
 
-  const cleanPrompt = cleanRequiredString(prompt, "prompt", {
-    maxLength: MAX_AI_PROMPT_LENGTH,
-  });
-  await enforceAiRateLimit(userId, "sales");
+    const cleanPrompt = cleanRequiredString(prompt, "prompt", {
+      maxLength: MAX_AI_PROMPT_LENGTH,
+    });
+    await enforceAiRateLimit(userId, "sales");
 
-  const model = genAI.getGenerativeModel({
-    model: MODEL_NAME,
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: salesSchema,
-    },
-  });
+    const model = genAI.getGenerativeModel({
+      model: MODEL_NAME,
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: salesSchema,
+      },
+    });
 
-  const today = new Date().toISOString().split("T")[0];
+    const today = new Date().toISOString().split("T")[0];
 
-  const finalPrompt = `
+    const finalPrompt = `
 Extract the sales records from the following text and return a JSON array according to the schema.
 CRITICAL: You MUST extract the number of items sold and map it to 'quantitySold'. If words like "a", "an", "one" are used, map it to 1. If not specified at all, default to 1.
 CRITICAL: If a sale date is not explicitly mentioned, you MUST default to today's date, which is: ${today}.
@@ -165,14 +208,11 @@ TEXT:
 ${cleanPrompt}
 `;
 
-  try {
     const result = await model.generateContent(finalPrompt);
     const text = result.response.text();
-    return JSON.parse(text);
+    return { ok: true, data: JSON.parse(text) };
   } catch (error) {
     console.error("AI Sales Parsing Error:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to parse AI response.",
-    );
+    return { ok: false, error: friendlyAiError(error) };
   }
 }

@@ -148,19 +148,32 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
 
           {/* Bottom actions */}
           <div className="flex flex-col gap-4 mt-auto">
-            {/* Quick Add Button – only on Dashboard */}
+            {/* Quick Add + Add with AI – only on Dashboard */}
             {showQuickAdd && (
-              <AddProductModal>
-                {(open) => (
-                  <SidebarActionButton
-                    label="Quick Add"
-                    title="Quick Add"
-                    icon={PlusCircle}
-                    isCollapsed={isCollapsed}
-                    onClick={open}
-                  />
-                )}
-              </AddProductModal>
+              <>
+                <AddProductModal>
+                  {(open) => (
+                    <SidebarActionButton
+                      label="Quick Add"
+                      title="Quick Add"
+                      icon={PlusCircle}
+                      isCollapsed={isCollapsed}
+                      onClick={open}
+                    />
+                  )}
+                </AddProductModal>
+                <AIImportModal onAfterGenerate={onCloseMobile}>
+                  {(open) => (
+                    <SidebarActionButton
+                      label="Add with AI"
+                      title="Add with AI"
+                      icon={Sparkles}
+                      isCollapsed={isCollapsed}
+                      onClick={open}
+                    />
+                  )}
+                </AIImportModal>
+              </>
             )}
 
             {/* Add Product Button – only on Stock page */}
