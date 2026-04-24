@@ -11,7 +11,12 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
-import { deleteLot, markAsStocked, updateProductName } from "@/actions/stock";
+import {
+  deleteLot,
+  markAsStocked,
+  updateLotNotes,
+  updateProductName,
+} from "@/actions/stock";
 import { LotCard, type StockLot } from "@/components/stock/lotCard";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -114,6 +119,14 @@ function ProductRow({ product }: { product: ProductWithLots }) {
     } finally {
       setIsUpdating(null);
     }
+  };
+
+  const handleNotesUpdate = async (
+    lotId: string,
+    notes: string | null,
+  ): Promise<void> => {
+    await updateLotNotes(lotId, notes);
+    setLots(lots.map((lot) => (lot.id === lotId ? { ...lot, notes } : lot)));
   };
 
   return (
@@ -222,6 +235,7 @@ function ProductRow({ product }: { product: ProductWithLots }) {
                   productName={product.name}
                   onMarkStocked={handleMarkStocked}
                   onDelete={handleDelete}
+                  onNotesUpdate={handleNotesUpdate}
                   isUpdating={isUpdating}
                 />
               ))}

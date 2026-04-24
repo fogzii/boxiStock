@@ -13,6 +13,7 @@ import {
   cleanRequiredString,
   escapeLikePattern,
   MAX_LOT_IDENTITY_LENGTH,
+  MAX_LOT_NOTES_LENGTH,
   parseOptionalDate,
 } from "@/lib/validation";
 
@@ -115,6 +116,7 @@ export async function getInventoryPaginated(
     isStocked: boolean;
     dateAcquired: Date;
     lotIdentity?: string | null;
+    notes?: string | null;
   };
   type PaginatedProduct = {
     id: string;
@@ -143,6 +145,7 @@ export async function addProduct(data: {
   isStocked: boolean;
   dateAcquired?: Date;
   lotIdentity?: string;
+  notes?: string;
 }) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -155,6 +158,9 @@ export async function addProduct(data: {
   const dateAcquired = parseOptionalDate(data?.dateAcquired, "dateAcquired");
   const lotIdentity = cleanOptionalString(data?.lotIdentity, "lotIdentity", {
     maxLength: MAX_LOT_IDENTITY_LENGTH,
+  });
+  const notes = cleanOptionalString(data?.notes, "notes", {
+    maxLength: MAX_LOT_NOTES_LENGTH,
   });
 
   const supabase = await createClient();
@@ -185,6 +191,7 @@ export async function addProduct(data: {
       isStocked: data.isStocked,
       dateAcquired: (dateAcquired ?? new Date()).toISOString(),
       lotIdentity,
+      notes: notes ?? null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     },
@@ -274,6 +281,36 @@ export async function markAsStocked(lotId: string) {
   if (error) throw new Error(error.message);
   revalidatePath("/", "layout");
   return updatedLot;
+}
+
+export async function updateLotNotes(lotId: string, notes: string | null) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const cleanLotId = cleanRequiredString(lotId, "lotId");
+  const cleanNotes = cleanOptionalString(notes ?? undefined, "notes", {
+    maxLength: MAX_LOT_NOTES_LENGTH,
+  });
+
+  const supabase = await createClient();
+
+  const { data: lot } = await supabase
+    .from("StockLot")
+    .select("id, Product!inner(userId)")
+    .eq("id", cleanLotId)
+    .eq("Product.userId", userId)
+    .single();
+
+  if (!lot) throw new Error("Lot not found or unauthorized");
+
+  const { error } = await supabase
+    .from("StockLot")
+    .update({ notes: cleanNotes ?? null })
+    .eq("id", cleanLotId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/", "layout");
 }
 
 export async function updateProductName(productId: string, name: string) {

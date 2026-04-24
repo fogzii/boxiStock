@@ -9,6 +9,7 @@ export default async function StockPage({
 }: {
   searchParams: Promise<{ page?: string; search?: string }>;
 }) {
+  const isProduction = process.env.NODE_ENV === "production";
   const resolvedParams = await searchParams;
   const currentPage = Number(resolvedParams?.page) || 1;
   const searchParamStr = resolvedParams?.search;
@@ -29,7 +30,7 @@ export default async function StockPage({
         </h1>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <SearchInput placeholder="Search products or lots..." />
-          {totalCount === 0 && !searchParamStr && (
+          {!isProduction && totalCount === 0 && !searchParamStr && (
             <form
               action={async () => {
                 "use server";

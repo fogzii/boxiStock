@@ -13,6 +13,29 @@ import { cn } from "@/lib/utils";
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
+const MAX_NOTES_LENGTH = 50;
+
+function NotesInput() {
+  const [value, setValue] = React.useState("");
+  return (
+    <div className="relative">
+      <Input
+        id="notes"
+        name="notes"
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value.slice(0, MAX_NOTES_LENGTH))}
+        maxLength={MAX_NOTES_LENGTH}
+        placeholder="Add notes..."
+        className="bg-background/50 border-primary/20 h-11 pr-14"
+      />
+      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground/40 tabular-nums pointer-events-none">
+        {value.length}/{MAX_NOTES_LENGTH}
+      </span>
+    </div>
+  );
+}
+
 interface AddProductModalProps {
   children?: ((open: () => void) => React.ReactNode) | React.ReactNode;
   trigger?: React.ReactNode;
@@ -35,6 +58,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
     const quantity = parseInt(formData.get("quantity") as string, 10);
     const buyPrice = parseFloat(formData.get("buyPrice") as string);
     const lotIdentity = formData.get("lotIdentity") as string;
+    const notes = formData.get("notes") as string;
 
     try {
       await addProduct({
@@ -44,6 +68,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
         isStocked,
         dateAcquired: dateReceived as Date,
         lotIdentity,
+        notes,
       });
       setIsOpen(false);
       router.refresh();
@@ -82,7 +107,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
                 id="name"
                 name="name"
                 type="text"
-                placeholder="e.g. Wireless Mouse G502"
+                placeholder="Product Name"
                 required
                 className="bg-background/50 border-primary/20 h-11"
               />
@@ -185,6 +210,17 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
                   Pending
                 </button>
               </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="text-muted-foreground">
+                Notes{" "}
+                <span className="text-muted-foreground/50 font-normal">
+                  (optional, max 50 chars)
+                </span>
+              </Label>
+              <NotesInput />
             </div>
           </div>
 

@@ -91,7 +91,7 @@ export function AIImportModal({
       <Modal
         isOpen={isOpen}
         onClose={() => setIsOpen(false)}
-        title="Add with AI"
+        title="Add with AI (Beta)"
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           {errorMsg && (
@@ -160,9 +160,7 @@ export function AIImportModal({
                 value={promptText}
                 onChange={(e) => setPromptText(e.target.value)}
                 placeholder={
-                  importType === "stock"
-                    ? "e.g., I bought 20 units of Ergonomic Chair for $150 each."
-                    : "e.g., I sold 2 Ergonomic Chairs for $200 each this morning."
+                  importType === "stock" ? "I bought..." : "I sold..."
                 }
                 required
                 className="w-full bg-background/50 border border-primary/20 rounded-md p-3 text-sm focus-visible:outline-none focus:ring-1 focus:ring-primary focus:border-primary resize-none placeholder:text-muted-foreground"
@@ -180,9 +178,7 @@ export function AIImportModal({
               disabled={isSubmitting}
               className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20 cursor-pointer text-sm rounded-lg"
             >
-              {isSubmitting
-                ? "Generating AI preview..."
-                : "Generate Magic Link"}
+              {isSubmitting ? "Generating..." : "Generate"}
             </Button>
             <Button
               type="button"

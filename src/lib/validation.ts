@@ -11,6 +11,7 @@ export const MAX_QUANTITY = 1_000_000;
 export const MAX_PRICE = 1_000_000_000;
 export const MAX_NAME_LENGTH = 200;
 export const MAX_LOT_IDENTITY_LENGTH = 200;
+export const MAX_LOT_NOTES_LENGTH = 50;
 export const MAX_BULK_ITEMS = 1000;
 export const MAX_AI_PROMPT_LENGTH = 8000;
 
