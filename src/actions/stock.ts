@@ -865,6 +865,7 @@ export async function bulkAddSales(
     quantitySold: number;
     salePricePerUnit: number;
     buyPrice?: number;
+    dateSold?: string;
   }[],
 ) {
   const { userId } = await auth();
@@ -878,20 +879,25 @@ export async function bulkAddSales(
       `items[${idx}].productName`,
     );
     assertPositiveInt(item?.quantitySold, `items[${idx}].quantitySold`);
-    assertNonNegativeNumber(
-      item?.salePricePerUnit,
-      `items[${idx}].salePricePerUnit`,
-    );
+    const salePricePerUnit =
+      Math.round((item?.salePricePerUnit ?? 0) * 100) / 100;
+    assertNonNegativeNumber(salePricePerUnit, `items[${idx}].salePricePerUnit`);
     let buyPrice: number | undefined;
     if (item?.buyPrice !== undefined && item.buyPrice !== null) {
-      assertNonNegativeNumber(item.buyPrice, `items[${idx}].buyPrice`);
-      buyPrice = item.buyPrice;
+      const rounded = Math.round(item.buyPrice * 100) / 100;
+      assertNonNegativeNumber(rounded, `items[${idx}].buyPrice`);
+      buyPrice = rounded;
     }
+    const dateSold = parseOptionalDate(
+      item?.dateSold,
+      `items[${idx}].dateSold`,
+    );
     return {
       productName,
       quantitySold: item.quantitySold,
-      salePricePerUnit: item.salePricePerUnit,
+      salePricePerUnit,
       buyPrice,
+      dateSold,
     };
   });
 
@@ -1020,6 +1026,9 @@ export async function bulkAddSales(
           quantitySold: qtyFromLot,
           totalSalePrice,
           totalProfit,
+          dateSold: item.dateSold
+            ? item.dateSold.toISOString()
+            : new Date().toISOString(),
           createdAt: new Date().toISOString(),
         },
       ]);

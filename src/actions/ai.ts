@@ -85,8 +85,13 @@ const salesSchema: Schema = {
         type: SchemaType.NUMBER,
         description: "Buy price per unit. Optional, can be empty.",
       },
+      dateSold: {
+        type: SchemaType.STRING,
+        description:
+          "Date the sale occurred (YYYY-MM-DD). If not mentioned, ALWAYS default to the current date provided in the prompt.",
+      },
     },
-    required: ["productName", "quantitySold", "salePricePerUnit"],
+    required: ["productName", "quantitySold", "salePricePerUnit", "dateSold"],
   },
 };
 
@@ -149,9 +154,12 @@ export async function parseSalesWithAI(prompt: string) {
     },
   });
 
+  const today = new Date().toISOString().split("T")[0];
+
   const finalPrompt = `
 Extract the sales records from the following text and return a JSON array according to the schema.
 CRITICAL: You MUST extract the number of items sold and map it to 'quantitySold'. If words like "a", "an", "one" are used, map it to 1. If not specified at all, default to 1.
+CRITICAL: If a sale date is not explicitly mentioned, you MUST default to today's date, which is: ${today}.
 
 TEXT:
 ${cleanPrompt}

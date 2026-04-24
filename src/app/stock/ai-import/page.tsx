@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowLeft, PackageSearch, RefreshCcw, Save } from "lucide-react";
+import {
+  ArrowLeft,
+  PackageSearch,
+  Plus,
+  RefreshCcw,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -8,6 +15,17 @@ import { bulkAddLotsAndProducts, bulkAddSales } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAIImport } from "@/context/AIImportContext";
+
+const TODAY = new Date().toISOString().split("T")[0];
+
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function clampPositiveInt(value: number): number {
+  const n = Math.floor(value);
+  return Number.isFinite(n) && n >= 1 ? n : 1;
+}
 
 export default function AIImportReviewPage() {
   const { importData, setImportData } = useAIImport();
@@ -31,18 +49,102 @@ export default function AIImportReviewPage() {
 
   if (!importData) return null;
 
+  // ── Stock handlers ──────────────────────────────────────────────────────────
   const handleStockChange = (index: number, field: string, value: unknown) => {
     const updated = [...stockLots];
     updated[index] = { ...updated[index], [field]: value };
     setStockLots(updated);
   };
 
+  const handleStockBlurPrice = (index: number, field: string) => {
+    const lot = stockLots[index];
+    const raw = lot[field as keyof typeof lot] as number;
+    if (typeof raw === "number") {
+      handleStockChange(index, field, round2(raw));
+    }
+  };
+
+  const handleStockBlurQty = (index: number) => {
+    const lot = stockLots[index];
+    handleStockChange(
+      index,
+      "initialQuantity",
+      clampPositiveInt(lot.initialQuantity),
+    );
+  };
+
+  const handleAddStockRow = () => {
+    setStockLots([
+      ...stockLots,
+      {
+        name: "",
+        initialQuantity: 1,
+        buyPrice: 0,
+        isStocked: true,
+        lotIdentity: "",
+        dateAcquired: TODAY,
+      },
+    ]);
+    const newTotal = stockLots.length + 1;
+    setPage(Math.ceil(newTotal / pageSize));
+  };
+
+  const handleDeleteStockRow = (index: number) => {
+    const updated = stockLots.filter((_, i) => i !== index);
+    setStockLots(updated);
+    const newTotal = updated.length;
+    const maxPage = Math.max(1, Math.ceil(newTotal / pageSize));
+    if (page > maxPage) setPage(maxPage);
+  };
+
+  // ── Sales handlers ──────────────────────────────────────────────────────────
   const handleSalesChange = (index: number, field: string, value: unknown) => {
     const updated = [...sales];
     updated[index] = { ...updated[index], [field]: value };
     setSales(updated);
   };
 
+  const handleSalesBlurPrice = (index: number, field: string) => {
+    const sale = sales[index];
+    const raw = sale[field as keyof typeof sale] as number | undefined;
+    if (typeof raw === "number") {
+      handleSalesChange(index, field, round2(raw));
+    }
+  };
+
+  const handleSalesBlurQty = (index: number) => {
+    const sale = sales[index];
+    handleSalesChange(
+      index,
+      "quantitySold",
+      clampPositiveInt(sale.quantitySold),
+    );
+  };
+
+  const handleAddSaleRow = () => {
+    setSales([
+      ...sales,
+      {
+        productName: "",
+        quantitySold: 1,
+        salePricePerUnit: 0,
+        buyPrice: undefined,
+        dateSold: TODAY,
+      },
+    ]);
+    const newTotal = sales.length + 1;
+    setPage(Math.ceil(newTotal / pageSize));
+  };
+
+  const handleDeleteSaleRow = (index: number) => {
+    const updated = sales.filter((_, i) => i !== index);
+    setSales(updated);
+    const newTotal = updated.length;
+    const maxPage = Math.max(1, Math.ceil(newTotal / pageSize));
+    if (page > maxPage) setPage(maxPage);
+  };
+
+  // ── Confirm / cancel ────────────────────────────────────────────────────────
   const handleConfirm = async () => {
     setIsSaving(true);
     try {
@@ -70,12 +172,14 @@ export default function AIImportReviewPage() {
   };
 
   const handleTryAgain = () => {
-    router.push("/stock?openAi=true"); // Not exactly needed. We can just push to /stock and tell user to trigger modal again. Wait, the requirement: 'open text modal so they can adjust their prompt'. We should just router.back() and maybe set a query param to open.
-    // simpler:
     router.push("/stock?reopen-ai=true");
   };
 
-  // Rendering Tables
+  // ── Shared input class ──────────────────────────────────────────────────────
+  const cellInput =
+    "h-9 px-2 bg-transparent border-transparent hover:border-primary/20 focus:bg-background";
+
+  // ── Stock table ─────────────────────────────────────────────────────────────
   const renderStockTable = () => {
     const totalPages = Math.ceil(stockLots.length / pageSize);
     const paginated = stockLots.slice((page - 1) * pageSize, page * pageSize);
@@ -84,24 +188,25 @@ export default function AIImportReviewPage() {
       <div className="space-y-4">
         <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            <table className="w-full table-fixed text-sm text-left">
               <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
                 <tr>
-                  <th className="px-5 py-4 font-semibold w-[30%]">
+                  <th className="px-5 py-4 font-semibold w-[26%]">
                     Product Name
                   </th>
-                  <th className="px-5 py-4 font-semibold w-[15%] text-right">
-                    Quantity
+                  <th className="px-5 py-4 font-semibold w-[11%] text-right">
+                    Qty
                   </th>
                   <th className="px-5 py-4 font-semibold w-[15%] text-right">
                     Buy Price ($)
                   </th>
-                  <th className="px-5 py-4 font-semibold w-[20%]">
+                  <th className="px-5 py-4 font-semibold w-[19%]">
                     Lot Identity
                   </th>
-                  <th className="px-5 py-4 font-semibold w-[20%] text-center">
+                  <th className="px-5 py-4 font-semibold w-[25%] text-center">
                     Received Date
                   </th>
+                  <th className="w-10" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -110,7 +215,7 @@ export default function AIImportReviewPage() {
                   return (
                     <tr
                       key={globalIdx}
-                      className="hover:bg-muted/20 transition-colors"
+                      className="hover:bg-muted/20 transition-colors group/row"
                     >
                       <td className="px-5 py-3">
                         <Input
@@ -118,26 +223,30 @@ export default function AIImportReviewPage() {
                           onChange={(e) =>
                             handleStockChange(globalIdx, "name", e.target.value)
                           }
-                          className="h-9 px-2 bg-transparent border-transparent hover:border-primary/20 focus:bg-background"
+                          className={cellInput}
                         />
                       </td>
                       <td className="px-5 py-3">
                         <Input
                           type="number"
+                          min="1"
+                          step="1"
                           value={item.initialQuantity}
                           onChange={(e) =>
                             handleStockChange(
                               globalIdx,
                               "initialQuantity",
-                              parseInt(e.target.value, 10) || 0,
+                              parseInt(e.target.value, 10) || 1,
                             )
                           }
-                          className="h-9 px-2 text-right bg-transparent border-transparent hover:border-primary/20 focus:bg-background"
+                          onBlur={() => handleStockBlurQty(globalIdx)}
+                          className={`${cellInput} text-right`}
                         />
                       </td>
                       <td className="px-5 py-3">
                         <Input
                           type="number"
+                          min="0"
                           step="0.01"
                           value={item.buyPrice}
                           onChange={(e) =>
@@ -147,7 +256,10 @@ export default function AIImportReviewPage() {
                               parseFloat(e.target.value) || 0,
                             )
                           }
-                          className="h-9 px-2 text-right bg-transparent border-transparent hover:border-primary/20 focus:bg-background"
+                          onBlur={() =>
+                            handleStockBlurPrice(globalIdx, "buyPrice")
+                          }
+                          className={`${cellInput} text-right`}
                         />
                       </td>
                       <td className="px-5 py-3">
@@ -161,13 +273,13 @@ export default function AIImportReviewPage() {
                               e.target.value,
                             )
                           }
-                          className="h-9 px-2 bg-transparent border-transparent hover:border-primary/20 focus:bg-background placeholder:text-muted-foreground/50"
+                          className={`${cellInput} placeholder:text-muted-foreground/50`}
                         />
                       </td>
                       <td className="px-5 py-3 text-center">
                         <Input
                           type="date"
-                          value={item.dateAcquired || ""}
+                          value={item.dateAcquired || TODAY}
                           onChange={(e) =>
                             handleStockChange(
                               globalIdx,
@@ -175,8 +287,18 @@ export default function AIImportReviewPage() {
                               e.target.value,
                             )
                           }
-                          className="h-9 px-2 text-center bg-transparent border-transparent hover:border-primary/20 focus:bg-background"
+                          className={`${cellInput} text-center`}
                         />
+                      </td>
+                      <td className="w-10 py-3 pr-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteStockRow(globalIdx)}
+                          className="opacity-0 group-hover/row:opacity-100 transition-opacity cursor-pointer p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                          aria-label="Delete row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   );
@@ -184,12 +306,25 @@ export default function AIImportReviewPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Add row */}
+          <div className="px-5 py-2 border-t border-border/50">
+            <button
+              type="button"
+              onClick={handleAddStockRow}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add row
+            </button>
+          </div>
         </div>
         {totalPages > 1 && renderPagination(totalPages)}
       </div>
     );
   };
 
+  // ── Sales table ─────────────────────────────────────────────────────────────
   const renderSalesTable = () => {
     const totalPages = Math.ceil(sales.length / pageSize);
     const paginated = sales.slice((page - 1) * pageSize, page * pageSize);
@@ -198,19 +333,25 @@ export default function AIImportReviewPage() {
       <div className="space-y-4">
         <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
+            <table className="w-full table-fixed text-sm text-left">
               <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
                 <tr>
-                  <th className="px-5 py-4 font-semibold">Product Name</th>
-                  <th className="px-5 py-4 font-semibold text-right">
+                  <th className="px-5 py-4 font-semibold w-[24%]">
+                    Product Name
+                  </th>
+                  <th className="px-5 py-4 font-semibold w-[11%] text-right">
                     Sold Qty
                   </th>
-                  <th className="px-5 py-4 font-semibold text-right">
+                  <th className="px-5 py-4 font-semibold w-[15%] text-right">
                     Buy Price ($)
                   </th>
-                  <th className="px-5 py-4 font-semibold text-right">
+                  <th className="px-5 py-4 font-semibold w-[15%] text-right">
                     Sale Price ($)
                   </th>
+                  <th className="px-5 py-4 font-semibold w-[31%] text-center">
+                    Date Sold
+                  </th>
+                  <th className="w-10" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -219,7 +360,7 @@ export default function AIImportReviewPage() {
                   return (
                     <tr
                       key={globalIdx}
-                      className="hover:bg-muted/20 transition-colors"
+                      className="hover:bg-muted/20 transition-colors group/row"
                     >
                       <td className="px-5 py-3">
                         <Input
@@ -231,59 +372,108 @@ export default function AIImportReviewPage() {
                               e.target.value,
                             )
                           }
-                          className="h-9 px-2 bg-transparent border-transparent hover:border-primary/20 focus:bg-background"
+                          className={cellInput}
                         />
                       </td>
                       <td className="px-5 py-3">
                         <Input
                           type="number"
+                          min="1"
+                          step="1"
                           value={sale.quantitySold}
                           onChange={(e) =>
                             handleSalesChange(
                               globalIdx,
                               "quantitySold",
-                              parseInt(e.target.value, 10),
+                              parseInt(e.target.value, 10) || 1,
                             )
                           }
-                          className="h-9 px-2 text-right bg-transparent border-transparent hover:border-primary/20 focus:bg-background"
+                          onBlur={() => handleSalesBlurQty(globalIdx)}
+                          className={`${cellInput} text-right`}
                         />
                       </td>
                       <td className="px-5 py-3">
                         <Input
                           type="number"
+                          min="0"
                           step="0.01"
-                          value={sale.buyPrice || ""}
+                          value={sale.buyPrice ?? ""}
                           placeholder="Auto (from stock)"
                           onChange={(e) =>
                             handleSalesChange(
                               globalIdx,
                               "buyPrice",
-                              parseFloat(e.target.value),
+                              e.target.value === ""
+                                ? undefined
+                                : parseFloat(e.target.value),
                             )
                           }
-                          className="h-9 px-2 text-right bg-transparent border-transparent hover:border-primary/20 focus:bg-background placeholder:text-muted-foreground/50"
+                          onBlur={() =>
+                            handleSalesBlurPrice(globalIdx, "buyPrice")
+                          }
+                          className={`${cellInput} text-right placeholder:text-muted-foreground/50`}
                         />
                       </td>
                       <td className="px-5 py-3">
                         <Input
                           type="number"
+                          min="0"
                           step="0.01"
                           value={sale.salePricePerUnit}
                           onChange={(e) =>
                             handleSalesChange(
                               globalIdx,
                               "salePricePerUnit",
-                              parseFloat(e.target.value),
+                              parseFloat(e.target.value) || 0,
                             )
                           }
-                          className="h-9 px-2 text-right bg-transparent border-transparent hover:border-primary/20 focus:bg-background"
+                          onBlur={() =>
+                            handleSalesBlurPrice(globalIdx, "salePricePerUnit")
+                          }
+                          className={`${cellInput} text-right`}
                         />
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <Input
+                          type="date"
+                          value={sale.dateSold || TODAY}
+                          onChange={(e) =>
+                            handleSalesChange(
+                              globalIdx,
+                              "dateSold",
+                              e.target.value,
+                            )
+                          }
+                          className={`${cellInput} text-center`}
+                        />
+                      </td>
+                      <td className="w-10 py-3 pr-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSaleRow(globalIdx)}
+                          className="opacity-0 group-hover/row:opacity-100 transition-opacity cursor-pointer p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                          aria-label="Delete row"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Add row */}
+          <div className="px-5 py-2 border-t border-border/50">
+            <button
+              type="button"
+              onClick={handleAddSaleRow}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-1 cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add row
+            </button>
           </div>
         </div>
         {totalPages > 1 && renderPagination(totalPages)}
@@ -324,8 +514,8 @@ export default function AIImportReviewPage() {
             AI Import Review
           </h1>
           <p className="text-muted-foreground mt-2 text-sm sm:text-base">
-            Please verify the extracted information. You can edit any details
-            directly in the table before confirming.
+            Please verify the extracted information. You can edit, add, or
+            remove rows before confirming.
           </p>
         </div>
       </div>
@@ -343,17 +533,37 @@ export default function AIImportReviewPage() {
           (stockLots.length > 0 ? (
             renderStockTable()
           ) : (
-            <p className="text-muted-foreground py-10 text-center">
-              No structural info found.
-            </p>
+            <div className="space-y-4">
+              <p className="text-muted-foreground py-10 text-center">
+                No rows found.
+              </p>
+              <button
+                type="button"
+                onClick={handleAddStockRow}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add row
+              </button>
+            </div>
           ))}
         {importData.type === "sales" &&
           (sales.length > 0 ? (
             renderSalesTable()
           ) : (
-            <p className="text-muted-foreground py-10 text-center">
-              No structural info found.
-            </p>
+            <div className="space-y-4">
+              <p className="text-muted-foreground py-10 text-center">
+                No rows found.
+              </p>
+              <button
+                type="button"
+                onClick={handleAddSaleRow}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-1 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add row
+              </button>
+            </div>
           ))}
       </div>
 

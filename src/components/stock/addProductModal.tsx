@@ -46,30 +46,51 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isStocked, setIsStocked] = React.useState(true);
   const [dateReceived, setDateReceived] = React.useState<Value>(new Date());
+  const [quantity, setQuantity] = React.useState<string>("1");
+  const [buyPrice, setBuyPrice] = React.useState<string>("");
   const router = useRouter();
 
+  const handleQuantityBlur = () => {
+    const n = Math.floor(parseFloat(quantity));
+    setQuantity(String(Number.isFinite(n) && n >= 1 ? n : 1));
+  };
+
+  const handleBuyPriceBlur = () => {
+    const n = parseFloat(buyPrice);
+    if (Number.isFinite(n)) {
+      setBuyPrice((Math.round(n * 100) / 100).toFixed(2));
+    }
+  };
+
+  const resetForm = () => {
+    setQuantity("1");
+    setBuyPrice("");
+    setIsStocked(true);
+    setDateReceived(new Date());
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    // ... logic remains same ...
     e.preventDefault();
     setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
     const name = formData.get("name") as string;
-    const quantity = parseInt(formData.get("quantity") as string, 10);
-    const buyPrice = parseFloat(formData.get("buyPrice") as string);
+    const parsedQty = Math.floor(parseFloat(quantity));
+    const parsedPrice = Math.round(parseFloat(buyPrice) * 100) / 100;
     const lotIdentity = formData.get("lotIdentity") as string;
     const notes = formData.get("notes") as string;
 
     try {
       await addProduct({
         name,
-        initialQuantity: quantity,
-        buyPrice,
+        initialQuantity: parsedQty,
+        buyPrice: parsedPrice,
         isStocked,
         dateAcquired: dateReceived as Date,
         lotIdentity,
         notes,
       });
+      resetForm();
       setIsOpen(false);
       router.refresh();
     } catch (error) {
@@ -95,7 +116,14 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
           {trigger || children}
         </button>
       )}
-      <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Add Stock">
+      <Modal
+        isOpen={isOpen}
+        onClose={() => {
+          resetForm();
+          setIsOpen(false);
+        }}
+        title="Add Stock"
+      >
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div className="space-y-5">
             {/* Product Name */}
@@ -124,7 +152,10 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
                   name="quantity"
                   type="number"
                   min="1"
-                  placeholder="0"
+                  step="1"
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  onBlur={handleQuantityBlur}
                   required
                   className="bg-background/50 border-primary/20 h-11"
                 />
@@ -145,6 +176,9 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
                     min="0"
                     step="0.01"
                     placeholder="0.00"
+                    value={buyPrice}
+                    onChange={(e) => setBuyPrice(e.target.value)}
+                    onBlur={handleBuyPriceBlur}
                     required
                     className="pl-7 bg-background/50 border-primary/20 h-11"
                   />
@@ -235,7 +269,10 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
             <Button
               type="button"
               variant="ghost"
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                resetForm();
+                setIsOpen(false);
+              }}
               className="w-full h-12 cursor-pointer text-sm rounded-lg hover:bg-white/5"
             >
               Cancel

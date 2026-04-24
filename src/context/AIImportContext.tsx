@@ -19,6 +19,7 @@ interface ParsedSale {
   quantitySold: number;
   salePricePerUnit: number;
   buyPrice?: number;
+  dateSold?: string;
 }
 
 interface AIImportData {
