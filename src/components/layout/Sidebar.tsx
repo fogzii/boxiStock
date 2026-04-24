@@ -177,7 +177,7 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
                     />
                   )}
                 </AddProductModal>
-                <AIImportModal>
+                <AIImportModal onAfterGenerate={onCloseMobile}>
                   {(open) => (
                     <SidebarActionButton
                       label="Add with AI"

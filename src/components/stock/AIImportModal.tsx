@@ -11,8 +11,10 @@ import { cn } from "@/lib/utils";
 
 export function AIImportModal({
   children,
+  onAfterGenerate,
 }: {
   children: (open: () => void) => React.ReactNode;
+  onAfterGenerate?: () => void;
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -66,6 +68,7 @@ export function AIImportModal({
       }
 
       setIsOpen(false);
+      onAfterGenerate?.();
       router.push("/stock/ai-import");
     } catch (error) {
       console.error("AI Parsing Error:", error);

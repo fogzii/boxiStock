@@ -27,6 +27,14 @@ function clampPositiveInt(value: number): number {
   return Number.isFinite(n) && n >= 1 ? n : 1;
 }
 
+/** Returns the input if it's a valid YYYY-MM-DD date, otherwise TODAY. */
+function sanitiseDate(raw: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
+  if (!match) return TODAY;
+  const d = new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? TODAY : raw.trim();
+}
+
 export default function AIImportReviewPage() {
   const { importData, setImportData } = useAIImport();
   const router = useRouter();
@@ -59,9 +67,7 @@ export default function AIImportReviewPage() {
   const handleStockBlurPrice = (index: number, field: string) => {
     const lot = stockLots[index];
     const raw = lot[field as keyof typeof lot] as number;
-    if (typeof raw === "number") {
-      handleStockChange(index, field, round2(raw));
-    }
+    if (typeof raw === "number") handleStockChange(index, field, round2(raw));
   };
 
   const handleStockBlurQty = (index: number) => {
@@ -92,8 +98,7 @@ export default function AIImportReviewPage() {
   const handleDeleteStockRow = (index: number) => {
     const updated = stockLots.filter((_, i) => i !== index);
     setStockLots(updated);
-    const newTotal = updated.length;
-    const maxPage = Math.max(1, Math.ceil(newTotal / pageSize));
+    const maxPage = Math.max(1, Math.ceil(updated.length / pageSize));
     if (page > maxPage) setPage(maxPage);
   };
 
@@ -107,9 +112,7 @@ export default function AIImportReviewPage() {
   const handleSalesBlurPrice = (index: number, field: string) => {
     const sale = sales[index];
     const raw = sale[field as keyof typeof sale] as number | undefined;
-    if (typeof raw === "number") {
-      handleSalesChange(index, field, round2(raw));
-    }
+    if (typeof raw === "number") handleSalesChange(index, field, round2(raw));
   };
 
   const handleSalesBlurQty = (index: number) => {
@@ -139,8 +142,7 @@ export default function AIImportReviewPage() {
   const handleDeleteSaleRow = (index: number) => {
     const updated = sales.filter((_, i) => i !== index);
     setSales(updated);
-    const newTotal = updated.length;
-    const maxPage = Math.max(1, Math.ceil(newTotal / pageSize));
+    const maxPage = Math.max(1, Math.ceil(updated.length / pageSize));
     if (page > maxPage) setPage(maxPage);
   };
 
@@ -175,9 +177,9 @@ export default function AIImportReviewPage() {
     router.push("/stock?reopen-ai=true");
   };
 
-  // ── Shared input class ──────────────────────────────────────────────────────
-  const cellInput =
-    "h-9 px-2 bg-transparent border-transparent hover:border-primary/20 focus:bg-background";
+  // ── Shared styles ───────────────────────────────────────────────────────────
+  const ci =
+    "h-9 px-2 bg-transparent border-transparent hover:border-primary/20 focus:bg-background w-full";
 
   // ── Stock table ─────────────────────────────────────────────────────────────
   const renderStockTable = () => {
@@ -188,25 +190,26 @@ export default function AIImportReviewPage() {
       <div className="space-y-4">
         <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-sm text-left">
+            {/* min-w keeps it scrollable on mobile; colgroup pins narrow cols */}
+            <table className="w-full min-w-[680px] text-sm text-left">
+              <colgroup>
+                <col />
+                <col style={{ width: "80px" }} />
+                <col style={{ width: "80px" }} />
+                <col />
+                <col style={{ width: "85px" }} />
+                <col style={{ width: "40px" }} />
+              </colgroup>
               <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
                 <tr>
-                  <th className="px-5 py-4 font-semibold w-[26%]">
-                    Product Name
-                  </th>
-                  <th className="px-5 py-4 font-semibold w-[11%] text-right">
-                    Qty
-                  </th>
-                  <th className="px-5 py-4 font-semibold w-[15%] text-right">
-                    Buy Price ($)
-                  </th>
-                  <th className="px-5 py-4 font-semibold w-[19%]">
-                    Lot Identity
-                  </th>
-                  <th className="px-5 py-4 font-semibold w-[25%] text-center">
+                  <th className="px-4 py-4 font-semibold">Product Name</th>
+                  <th className="px-2 py-4 font-semibold text-right">Qty</th>
+                  <th className="px-2 py-4 font-semibold text-right">Price</th>
+                  <th className="px-4 py-4 font-semibold">Lot Identity</th>
+                  <th className="px-2 py-4 font-semibold text-center">
                     Received Date
                   </th>
-                  <th className="w-10" />
+                  <th />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -215,18 +218,18 @@ export default function AIImportReviewPage() {
                   return (
                     <tr
                       key={globalIdx}
-                      className="hover:bg-muted/20 transition-colors group/row"
+                      className="hover:bg-muted/20 transition-colors"
                     >
-                      <td className="px-5 py-3">
+                      <td className="px-4 py-2">
                         <Input
                           value={item.name}
                           onChange={(e) =>
                             handleStockChange(globalIdx, "name", e.target.value)
                           }
-                          className={cellInput}
+                          className={ci}
                         />
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-2 py-2">
                         <Input
                           type="number"
                           min="1"
@@ -240,10 +243,10 @@ export default function AIImportReviewPage() {
                             )
                           }
                           onBlur={() => handleStockBlurQty(globalIdx)}
-                          className={`${cellInput} text-right`}
+                          className={`${ci} text-right`}
                         />
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-2 py-2">
                         <Input
                           type="number"
                           min="0"
@@ -259,10 +262,10 @@ export default function AIImportReviewPage() {
                           onBlur={() =>
                             handleStockBlurPrice(globalIdx, "buyPrice")
                           }
-                          className={`${cellInput} text-right`}
+                          className={`${ci} text-right`}
                         />
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-4 py-2">
                         <Input
                           value={item.lotIdentity || ""}
                           placeholder="Optional"
@@ -273,12 +276,12 @@ export default function AIImportReviewPage() {
                               e.target.value,
                             )
                           }
-                          className={`${cellInput} placeholder:text-muted-foreground/50`}
+                          className={`${ci} placeholder:text-muted-foreground/50`}
                         />
                       </td>
-                      <td className="px-5 py-3 text-center">
+                      <td className="px-2 py-2">
                         <Input
-                          type="date"
+                          type="text"
                           value={item.dateAcquired || TODAY}
                           onChange={(e) =>
                             handleStockChange(
@@ -287,14 +290,22 @@ export default function AIImportReviewPage() {
                               e.target.value,
                             )
                           }
-                          className={`${cellInput} text-center`}
+                          onBlur={() =>
+                            handleStockChange(
+                              globalIdx,
+                              "dateAcquired",
+                              sanitiseDate(item.dateAcquired || TODAY),
+                            )
+                          }
+                          placeholder="YYYY-MM-DD"
+                          className={`${ci} placeholder:text-muted-foreground/40`}
                         />
                       </td>
-                      <td className="w-10 py-3 pr-3 text-center">
+                      <td className="py-2 pr-3 text-center">
                         <button
                           type="button"
                           onClick={() => handleDeleteStockRow(globalIdx)}
-                          className="opacity-0 group-hover/row:opacity-100 transition-opacity cursor-pointer p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                          className="cursor-pointer p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                           aria-label="Delete row"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -333,25 +344,25 @@ export default function AIImportReviewPage() {
       <div className="space-y-4">
         <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-sm text-left">
+            <table className="w-full min-w-[720px] text-sm text-left">
+              <colgroup>
+                <col style={{ width: "180px" }} />
+                <col style={{ width: "70px" }} />
+                <col style={{ width: "70px" }} />
+                <col style={{ width: "70px" }} />
+                <col style={{ width: "85px" }} />
+                <col style={{ width: "40px" }} />
+              </colgroup>
               <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
                 <tr>
-                  <th className="px-5 py-4 font-semibold w-[24%]">
-                    Product Name
-                  </th>
-                  <th className="px-5 py-4 font-semibold w-[11%] text-right">
-                    Sold Qty
-                  </th>
-                  <th className="px-5 py-4 font-semibold w-[15%] text-right">
-                    Buy Price ($)
-                  </th>
-                  <th className="px-5 py-4 font-semibold w-[15%] text-right">
-                    Sale Price ($)
-                  </th>
-                  <th className="px-5 py-4 font-semibold w-[31%] text-center">
+                  <th className="px-4 py-4 font-semibold">Product Name</th>
+                  <th className="px-2 py-4 font-semibold text-right">Qty</th>
+                  <th className="px-2 py-4 font-semibold text-right">Buy</th>
+                  <th className="px-2 py-4 font-semibold text-right">Sell</th>
+                  <th className="px-2 py-4 font-semibold text-center">
                     Date Sold
                   </th>
-                  <th className="w-10" />
+                  <th />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -360,9 +371,9 @@ export default function AIImportReviewPage() {
                   return (
                     <tr
                       key={globalIdx}
-                      className="hover:bg-muted/20 transition-colors group/row"
+                      className="hover:bg-muted/20 transition-colors"
                     >
-                      <td className="px-5 py-3">
+                      <td className="px-4 py-2">
                         <Input
                           value={sale.productName}
                           onChange={(e) =>
@@ -372,10 +383,10 @@ export default function AIImportReviewPage() {
                               e.target.value,
                             )
                           }
-                          className={cellInput}
+                          className={ci}
                         />
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-2 py-2">
                         <Input
                           type="number"
                           min="1"
@@ -389,16 +400,16 @@ export default function AIImportReviewPage() {
                             )
                           }
                           onBlur={() => handleSalesBlurQty(globalIdx)}
-                          className={`${cellInput} text-right`}
+                          className={`${ci} text-right`}
                         />
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-2 py-2">
                         <Input
                           type="number"
                           min="0"
                           step="0.01"
                           value={sale.buyPrice ?? ""}
-                          placeholder="Auto (from stock)"
+                          placeholder="Auto"
                           onChange={(e) =>
                             handleSalesChange(
                               globalIdx,
@@ -411,10 +422,10 @@ export default function AIImportReviewPage() {
                           onBlur={() =>
                             handleSalesBlurPrice(globalIdx, "buyPrice")
                           }
-                          className={`${cellInput} text-right placeholder:text-muted-foreground/50`}
+                          className={`${ci} text-right placeholder:text-muted-foreground/50`}
                         />
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-2 py-2">
                         <Input
                           type="number"
                           min="0"
@@ -430,12 +441,12 @@ export default function AIImportReviewPage() {
                           onBlur={() =>
                             handleSalesBlurPrice(globalIdx, "salePricePerUnit")
                           }
-                          className={`${cellInput} text-right`}
+                          className={`${ci} text-right`}
                         />
                       </td>
-                      <td className="px-5 py-3 text-center">
+                      <td className="px-2 py-2">
                         <Input
-                          type="date"
+                          type="text"
                           value={sale.dateSold || TODAY}
                           onChange={(e) =>
                             handleSalesChange(
@@ -444,14 +455,22 @@ export default function AIImportReviewPage() {
                               e.target.value,
                             )
                           }
-                          className={`${cellInput} text-center`}
+                          onBlur={() =>
+                            handleSalesChange(
+                              globalIdx,
+                              "dateSold",
+                              sanitiseDate(sale.dateSold || TODAY),
+                            )
+                          }
+                          placeholder="YYYY-MM-DD"
+                          className={`${ci} placeholder:text-muted-foreground/40`}
                         />
                       </td>
-                      <td className="w-10 py-3 pr-3 text-center">
+                      <td className="py-2 pr-3 text-center">
                         <button
                           type="button"
                           onClick={() => handleDeleteSaleRow(globalIdx)}
-                          className="opacity-0 group-hover/row:opacity-100 transition-opacity cursor-pointer p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                          className="cursor-pointer p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                           aria-label="Delete row"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -567,24 +586,41 @@ export default function AIImportReviewPage() {
           ))}
       </div>
 
-      <div className="flex justify-between items-center pt-8 border-t border-border mt-10">
-        <Button
-          variant="ghost"
-          onClick={handleCancel}
-          className="text-muted-foreground hover:text-foreground cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Cancel
-        </Button>
-        <div className="flex gap-4">
+      <div className="flex flex-col gap-3 pt-8 border-t border-border mt-10">
+        {/* Row 1: Cancel + Try Again */}
+        <div className="flex items-center justify-between gap-3">
+          <Button
+            variant="ghost"
+            onClick={handleCancel}
+            className="h-12 text-muted-foreground hover:text-foreground cursor-pointer"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Cancel
+          </Button>
           <Button
             variant="outline"
             onClick={handleTryAgain}
-            className="border-primary/20 hover:bg-primary/5 shadow-sm cursor-pointer"
+            className="h-12 border-primary/20 hover:bg-primary/5 shadow-sm cursor-pointer"
           >
             <RefreshCcw className="w-4 h-4 mr-2 text-primary" />
             Try Again
           </Button>
+        </div>
+        {/* Row 2 (mobile) / inline right (desktop): Confirm & Save */}
+        <Button
+          onClick={handleConfirm}
+          disabled={
+            isSaving ||
+            (importData.type === "stock"
+              ? stockLots.length === 0
+              : sales.length === 0)
+          }
+          className="h-12 w-full bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-white gap-2 font-bold cursor-pointer sm:hidden"
+        >
+          {isSaving ? "Saving..." : "Confirm & Save"}
+          <Save className="w-4 h-4" />
+        </Button>
+        <div className="hidden sm:flex sm:justify-end">
           <Button
             onClick={handleConfirm}
             disabled={
@@ -593,7 +629,7 @@ export default function AIImportReviewPage() {
                 ? stockLots.length === 0
                 : sales.length === 0)
             }
-            className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-white gap-2 font-bold px-8 cursor-pointer"
+            className="h-12 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-white gap-2 font-bold px-8 cursor-pointer"
           >
             {isSaving ? "Saving..." : "Confirm & Save"}
             <Save className="w-4 h-4" />
