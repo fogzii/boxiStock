@@ -1,16 +1,15 @@
 "use server";
 
+import Anthropic from "@anthropic-ai/sdk";
+import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
 import { auth } from "@clerk/nextjs/server";
-import {
-  GoogleGenerativeAI,
-  type Schema,
-  SchemaType,
-} from "@google/generative-ai";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { cleanRequiredString, MAX_AI_PROMPT_LENGTH } from "@/lib/validation";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const MODEL_NAME = "gemma-3-27b-it";
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY || "",
+});
+const MODEL = "claude-haiku-4-5-20251001" as const;
 
 async function enforceAiRateLimit(userId: string, kind: "stock" | "sales") {
   await enforceRateLimit(
@@ -20,7 +19,6 @@ async function enforceAiRateLimit(userId: string, kind: "stock" | "sales") {
   );
 }
 
-/** Map raw Gemini/network errors to safe, user-friendly messages. */
 function friendlyAiError(error: unknown): string {
   const msg =
     error instanceof Error
@@ -36,7 +34,7 @@ function friendlyAiError(error: unknown): string {
     lower.includes("high demand") ||
     lower.includes("service unavailable")
   ) {
-    return "Gemini is currently experiencing high demand. Please wait a moment and try again.";
+    return "The AI service is currently busy. Please wait a moment and try again.";
   }
   if (
     lower.includes("429") ||
@@ -60,80 +58,98 @@ function friendlyAiError(error: unknown): string {
 
 export type AIResult<T> = { ok: true; data: T } | { ok: false; error: string };
 
-const stockSchema: Schema = {
-  type: SchemaType.ARRAY,
-  description: "A list of stock lots purchased.",
-  items: {
-    type: SchemaType.OBJECT,
-    properties: {
-      name: {
-        type: SchemaType.STRING,
-        description: "Name of the product. E.g. Ergonomic Chair.",
-      },
-      initialQuantity: {
-        type: SchemaType.INTEGER,
-        description: "Number of units purchased.",
-      },
-      buyPrice: {
-        type: SchemaType.NUMBER,
-        description: "Price per unit. Must be a number.",
-      },
-      isStocked: {
-        type: SchemaType.BOOLEAN,
-        description: "Whether the product is currently accessible in stock.",
-      },
-      lotIdentity: {
-        type: SchemaType.STRING,
-        description:
-          "Optional lot identity, identifier, or condition (e.g. '1st edition', 'mint', 'batch A')",
-      },
-      dateAcquired: {
-        type: SchemaType.STRING,
-        description:
-          "Acquisition or received date (YYYY-MM-DD). If not mentioned, ALWAYS default to the current date provided in the prompt.",
+const stockOutputSchema = {
+  type: "object",
+  properties: {
+    lots: {
+      type: "array",
+      description: "Stock lots extracted from the text.",
+      items: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Name of the product. E.g. Ergonomic Chair.",
+          },
+          initialQuantity: {
+            type: "integer",
+            description: "Number of units purchased.",
+          },
+          buyPrice: {
+            type: "number",
+            description: "Price per unit.",
+          },
+          isStocked: {
+            type: "boolean",
+            description:
+              "Whether the product is currently accessible in stock.",
+          },
+          lotIdentity: {
+            type: "string",
+            description:
+              "Optional lot identity, identifier, or condition (e.g. 1st edition, mint, batch A).",
+          },
+          dateAcquired: {
+            type: "string",
+            description:
+              "Acquisition date (YYYY-MM-DD). If not mentioned, use the provided default date.",
+          },
+        },
+        required: [
+          "name",
+          "initialQuantity",
+          "buyPrice",
+          "isStocked",
+          "dateAcquired",
+        ],
       },
     },
-    required: [
-      "name",
-      "initialQuantity",
-      "buyPrice",
-      "isStocked",
-      "dateAcquired",
-    ],
   },
-};
+  required: ["lots"],
+} as const;
 
-const salesSchema: Schema = {
-  type: SchemaType.ARRAY,
-  description: "A list of sales histories.",
-  items: {
-    type: SchemaType.OBJECT,
-    properties: {
-      productName: {
-        type: SchemaType.STRING,
-        description: "Name of the product sold.",
-      },
-      quantitySold: {
-        type: SchemaType.INTEGER,
-        description: "Number of units sold.",
-      },
-      salePricePerUnit: {
-        type: SchemaType.NUMBER,
-        description: "Sale price per unit.",
-      },
-      buyPrice: {
-        type: SchemaType.NUMBER,
-        description: "Buy price per unit. Optional, can be empty.",
-      },
-      dateSold: {
-        type: SchemaType.STRING,
-        description:
-          "Date the sale occurred (YYYY-MM-DD). If not mentioned, ALWAYS default to the current date provided in the prompt.",
+const salesOutputSchema = {
+  type: "object",
+  properties: {
+    sales: {
+      type: "array",
+      description: "Sales records extracted from the text.",
+      items: {
+        type: "object",
+        properties: {
+          productName: {
+            type: "string",
+            description: "Name of the product sold.",
+          },
+          quantitySold: {
+            type: "integer",
+            description: "Number of units sold.",
+          },
+          salePricePerUnit: {
+            type: "number",
+            description: "Sale price per unit.",
+          },
+          buyPrice: {
+            type: "number",
+            description: "Buy cost per unit if known.",
+          },
+          dateSold: {
+            type: "string",
+            description:
+              "Sale date (YYYY-MM-DD). If not mentioned, use the provided default date.",
+          },
+        },
+        required: [
+          "productName",
+          "quantitySold",
+          "salePricePerUnit",
+          "dateSold",
+        ],
       },
     },
-    required: ["productName", "quantitySold", "salePricePerUnit", "dateSold"],
   },
-};
+  required: ["sales"],
+} as const;
 
 export async function parseInventoryWithAI(
   prompt: string,
@@ -142,35 +158,44 @@ export async function parseInventoryWithAI(
     const { userId } = await auth();
     if (!userId) return { ok: false, error: "Unauthorized." };
 
+    if (!process.env.ANTHROPIC_API_KEY?.trim()) {
+      return {
+        ok: false,
+        error: "AI service is misconfigured. Please contact support.",
+      };
+    }
+
     const cleanPrompt = cleanRequiredString(prompt, "prompt", {
       maxLength: MAX_AI_PROMPT_LENGTH,
     });
     await enforceAiRateLimit(userId, "stock");
 
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: stockSchema,
-      },
-    });
-
     const today = new Date().toISOString().split("T")[0];
 
-    const finalPrompt = `
-Extract the stock purchases from the following text and return a JSON array according to the schema.
-Extract as much information as possible.
-CRITICAL: You MUST extract the number of items purchased and map it to 'initialQuantity'. If words like "a", "an", "one" are used, map it to 1. If not specified at all, default to 1.
-CRITICAL: If an acquisition or received date is not explicitly mentioned by the user, you MUST default to today's date, which is: ${today}.
-If some info is missing, deduce it or leave empty if not required. Default isStocked to true if not specified.
+    const userContent = `
+Extract the stock purchases from the following text. Fill the "lots" array in the required output shape.
+CRITICAL: Map item counts to initialQuantity. If words like "a", "an", "one" are used, use 1. If not specified, use 1.
+CRITICAL: If an acquisition or received date is not explicitly mentioned, set dateAcquired to: ${today}.
+Default isStocked to true if not specified. Omit or leave lotIdentity empty if unknown.
 
 TEXT:
 ${cleanPrompt}
 `;
 
-    const result = await model.generateContent(finalPrompt);
-    const text = result.response.text();
-    return { ok: true, data: JSON.parse(text) };
+    const message = await anthropic.messages.parse({
+      model: MODEL,
+      max_tokens: 8192,
+      messages: [{ role: "user", content: userContent }],
+      output_config: {
+        format: jsonSchemaOutputFormat(stockOutputSchema),
+      },
+    });
+
+    const lots = message.parsed_output?.lots;
+    if (!Array.isArray(lots)) {
+      return { ok: false, error: "Failed to parse with AI. Please try again." };
+    }
+    return { ok: true, data: lots };
   } catch (error) {
     console.error("AI Stock Parsing Error:", error);
     return { ok: false, error: friendlyAiError(error) };
@@ -184,33 +209,44 @@ export async function parseSalesWithAI(
     const { userId } = await auth();
     if (!userId) return { ok: false, error: "Unauthorized." };
 
+    if (!process.env.ANTHROPIC_API_KEY?.trim()) {
+      return {
+        ok: false,
+        error: "AI service is misconfigured. Please contact support.",
+      };
+    }
+
     const cleanPrompt = cleanRequiredString(prompt, "prompt", {
       maxLength: MAX_AI_PROMPT_LENGTH,
     });
     await enforceAiRateLimit(userId, "sales");
 
-    const model = genAI.getGenerativeModel({
-      model: MODEL_NAME,
-      generationConfig: {
-        responseMimeType: "application/json",
-        responseSchema: salesSchema,
-      },
-    });
-
     const today = new Date().toISOString().split("T")[0];
 
-    const finalPrompt = `
-Extract the sales records from the following text and return a JSON array according to the schema.
-CRITICAL: You MUST extract the number of items sold and map it to 'quantitySold'. If words like "a", "an", "one" are used, map it to 1. If not specified at all, default to 1.
-CRITICAL: If a sale date is not explicitly mentioned, you MUST default to today's date, which is: ${today}.
+    const userContent = `
+Extract the sales records from the following text. Fill the "sales" array in the required output shape.
+CRITICAL: Map counts to quantitySold. If words like "a", "an", "one" are used, use 1. If not specified, use 1.
+CRITICAL: If a sale date is not explicitly mentioned, set dateSold to: ${today}.
+Include buyPrice when you can infer it from the text; otherwise omit it.
 
 TEXT:
 ${cleanPrompt}
 `;
 
-    const result = await model.generateContent(finalPrompt);
-    const text = result.response.text();
-    return { ok: true, data: JSON.parse(text) };
+    const message = await anthropic.messages.parse({
+      model: MODEL,
+      max_tokens: 8192,
+      messages: [{ role: "user", content: userContent }],
+      output_config: {
+        format: jsonSchemaOutputFormat(salesOutputSchema),
+      },
+    });
+
+    const sales = message.parsed_output?.sales;
+    if (!Array.isArray(sales)) {
+      return { ok: false, error: "Failed to parse with AI. Please try again." };
+    }
+    return { ok: true, data: sales };
   } catch (error) {
     console.error("AI Sales Parsing Error:", error);
     return { ok: false, error: friendlyAiError(error) };
