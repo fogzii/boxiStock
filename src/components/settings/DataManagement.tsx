@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import Papa from "papaparse";
+import posthog from "posthog-js";
 import { useRef, useState } from "react";
 import {
   type CSVExportRow,
@@ -73,6 +74,10 @@ export function DataManagement() {
           text: "No data found to export in either Inventory or Sales.",
         });
       } else {
+        posthog.capture("data_exported", {
+          inventory_rows: invData.length,
+          sales_rows: salesData.length,
+        });
         setMessage({
           type: "success",
           text: "Export completed successfully. (Check your downloads for multiple files if both contained data)",
@@ -117,6 +122,9 @@ export function DataManagement() {
             }
             const rows = rawRows as unknown as CSVExportRow[];
             const response = await importInventoryData(rows);
+            posthog.capture("inventory_imported", {
+              rows_imported: response.count,
+            });
             setMessage({
               type: "success",
               text: `Successfully imported ${response.count} inventory items.`,
@@ -172,6 +180,9 @@ export function DataManagement() {
               return;
             }
             const response = await importSalesData(rows);
+            posthog.capture("sales_imported", {
+              rows_imported: response.count,
+            });
             setMessage({
               type: "success",
               text: `Successfully imported ${response.count} sales records.`,
@@ -210,6 +221,7 @@ export function DataManagement() {
       setIsDeleting(true);
       setMessage(null);
       await deleteAllUserData();
+      posthog.capture("all_data_deleted");
       setMessage({ type: "success", text: "All data successfully deleted." });
       setIsModalOpen(false);
     } catch (error) {

@@ -9,6 +9,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { bulkAddLotsAndProducts, bulkAddSales } from "@/actions/stock";
@@ -169,6 +170,10 @@ export default function AIImportReviewPage() {
               : lot.dateAcquired,
           })),
         );
+        posthog.capture("ai_import_confirmed", {
+          import_type: "stock",
+          items_saved: stockLots.length,
+        });
         toast.success("Stock lots added successfully!");
       } else {
         await bulkAddSales(
@@ -179,6 +184,10 @@ export default function AIImportReviewPage() {
               : sale.dateSold,
           })),
         );
+        posthog.capture("ai_import_confirmed", {
+          import_type: "sales",
+          items_saved: sales.length,
+        });
         toast.success("Sales added successfully!");
       }
       leavingIntentionally.current = true;

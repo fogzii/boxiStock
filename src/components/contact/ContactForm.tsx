@@ -1,5 +1,6 @@
 "use client";
 
+import posthog from "posthog-js";
 import * as React from "react";
 import { toast } from "sonner";
 import { sendContactEmail } from "@/actions/contact";
@@ -25,6 +26,9 @@ export function ContactForm() {
     startTransition(async () => {
       try {
         await sendContactEmail(form);
+        posthog.capture("contact_form_submitted", {
+          subject: form.subject,
+        });
         toast.success("Message sent! We'll get back to you soon.");
         setForm({ name: "", email: "", subject: "", message: "" });
       } catch (err) {

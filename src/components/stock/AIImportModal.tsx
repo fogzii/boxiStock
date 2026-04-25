@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import posthog from "posthog-js";
 import * as React from "react";
 import { parseInventoryWithAI, parseSalesWithAI } from "@/actions/ai";
 import { Button } from "@/components/ui/button";
@@ -70,6 +71,10 @@ export function AIImportModal({
           stockLots: result.data as never,
           sales: [],
         });
+        posthog.capture("ai_import_generated", {
+          import_type: "stock",
+          items_parsed: (result.data as unknown[]).length,
+        });
       } else {
         const result = await parseSalesWithAI(promptText);
         if (!result.ok) {
@@ -81,6 +86,10 @@ export function AIImportModal({
           prompt: promptText,
           stockLots: [],
           sales: result.data as never,
+        });
+        posthog.capture("ai_import_generated", {
+          import_type: "sales",
+          items_parsed: (result.data as unknown[]).length,
         });
       }
 

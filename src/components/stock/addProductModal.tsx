@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import * as React from "react";
 import DatePicker from "react-date-picker";
 import { addProduct } from "@/actions/stock";
@@ -89,6 +90,12 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
         dateAcquired: dateReceived as Date,
         lotIdentity,
         notes,
+      });
+      posthog.capture("stock_added", {
+        product_name: name,
+        initial_quantity: parsedQty,
+        buy_price: parsedPrice,
+        is_stocked: isStocked,
       });
       resetForm();
       setIsOpen(false);

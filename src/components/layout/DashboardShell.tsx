@@ -4,6 +4,7 @@ import * as React from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { Footer } from "@/components/layout/Footer";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { PostHogUserIdentifier } from "@/lib/posthog-user";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
@@ -13,6 +14,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      <PostHogUserIdentifier />
       {/* Sidebar handles both mobile drawer and desktop collapse internally */}
       <Sidebar
         isOpenMobile={isMobileMenuOpen}

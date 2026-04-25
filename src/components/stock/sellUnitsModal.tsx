@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import * as React from "react";
 import { sellLotUnits } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,12 @@ export function SellUnitsModal({
 
     try {
       await sellLotUnits(lot.id, quantity, salePrice);
+      posthog.capture("units_sold", {
+        product_name: productName,
+        quantity_sold: quantity,
+        sale_price_per_unit: salePrice,
+        total_sale_price: quantity * salePrice,
+      });
       setIsOpen(false);
       router.refresh();
     } catch (error) {

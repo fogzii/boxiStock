@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import * as React from "react";
 import { deleteLotUnits } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,10 @@ export function DeleteUnitsModal({
 
     try {
       await deleteLotUnits(lot.id, quantity);
+      posthog.capture("units_deleted", {
+        product_name: productName,
+        quantity_deleted: quantity,
+      });
       setIsOpen(false);
       router.refresh();
     } catch (error) {
