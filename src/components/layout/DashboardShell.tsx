@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import { Footer } from "@/components/layout/Footer";
 import { Sidebar } from "@/components/layout/Sidebar";
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -25,8 +26,11 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         />
 
         {/* Scrollable Page Content */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-8 pb-8">
-          {children}
+        <div className="flex-1 overflow-y-auto">
+          <div className="min-h-full flex flex-col px-4 sm:px-8 pb-8">
+            <div className="flex-1">{children}</div>
+            <Footer />
+          </div>
         </div>
       </main>
     </div>
