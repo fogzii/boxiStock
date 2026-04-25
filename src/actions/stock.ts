@@ -581,6 +581,7 @@ export async function getSalesHistory(
     .from("Sale")
     .select("*, Product!inner(name, userId)")
     .eq("Product.userId", userId)
+    .order("dateSold", { ascending: false, nullsFirst: false })
     .order("createdAt", { ascending: false })
     .range(start, end);
 
@@ -639,13 +640,23 @@ export async function getSalesMetrics() {
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(today.getDate() - 7);
 
-  const { data: recentSales, error } = await supabase
-    .from("Sale")
-    .select("*, Product!inner(userId)")
-    .eq("Product.userId", userId)
-    .gte("createdAt", sevenDaysAgo.toISOString());
+  const [
+    { data: recentSales, error },
+    { data: lifetimeSales, error: lifetimeError },
+  ] = await Promise.all([
+    supabase
+      .from("Sale")
+      .select("*, Product!inner(userId)")
+      .eq("Product.userId", userId)
+      .gte("createdAt", sevenDaysAgo.toISOString()),
+    supabase
+      .from("Sale")
+      .select("totalProfit, Product!inner(userId)")
+      .eq("Product.userId", userId),
+  ]);
 
   if (error) throw new Error(error.message);
+  if (lifetimeError) throw new Error(lifetimeError.message);
 
   let totalSalesToday = 0;
   let totalUnitsSoldWeek = 0;
@@ -662,10 +673,16 @@ export async function getSalesMetrics() {
     }
   }
 
+  const netProfitLifetime = (lifetimeSales || []).reduce(
+    (sum, s) => sum + s.totalProfit,
+    0,
+  );
+
   return {
     totalSalesToday,
     totalUnitsSoldWeek,
     netProfitWeek,
+    netProfitLifetime,
   };
 }
 

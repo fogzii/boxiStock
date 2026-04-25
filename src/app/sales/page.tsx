@@ -1,4 +1,4 @@
-import { Package, TrendingUp, Wallet } from "lucide-react";
+import { TrendingUp, Wallet } from "lucide-react";
 import { getSalesHistory, getSalesMetrics } from "@/actions/stock";
 import { SalesTable } from "@/components/sales/salesTable";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -43,13 +43,13 @@ export default async function SalesPage({
           icon={Wallet}
         />
         <StatCard
-          title="Total Units Sold (Week)"
-          value={`${metrics.totalUnitsSoldWeek} Units`}
-          icon={Package}
-        />
-        <StatCard
           title="Net Profit (Week)"
           value={formatter.format(metrics.netProfitWeek)}
+          icon={TrendingUp}
+        />
+        <StatCard
+          title="Net Profit (Lifetime)"
+          value={formatter.format(metrics.netProfitLifetime)}
           icon={TrendingUp}
         />
       </div>
