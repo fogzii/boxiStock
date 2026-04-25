@@ -10,7 +10,7 @@ import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { cleanRequiredString, MAX_AI_PROMPT_LENGTH } from "@/lib/validation";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
-const MODEL_NAME = "gemini-2.5-flash";
+const MODEL_NAME = "gemma-3-27b-it";
 
 async function enforceAiRateLimit(userId: string, kind: "stock" | "sales") {
   await enforceRateLimit(
