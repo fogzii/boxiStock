@@ -602,6 +602,31 @@ export async function getSalesHistory(
   };
 }
 
+export async function deleteSale(saleId: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  if (typeof saleId !== "string" || !saleId.trim())
+    throw new Error("Invalid sale ID");
+
+  const supabase = await createClient();
+
+  // Verify ownership via the joined Product before deleting
+  const { data: sale, error: fetchError } = await supabase
+    .from("Sale")
+    .select("id, Product!inner(userId)")
+    .eq("id", saleId)
+    .eq("Product.userId", userId)
+    .single();
+
+  if (fetchError || !sale) throw new Error("Sale not found or access denied");
+
+  const { error } = await supabase.from("Sale").delete().eq("id", saleId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/sales");
+}
+
 export async function getSalesMetrics() {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -790,6 +815,8 @@ export async function bulkAddLotsAndProducts(
     initialQuantity: number;
     buyPrice: number;
     isStocked: boolean;
+    notes?: string;
+    dateAcquired?: string;
   }[],
 ) {
   const { userId } = await auth();
@@ -802,11 +829,20 @@ export async function bulkAddLotsAndProducts(
     assertPositiveInt(item?.initialQuantity, `items[${idx}].initialQuantity`);
     assertNonNegativeNumber(item?.buyPrice, `items[${idx}].buyPrice`);
     assertBoolean(item?.isStocked, `items[${idx}].isStocked`);
+    const notes = cleanOptionalString(item?.notes, `items[${idx}].notes`, {
+      maxLength: MAX_LOT_NOTES_LENGTH,
+    });
+    const dateAcquired = parseOptionalDate(
+      item?.dateAcquired,
+      `items[${idx}].dateAcquired`,
+    );
     return {
       name,
       initialQuantity: item.initialQuantity,
       buyPrice: item.buyPrice,
       isStocked: item.isStocked,
+      notes,
+      dateAcquired,
     };
   });
 
@@ -847,6 +883,8 @@ export async function bulkAddLotsAndProducts(
         remainingQuantity: item.initialQuantity,
         buyPrice: item.buyPrice,
         isStocked: item.isStocked,
+        notes: item.notes ?? null,
+        dateAcquired: (item.dateAcquired ?? new Date()).toISOString(),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -866,6 +904,7 @@ export async function bulkAddSales(
     salePricePerUnit: number;
     buyPrice?: number;
     dateSold?: string;
+    notes?: string;
   }[],
 ) {
   const { userId } = await auth();
@@ -892,12 +931,16 @@ export async function bulkAddSales(
       item?.dateSold,
       `items[${idx}].dateSold`,
     );
+    const notes = cleanOptionalString(item?.notes, `items[${idx}].notes`, {
+      maxLength: MAX_LOT_NOTES_LENGTH,
+    });
     return {
       productName,
       quantitySold: item.quantitySold,
       salePricePerUnit,
       buyPrice,
       dateSold,
+      notes,
     };
   });
 
@@ -1029,6 +1072,7 @@ export async function bulkAddSales(
           dateSold: item.dateSold
             ? item.dateSold.toISOString()
             : new Date().toISOString(),
+          notes: item.notes ?? null,
           createdAt: new Date().toISOString(),
         },
       ]);

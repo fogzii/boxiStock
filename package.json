@@ -10,15 +10,12 @@
     "check:fix": "biome check --write",
     "format": "biome format --write",
     "lint": "biome lint",
-    "postinstall": "prisma generate",
     "prepare": "husky"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
     "@base-ui/react": "^1.2.0",
     "@clerk/nextjs": "^7.0.1",
-    "@prisma/adapter-pg": "^7.4.2",
-    "@prisma/client": "^7.4.2",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@supabase/supabase-js": "^2.101.1",
     "@tailwindcss/postcss": "^4.2.1",
@@ -55,7 +52,6 @@
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "postcss": "^8",
-    "prisma": "^7.4.2",
     "tailwindcss": "^4.2.1",
     "typescript": "^5"
   }

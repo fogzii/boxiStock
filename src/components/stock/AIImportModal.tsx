@@ -19,8 +19,14 @@ export function AIImportModal({
   const [isOpen, setIsOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [importType, setImportType] = React.useState<ImportType>("stock");
-  const [promptText, setPromptText] = React.useState("");
+  const [promptTexts, setPromptTexts] = React.useState<
+    Record<ImportType, string>
+  >({ stock: "", sales: "" });
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+
+  const promptText = promptTexts[importType];
+  const setPromptText = (value: string) =>
+    setPromptTexts((prev) => ({ ...prev, [importType]: value }));
 
   const { setImportData, importData } = useAIImport();
   const router = useRouter();
@@ -36,7 +42,10 @@ export function AIImportModal({
 
   React.useEffect(() => {
     if (isOpen && importData?.prompt) {
-      setPromptText(importData.prompt);
+      setPromptTexts((prev) => ({
+        ...prev,
+        [importData.type]: importData.prompt,
+      }));
       setImportType(importData.type);
     }
   }, [isOpen, importData]);
@@ -75,6 +84,7 @@ export function AIImportModal({
         });
       }
 
+      setPromptTexts({ stock: "", sales: "" });
       setIsOpen(false);
       onAfterGenerate?.();
       router.push("/stock/ai-import");
@@ -169,8 +179,8 @@ export function AIImportModal({
               />
             </div>
             <p className="text-[13px] text-muted-foreground">
-              Google Gemini will parse your text and extract the necessary
-              fields to add exactly what you need.
+              Parsing and extracting the necessary fields will be done by the
+              AI.
             </p>
           </div>
 

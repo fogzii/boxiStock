@@ -10,7 +10,7 @@ interface ParsedStockLot {
   initialQuantity: number;
   buyPrice: number;
   isStocked: boolean;
-  lotIdentity?: string;
+  notes?: string;
   dateAcquired?: string;
 }
 
@@ -20,6 +20,7 @@ interface ParsedSale {
   salePricePerUnit: number;
   buyPrice?: number;
   dateSold?: string;
+  notes?: string;
 }
 
 interface AIImportData {

@@ -9,14 +9,15 @@ import {
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { bulkAddLotsAndProducts, bulkAddSales } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAIImport } from "@/context/AIImportContext";
 
-const TODAY = new Date().toISOString().split("T")[0];
+const _today = new Date();
+const TODAY = `${String(_today.getDate()).padStart(2, "0")}-${String(_today.getMonth() + 1).padStart(2, "0")}-${_today.getFullYear()}`;
 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
@@ -27,12 +28,19 @@ function clampPositiveInt(value: number): number {
   return Number.isFinite(n) && n >= 1 ? n : 1;
 }
 
-/** Returns the input if it's a valid YYYY-MM-DD date, otherwise TODAY. */
+/** Returns the input if it's a valid DD-MM-YYYY date, otherwise TODAY. */
 function sanitiseDate(raw: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw.trim());
+  const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(raw.trim());
   if (!match) return TODAY;
-  const d = new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00`);
+  const d = new Date(`${match[3]}-${match[2]}-${match[1]}T00:00:00`);
   return Number.isNaN(d.getTime()) ? TODAY : raw.trim();
+}
+
+/** Converts DD-MM-YYYY to YYYY-MM-DD for server-side parsing. */
+function ddmmyyyyToISO(value: string): string {
+  const match = /^(\d{2})-(\d{2})-(\d{4})$/.exec(value.trim());
+  if (!match) return value;
+  return `${match[3]}-${match[2]}-${match[1]}`;
 }
 
 export default function AIImportReviewPage() {
@@ -41,6 +49,7 @@ export default function AIImportReviewPage() {
   const [stockLots, setStockLots] = useState(importData?.stockLots || []);
   const [sales, setSales] = useState(importData?.sales || []);
   const [isSaving, setIsSaving] = useState(false);
+  const leavingIntentionally = useRef(false);
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -48,7 +57,7 @@ export default function AIImportReviewPage() {
 
   useEffect(() => {
     if (!importData) {
-      router.push("/stock");
+      if (!leavingIntentionally.current) router.push("/stock");
     } else {
       setStockLots(importData.stockLots || []);
       setSales(importData.sales || []);
@@ -87,7 +96,7 @@ export default function AIImportReviewPage() {
         initialQuantity: 1,
         buyPrice: 0,
         isStocked: true,
-        lotIdentity: "",
+        notes: "",
         dateAcquired: TODAY,
       },
     ]);
@@ -133,6 +142,7 @@ export default function AIImportReviewPage() {
         salePricePerUnit: 0,
         buyPrice: undefined,
         dateSold: TODAY,
+        notes: "",
       },
     ]);
     const newTotal = sales.length + 1;
@@ -151,12 +161,27 @@ export default function AIImportReviewPage() {
     setIsSaving(true);
     try {
       if (importData.type === "stock") {
-        await bulkAddLotsAndProducts(stockLots);
+        await bulkAddLotsAndProducts(
+          stockLots.map((lot) => ({
+            ...lot,
+            dateAcquired: lot.dateAcquired
+              ? ddmmyyyyToISO(lot.dateAcquired)
+              : lot.dateAcquired,
+          })),
+        );
         toast.success("Stock lots added successfully!");
       } else {
-        await bulkAddSales(sales);
+        await bulkAddSales(
+          sales.map((sale) => ({
+            ...sale,
+            dateSold: sale.dateSold
+              ? ddmmyyyyToISO(sale.dateSold)
+              : sale.dateSold,
+          })),
+        );
         toast.success("Sales added successfully!");
       }
+      leavingIntentionally.current = true;
       setImportData(null);
       router.push(importData.type === "sales" ? "/sales" : "/stock");
     } catch (error) {
@@ -169,8 +194,10 @@ export default function AIImportReviewPage() {
   };
 
   const handleCancel = () => {
+    const dest = importData.type === "sales" ? "/sales" : "/stock";
+    leavingIntentionally.current = true;
     setImportData(null);
-    router.push("/stock");
+    router.push(dest);
   };
 
   const handleTryAgain = () => {
@@ -191,13 +218,13 @@ export default function AIImportReviewPage() {
         <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             {/* min-w keeps it scrollable on mobile; colgroup pins narrow cols */}
-            <table className="w-full min-w-[680px] text-sm text-left">
+            <table className="w-full min-w-[700px] text-sm text-left">
               <colgroup>
                 <col />
                 <col style={{ width: "80px" }} />
                 <col style={{ width: "80px" }} />
                 <col />
-                <col style={{ width: "85px" }} />
+                <col style={{ width: "108px" }} />
                 <col style={{ width: "40px" }} />
               </colgroup>
               <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
@@ -205,9 +232,9 @@ export default function AIImportReviewPage() {
                   <th className="px-4 py-4 font-semibold">Product Name</th>
                   <th className="px-2 py-4 font-semibold text-right">Qty</th>
                   <th className="px-2 py-4 font-semibold text-right">Price</th>
-                  <th className="px-4 py-4 font-semibold">Lot Identity</th>
-                  <th className="px-2 py-4 font-semibold text-center">
-                    Received Date
+                  <th className="px-4 py-4 font-semibold">Notes</th>
+                  <th className="px-2 py-4 font-semibold text-center whitespace-nowrap">
+                    Received date
                   </th>
                   <th />
                 </tr>
@@ -267,12 +294,12 @@ export default function AIImportReviewPage() {
                       </td>
                       <td className="px-4 py-2">
                         <Input
-                          value={item.lotIdentity || ""}
+                          value={item.notes || ""}
                           placeholder="Optional"
                           onChange={(e) =>
                             handleStockChange(
                               globalIdx,
-                              "lotIdentity",
+                              "notes",
                               e.target.value,
                             )
                           }
@@ -297,8 +324,8 @@ export default function AIImportReviewPage() {
                               sanitiseDate(item.dateAcquired || TODAY),
                             )
                           }
-                          placeholder="YYYY-MM-DD"
-                          className={`${ci} placeholder:text-muted-foreground/40`}
+                          placeholder="DD-MM-YYYY"
+                          className={`${ci} min-w-[100px] placeholder:text-muted-foreground/40`}
                         />
                       </td>
                       <td className="py-2 pr-3 text-center">
@@ -344,13 +371,14 @@ export default function AIImportReviewPage() {
       <div className="space-y-4">
         <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm text-left">
+            <table className="w-full min-w-[820px] text-sm text-left">
               <colgroup>
-                <col style={{ width: "180px" }} />
-                <col style={{ width: "70px" }} />
-                <col style={{ width: "70px" }} />
-                <col style={{ width: "70px" }} />
-                <col style={{ width: "85px" }} />
+                <col />
+                <col style={{ width: "80px" }} />
+                <col style={{ width: "80px" }} />
+                <col style={{ width: "80px" }} />
+                <col />
+                <col style={{ width: "108px" }} />
                 <col style={{ width: "40px" }} />
               </colgroup>
               <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
@@ -359,8 +387,9 @@ export default function AIImportReviewPage() {
                   <th className="px-2 py-4 font-semibold text-right">Qty</th>
                   <th className="px-2 py-4 font-semibold text-right">Buy</th>
                   <th className="px-2 py-4 font-semibold text-right">Sell</th>
-                  <th className="px-2 py-4 font-semibold text-center">
-                    Date Sold
+                  <th className="px-4 py-4 font-semibold">Notes</th>
+                  <th className="px-2 py-4 font-semibold text-center whitespace-nowrap">
+                    Date sold
                   </th>
                   <th />
                 </tr>
@@ -444,6 +473,20 @@ export default function AIImportReviewPage() {
                           className={`${ci} text-right`}
                         />
                       </td>
+                      <td className="px-4 py-2">
+                        <Input
+                          value={sale.notes || ""}
+                          placeholder="Optional"
+                          onChange={(e) =>
+                            handleSalesChange(
+                              globalIdx,
+                              "notes",
+                              e.target.value,
+                            )
+                          }
+                          className={`${ci} placeholder:text-muted-foreground/50`}
+                        />
+                      </td>
                       <td className="px-2 py-2">
                         <Input
                           type="text"
@@ -462,8 +505,8 @@ export default function AIImportReviewPage() {
                               sanitiseDate(sale.dateSold || TODAY),
                             )
                           }
-                          placeholder="YYYY-MM-DD"
-                          className={`${ci} placeholder:text-muted-foreground/40`}
+                          placeholder="DD-MM-YYYY"
+                          className={`${ci} min-w-[100px] placeholder:text-muted-foreground/40`}
                         />
                       </td>
                       <td className="py-2 pr-3 text-center">
@@ -600,7 +643,7 @@ export default function AIImportReviewPage() {
           <Button
             variant="outline"
             onClick={handleTryAgain}
-            className="h-12 border-primary/20 hover:bg-primary/5 shadow-sm cursor-pointer"
+            className="h-12 px-6 border-primary/20 hover:bg-primary/5 shadow-sm cursor-pointer"
           >
             <RefreshCcw className="w-4 h-4 mr-2 text-primary" />
             Try Again

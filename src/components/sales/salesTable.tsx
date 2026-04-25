@@ -1,16 +1,21 @@
 "use client";
 
+import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
+import { deleteSale } from "@/actions/stock";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TablePagination } from "@/components/ui/TablePagination";
 
 interface SaleItem {
   id: string;
+  dateSold: string;
   createdAt: string;
   quantitySold: number;
   totalSalePrice: number;
   totalProfit: number;
+  notes?: string | null;
   Product?: {
     name: string;
   } | null;
@@ -38,6 +43,19 @@ export function SalesTable({
 }: SalesTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      await deleteSale(id);
+      toast.success("Sale deleted.");
+    } catch {
+      toast.error("Failed to delete sale.");
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handlePageChange = (page: number) => {
     startTransition(() => {
@@ -60,8 +78,10 @@ export function SalesTable({
                 <th className="px-6 py-4 font-medium">Date</th>
                 <th className="px-6 py-4 font-medium">Product</th>
                 <th className="px-6 py-4 font-medium">Quantity</th>
-                <th className="px-6 py-4 font-medium">Gross Sale</th>
+                <th className="px-6 py-4 font-medium">Buy</th>
+                <th className="px-6 py-4 font-medium">Sell</th>
                 <th className="px-6 py-4 font-medium text-right">Net Profit</th>
+                <th className="pl-4 pr-6 py-4 w-px" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -69,7 +89,7 @@ export function SalesTable({
                 SKELETON_ROW_KEYS.map((key) => (
                   <tr key={key} className="hover:bg-muted/10 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Skeleton className="h-5 w-32" />
+                      <Skeleton className="h-5 w-24" />
                     </td>
                     <td className="px-6 py-4">
                       <Skeleton className="h-5 w-40" />
@@ -81,43 +101,73 @@ export function SalesTable({
                       <Skeleton className="h-5 w-20" />
                     </td>
                     <td className="px-6 py-4">
+                      <Skeleton className="h-5 w-20" />
+                    </td>
+                    <td className="px-6 py-4">
                       <div className="flex justify-end">
                         <Skeleton className="h-5 w-20" />
                       </div>
                     </td>
+                    <td className="pl-4 pr-6 py-4 w-px">
+                      <Skeleton className="h-5 w-5" />
+                    </td>
                   </tr>
                 ))
               ) : history.sales.length > 0 ? (
-                history.sales.map((sale) => (
-                  <tr
-                    key={sale.id}
-                    className="hover:bg-muted/10 transition-colors"
-                  >
-                    <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
-                      {new Date(sale.createdAt).toLocaleDateString(undefined, {
-                        year: "numeric",
-                        month: "short",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </td>
-                    <td className="px-6 py-4 font-medium text-foreground">
-                      {sale.Product?.name || "Unknown Product"}
-                    </td>
-                    <td className="px-6 py-4">{sale.quantitySold}</td>
-                    <td className="px-6 py-4 font-medium text-primary">
-                      {formatter.format(sale.totalSalePrice)}
-                    </td>
-                    <td className="px-6 py-4 font-medium text-emerald-400 text-right">
-                      +{formatter.format(sale.totalProfit)}
-                    </td>
-                  </tr>
-                ))
+                history.sales.map((sale) => {
+                  const totalBuy = sale.totalSalePrice - sale.totalProfit;
+                  return (
+                    <tr
+                      key={sale.id}
+                      className="hover:bg-muted/10 transition-colors"
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
+                        {new Date(
+                          sale.dateSold || sale.createdAt,
+                        ).toLocaleDateString(undefined, {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-medium text-foreground">
+                          {sale.Product?.name || "Unknown Product"}
+                        </span>
+                        {sale.notes && (
+                          <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-[200px]">
+                            {sale.notes.slice(0, 50)}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-6 py-4">{sale.quantitySold}</td>
+                      <td className="px-6 py-4 text-muted-foreground">
+                        {formatter.format(totalBuy)}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-primary">
+                        {formatter.format(sale.totalSalePrice)}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-emerald-400 text-right">
+                        +{formatter.format(sale.totalProfit)}
+                      </td>
+                      <td className="pl-4 pr-6 py-4 w-px">
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(sale.id)}
+                          disabled={deletingId === sale.id}
+                          className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 cursor-pointer"
+                          aria-label="Delete sale"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td
-                    colSpan={5}
+                    colSpan={7}
                     className="px-6 py-8 text-center text-muted-foreground"
                   >
                     No sales history found.

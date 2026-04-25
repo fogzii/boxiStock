@@ -11,7 +11,6 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { usePathname } from "next/navigation";
 import * as React from "react";
 import { NavListItem } from "@/components/layout/NavListItem";
 import { SidebarProfile } from "@/components/layout/SidebarProfile";
@@ -71,8 +70,6 @@ function SidebarActionButton({
 
 export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
-  const pathname = usePathname();
-  const showQuickAdd = pathname === "/dashboard";
 
   return (
     <>
@@ -148,61 +145,28 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
 
           {/* Bottom actions */}
           <div className="flex flex-col gap-4 mt-auto">
-            {/* Quick Add + Add with AI – only on Dashboard */}
-            {showQuickAdd && (
-              <>
-                <AddProductModal>
-                  {(open) => (
-                    <SidebarActionButton
-                      label="Quick Add"
-                      title="Quick Add"
-                      icon={PlusCircle}
-                      isCollapsed={isCollapsed}
-                      onClick={open}
-                    />
-                  )}
-                </AddProductModal>
-                <AIImportModal onAfterGenerate={onCloseMobile}>
-                  {(open) => (
-                    <SidebarActionButton
-                      label="Add with AI"
-                      title="Add with AI"
-                      icon={Sparkles}
-                      isCollapsed={isCollapsed}
-                      onClick={open}
-                    />
-                  )}
-                </AIImportModal>
-              </>
-            )}
-
-            {/* Add Product Button – only on Stock page */}
-            {pathname === "/stock" && (
-              <>
-                <AddProductModal>
-                  {(open) => (
-                    <SidebarActionButton
-                      label="Add Product"
-                      title="Add Product"
-                      icon={PlusCircle}
-                      isCollapsed={isCollapsed}
-                      onClick={open}
-                    />
-                  )}
-                </AddProductModal>
-                <AIImportModal onAfterGenerate={onCloseMobile}>
-                  {(open) => (
-                    <SidebarActionButton
-                      label="Add with AI"
-                      title="Add with AI"
-                      icon={Sparkles}
-                      isCollapsed={isCollapsed}
-                      onClick={open}
-                    />
-                  )}
-                </AIImportModal>
-              </>
-            )}
+            <AddProductModal>
+              {(open) => (
+                <SidebarActionButton
+                  label="Quick Add"
+                  title="Quick Add"
+                  icon={PlusCircle}
+                  isCollapsed={isCollapsed}
+                  onClick={open}
+                />
+              )}
+            </AddProductModal>
+            <AIImportModal onAfterGenerate={onCloseMobile}>
+              {(open) => (
+                <SidebarActionButton
+                  label="Add with AI"
+                  title="Add with AI"
+                  icon={Sparkles}
+                  isCollapsed={isCollapsed}
+                  onClick={open}
+                />
+              )}
+            </AIImportModal>
 
             {/* Profile */}
             <SidebarProfile isCollapsed={isCollapsed} />
