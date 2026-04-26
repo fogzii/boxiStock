@@ -147,8 +147,11 @@ export function SalesTable({
                       <td className="px-6 py-4 font-medium text-primary">
                         {formatter.format(sale.totalSalePrice)}
                       </td>
-                      <td className="px-6 py-4 font-medium text-emerald-400 text-right">
-                        +{formatter.format(sale.totalProfit)}
+                      <td
+                        className={`px-6 py-4 font-medium text-right ${sale.totalProfit >= 0 ? "text-emerald-400" : "text-destructive"}`}
+                      >
+                        {sale.totalProfit >= 0 ? "+" : ""}
+                        {formatter.format(sale.totalProfit)}
                       </td>
                       <td className="pl-4 pr-6 py-4 w-px">
                         <button
