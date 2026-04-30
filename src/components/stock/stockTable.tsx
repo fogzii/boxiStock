@@ -7,6 +7,7 @@ import {
   DollarSign,
   Edit2,
   Package,
+  Plus,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -17,6 +18,7 @@ import {
   updateLotNotes,
   updateProductName,
 } from "@/actions/stock";
+import { AddLotModal } from "@/components/stock/addLotModal";
 import { LotCard, type StockLot } from "@/components/stock/lotCard";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -215,11 +217,11 @@ function ProductRow({ product }: { product: ProductWithLots }) {
 
       {/* Expanded Content below row */}
       {isOpen && (
-        <TableRow className="bg-primary/[0.02]">
+        <TableRow className="bg-primary/[0.06]">
           <TableCell colSpan={3} className="p-0">
-            <div className="animate-in fade-in slide-in-from-top-2 duration-200 border-t border-border/30">
+            <div className="animate-in fade-in slide-in-from-top-2 duration-200 border-t border-primary/20">
               {/* Lot Sub-Header (desktop only) */}
-              <div className="hidden md:flex md:items-center px-5 py-2 border-t border-border/30 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <div className="hidden md:flex md:items-center px-5 py-2 border-t border-primary/20 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                 <span className="flex-1">Lot Identity</span>
                 <span className="w-[250px] text-right">
                   Quantity & Unit Price
@@ -239,6 +241,22 @@ function ProductRow({ product }: { product: ProductWithLots }) {
                   isUpdating={isUpdating}
                 />
               ))}
+
+              {/* Add More Stock */}
+              <div className="px-5 py-3 border-t border-primary/10">
+                <AddLotModal productId={product.id} productName={product.name}>
+                  {(open) => (
+                    <button
+                      type="button"
+                      onClick={open}
+                      className="flex items-center gap-2 text-xs font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 px-3 py-1.5 rounded-md transition-all cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Add more stock
+                    </button>
+                  )}
+                </AddLotModal>
+              </div>
             </div>
           </TableCell>
         </TableRow>

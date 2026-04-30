@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import * as React from "react";
 import DatePicker from "react-date-picker";
-import { addProduct } from "@/actions/stock";
+import { addStockLot } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +21,7 @@ function NotesInput() {
   return (
     <div className="relative">
       <Input
-        id="notes"
+        id="lot-notes"
         name="notes"
         type="text"
         value={value}
@@ -37,11 +37,6 @@ function NotesInput() {
   );
 }
 
-interface AddProductModalProps {
-  children?: ((open: () => void) => React.ReactNode) | React.ReactNode;
-  trigger?: React.ReactNode;
-}
-
 function generateLotIdentity() {
   const now = new Date();
   const date = now.toISOString().split("T")[0].replace(/-/g, "");
@@ -49,7 +44,17 @@ function generateLotIdentity() {
   return `L-${date}-${time}`;
 }
 
-export function AddProductModal({ children, trigger }: AddProductModalProps) {
+interface AddLotModalProps {
+  productId: string;
+  productName: string;
+  children: (open: () => void) => React.ReactNode;
+}
+
+export function AddLotModal({
+  productId,
+  productName,
+  children,
+}: AddLotModalProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isStocked, setIsStocked] = React.useState(true);
@@ -88,15 +93,14 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
     setIsSubmitting(true);
 
     const formData = new FormData(e.currentTarget);
-    const name = formData.get("name") as string;
     const parsedQty = Math.floor(parseFloat(quantity));
     const parsedPrice = Math.round(parseFloat(buyPrice) * 100) / 100;
     const lotIdentity = formData.get("lotIdentity") as string;
     const notes = formData.get("notes") as string;
 
     try {
-      await addProduct({
-        name,
+      await addStockLot({
+        productId,
         initialQuantity: parsedQty,
         buyPrice: parsedPrice,
         isStocked,
@@ -104,8 +108,8 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
         lotIdentity,
         notes,
       });
-      posthog.capture("stock_added", {
-        product_name: name,
+      posthog.capture("stock_lot_added", {
+        product_name: productName,
         initial_quantity: parsedQty,
         buy_price: parsedPrice,
         is_stocked: isStocked,
@@ -114,8 +118,8 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
       setIsOpen(false);
       router.refresh();
     } catch (error) {
-      console.error("Failed to add stock:", error);
-      alert(error instanceof Error ? error.message : "Failed to add stock");
+      console.error("Failed to add lot:", error);
+      alert(error instanceof Error ? error.message : "Failed to add lot");
     } finally {
       setIsSubmitting(false);
     }
@@ -123,50 +127,24 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
 
   return (
     <>
-      {typeof children === "function" ? (
-        children(() => setIsOpen(true))
-      ) : (
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className="inline-block cursor-pointer bg-transparent p-0 border-0 text-left"
-        >
-          {trigger || children}
-        </button>
-      )}
+      {children(() => setIsOpen(true))}
       <Modal
         isOpen={isOpen}
         onClose={() => {
           resetForm();
           setIsOpen(false);
         }}
-        title="Add Stock"
+        title={`Add Stock — ${productName}`}
       >
         <form onSubmit={handleSubmit} className="flex flex-col gap-6">
           <div className="space-y-5">
-            {/* Product Name */}
-            <div className="space-y-2">
-              <Label htmlFor="name" className="text-muted-foreground">
-                Product Name
-              </Label>
-              <Input
-                id="name"
-                name="name"
-                type="text"
-                placeholder="Product Name"
-                required
-                className="bg-background/50 border-primary/20 h-11"
-              />
-            </div>
-
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Quantity */}
               <div className="space-y-2">
-                <Label htmlFor="quantity" className="text-muted-foreground">
-                  Initial Lot Quantity
+                <Label htmlFor="lot-quantity" className="text-muted-foreground">
+                  Lot Quantity
                 </Label>
                 <Input
-                  id="quantity"
+                  id="lot-quantity"
                   name="quantity"
                   type="number"
                   min="1"
@@ -178,9 +156,8 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
                   className="bg-background/50 border-primary/20 h-11"
                 />
               </div>
-              {/* Unit Price */}
               <div className="space-y-2">
-                <Label htmlFor="buyPrice" className="text-muted-foreground">
+                <Label htmlFor="lot-buyPrice" className="text-muted-foreground">
                   Unit Buy Price
                 </Label>
                 <div className="relative">
@@ -188,7 +165,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
                     $
                   </span>
                   <Input
-                    id="buyPrice"
+                    id="lot-buyPrice"
                     name="buyPrice"
                     type="number"
                     min="0"
@@ -205,7 +182,6 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Date Received */}
               <div className="space-y-2 flex flex-col">
                 <Label className="text-muted-foreground">Date Received</Label>
                 <div className="w-full flex">
@@ -218,13 +194,15 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
                 </div>
               </div>
 
-              {/* Lot Identity */}
               <div className="space-y-2">
-                <Label htmlFor="lotIdentity" className="text-muted-foreground">
+                <Label
+                  htmlFor="lot-lotIdentity"
+                  className="text-muted-foreground"
+                >
                   Lot Identity
                 </Label>
                 <Input
-                  id="lotIdentity"
+                  id="lot-lotIdentity"
                   name="lotIdentity"
                   value={lotIdentity}
                   onChange={(e) => setLotIdentity(e.target.value)}
@@ -234,7 +212,6 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
               </div>
             </div>
 
-            {/* Status Toggle */}
             <div className="space-y-2">
               <Label className="text-muted-foreground">Status</Label>
               <div className="flex p-1 bg-background/50 border border-primary/20 rounded-lg">
@@ -265,9 +242,8 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
               </div>
             </div>
 
-            {/* Notes */}
             <div className="space-y-2">
-              <Label htmlFor="notes" className="text-muted-foreground">
+              <Label htmlFor="lot-notes" className="text-muted-foreground">
                 Notes{" "}
                 <span className="text-muted-foreground/50 font-normal">
                   (optional, max 50 chars)
@@ -283,7 +259,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
               disabled={isSubmitting}
               className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20 cursor-pointer text-sm rounded-lg"
             >
-              {isSubmitting ? "Adding..." : "Add to Inventory"}
+              {isSubmitting ? "Adding..." : "Add Lot"}
             </Button>
             <Button
               type="button"

@@ -3,6 +3,7 @@
 import { format } from "date-fns";
 import {
   Check,
+  Edit2,
   PackageCheck,
   Pencil,
   ShoppingCart,
@@ -15,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CustomTooltip } from "@/components/ui/tooltip";
 import { DeleteUnitsModal } from "./deleteUnitsModal";
+import { EditLotModal } from "./editLotModal";
 import { SellUnitsModal } from "./sellUnitsModal";
 
 export type StockLot = {
@@ -170,6 +172,20 @@ export function LotCard({
               )}
             </SellUnitsModal>
           )}
+
+          <EditLotModal lot={lot} productName={productName}>
+            {(open) => (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={open}
+                disabled={isProcessing}
+                className="text-muted-foreground hover:text-primary cursor-pointer"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+              </Button>
+            )}
+          </EditLotModal>
 
           <DeleteUnitsModal lot={lot} productName={productName}>
             {(open) => (

@@ -165,26 +165,49 @@ export async function addProduct(data: {
 
   const supabase = await createClient();
 
-  const { data: product, error: productError } = await supabase
+  // Reuse existing product if same name already exists (case-insensitive).
+  const { data: existing } = await supabase
     .from("Product")
-    .insert([
-      {
-        id: crypto.randomUUID(),
-        userId,
-        name,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ])
-    .select()
-    .single();
+    .select("id")
+    .eq("userId", userId)
+    .ilike("name", escapeLikePattern(name))
+    .limit(1)
+    .maybeSingle();
 
-  if (productError) throw new Error(productError.message);
+  let productId: string;
+
+  const now = new Date().toISOString();
+
+  if (existing) {
+    productId = existing.id;
+    // Bubble product to top of inventory by stamping updatedAt
+    await supabase
+      .from("Product")
+      .update({ updatedAt: now })
+      .eq("id", productId);
+  } else {
+    const { data: product, error: productError } = await supabase
+      .from("Product")
+      .insert([
+        {
+          id: crypto.randomUUID(),
+          userId,
+          name,
+          createdAt: now,
+          updatedAt: now,
+        },
+      ])
+      .select()
+      .single();
+
+    if (productError) throw new Error(productError.message);
+    productId = product.id;
+  }
 
   const { error: lotError } = await supabase.from("StockLot").insert([
     {
       id: crypto.randomUUID(),
-      productId: product.id,
+      productId,
       initialQuantity: data.initialQuantity,
       remainingQuantity: data.initialQuantity,
       buyPrice: data.buyPrice,
@@ -192,15 +215,15 @@ export async function addProduct(data: {
       dateAcquired: (dateAcquired ?? new Date()).toISOString(),
       lotIdentity,
       notes: notes ?? null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     },
   ]);
 
   if (lotError) throw new Error(lotError.message);
 
   revalidatePath("/", "layout");
-  return product;
+  return { id: productId };
 }
 
 export async function addStockLot(data: {
@@ -208,6 +231,9 @@ export async function addStockLot(data: {
   initialQuantity: number;
   buyPrice: number;
   isStocked: boolean;
+  dateAcquired?: Date;
+  lotIdentity?: string;
+  notes?: string;
 }) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -217,6 +243,13 @@ export async function addStockLot(data: {
   assertPositiveInt(data?.initialQuantity, "initialQuantity");
   assertNonNegativeNumber(data?.buyPrice, "buyPrice");
   assertBoolean(data?.isStocked, "isStocked");
+  const dateAcquired = parseOptionalDate(data?.dateAcquired, "dateAcquired");
+  const lotIdentity = cleanOptionalString(data?.lotIdentity, "lotIdentity", {
+    maxLength: MAX_LOT_IDENTITY_LENGTH,
+  });
+  const notes = cleanOptionalString(data?.notes, "notes", {
+    maxLength: MAX_LOT_NOTES_LENGTH,
+  });
 
   const supabase = await createClient();
 
@@ -229,6 +262,8 @@ export async function addStockLot(data: {
 
   if (!product) throw new Error("Product not found or unauthorized");
 
+  const now = new Date().toISOString();
+
   const { data: lot, error } = await supabase
     .from("StockLot")
     .insert([
@@ -239,8 +274,11 @@ export async function addStockLot(data: {
         remainingQuantity: data.initialQuantity,
         buyPrice: data.buyPrice,
         isStocked: data.isStocked,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        dateAcquired: (dateAcquired ?? new Date()).toISOString(),
+        lotIdentity,
+        notes: notes ?? null,
+        createdAt: now,
+        updatedAt: now,
       },
     ])
     .select()
@@ -248,8 +286,82 @@ export async function addStockLot(data: {
 
   if (error) throw new Error(error.message);
 
+  // Bubble product to top of inventory
+  await supabase.from("Product").update({ updatedAt: now }).eq("id", productId);
+
   revalidatePath("/", "layout");
   return lot;
+}
+
+export async function updateLot(
+  lotId: string,
+  data: {
+    remainingQuantity: number;
+    buyPrice: number;
+    isStocked: boolean;
+    dateAcquired: Date;
+    lotIdentity?: string;
+    notes?: string;
+  },
+) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const cleanLotId = cleanRequiredString(lotId, "lotId");
+  if (
+    typeof data?.remainingQuantity !== "number" ||
+    !Number.isInteger(data.remainingQuantity) ||
+    data.remainingQuantity < 1
+  )
+    throw new Error("remainingQuantity must be a positive integer");
+  assertNonNegativeNumber(data?.buyPrice, "buyPrice");
+  assertBoolean(data?.isStocked, "isStocked");
+  const dateAcquired = parseOptionalDate(data?.dateAcquired, "dateAcquired");
+  const lotIdentity = cleanOptionalString(data?.lotIdentity, "lotIdentity", {
+    maxLength: MAX_LOT_IDENTITY_LENGTH,
+  });
+  const notes = cleanOptionalString(data?.notes, "notes", {
+    maxLength: MAX_LOT_NOTES_LENGTH,
+  });
+
+  const supabase = await createClient();
+
+  const { data: lot } = await supabase
+    .from("StockLot")
+    .select("id, productId, initialQuantity, Product!inner(userId)")
+    .eq("id", cleanLotId)
+    .eq("Product.userId", userId)
+    .single();
+
+  if (!lot) throw new Error("Lot not found or unauthorized");
+  if (data.remainingQuantity > lot.initialQuantity)
+    throw new Error("remainingQuantity cannot exceed initialQuantity");
+
+  const now = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("StockLot")
+    .update({
+      remainingQuantity: data.remainingQuantity,
+      buyPrice: data.buyPrice,
+      isStocked: data.isStocked,
+      dateAcquired: (dateAcquired ?? new Date()).toISOString(),
+      lotIdentity,
+      notes: notes ?? null,
+      updatedAt: now,
+    })
+    .eq("id", cleanLotId);
+
+  if (error) throw new Error(error.message);
+
+  // Bubble product to top of inventory
+  await supabase
+    .from("Product")
+    .update({ updatedAt: now })
+    .eq("id", lot.productId);
+
+  revalidatePath("/", "layout");
 }
 
 export async function markAsStocked(lotId: string) {
