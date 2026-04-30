@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import * as React from "react";
 import DatePicker from "react-date-picker";
-import { addProduct } from "@/actions/stock";
+import { addProduct, getRecentProducts } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,10 +57,17 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
   const [quantity, setQuantity] = React.useState<string>("1");
   const [buyPrice, setBuyPrice] = React.useState<string>("");
   const [lotIdentity, setLotIdentity] = React.useState("");
+  const [productName, setProductName] = React.useState("");
+  const [recentProducts, setRecentProducts] = React.useState<
+    { id: string; name: string }[]
+  >([]);
   const router = useRouter();
 
   React.useEffect(() => {
     setLotIdentity(generateLotIdentity());
+    getRecentProducts(3)
+      .then(setRecentProducts)
+      .catch(() => {});
   }, []);
 
   const handleQuantityBlur = () => {
@@ -76,6 +83,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
   };
 
   const resetForm = () => {
+    setProductName("");
     setQuantity("1");
     setBuyPrice("");
     setIsStocked(true);
@@ -154,9 +162,28 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
                 name="name"
                 type="text"
                 placeholder="Product Name"
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
                 required
                 className="bg-background/50 border-primary/20 h-11"
               />
+              {recentProducts.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                  <span className="text-[11px] text-muted-foreground/50 shrink-0 font-medium uppercase tracking-wide">
+                    Suggested:
+                  </span>
+                  {recentProducts.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setProductName(p.name)}
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary/80 border border-primary/20 hover:bg-primary/20 hover:text-primary hover:border-primary/40 transition-all cursor-pointer"
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

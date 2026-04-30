@@ -1,12 +1,13 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { Edit2, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 import { deleteSale } from "@/actions/stock";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TablePagination } from "@/components/ui/TablePagination";
+import { EditSaleModal } from "./editSaleModal";
 
 interface SaleItem {
   id: string;
@@ -81,7 +82,7 @@ export function SalesTable({
                 <th className="px-6 py-4 font-medium">Buy</th>
                 <th className="px-6 py-4 font-medium">Sell</th>
                 <th className="px-6 py-4 font-medium text-right">Net Profit</th>
-                <th className="pl-4 pr-6 py-4 w-px" />
+                <th className="pl-4 pr-6 py-4 w-[72px]" />
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -154,15 +155,30 @@ export function SalesTable({
                         {formatter.format(sale.totalProfit)}
                       </td>
                       <td className="pl-4 pr-6 py-4 w-px">
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(sale.id)}
-                          disabled={deletingId === sale.id}
-                          className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 cursor-pointer"
-                          aria-label="Delete sale"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center gap-4">
+                          <EditSaleModal sale={sale}>
+                            {(open) => (
+                              <button
+                                type="button"
+                                onClick={open}
+                                disabled={deletingId === sale.id}
+                                className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 cursor-pointer"
+                                aria-label="Edit sale"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </EditSaleModal>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(sale.id)}
+                            disabled={deletingId === sale.id}
+                            className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 cursor-pointer"
+                            aria-label="Delete sale"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

@@ -38,6 +38,22 @@ async function gateStockBulk(userId: string) {
   );
 }
 
+export async function getRecentProducts(limit = 3) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("Product")
+    .select("id, name")
+    .eq("userId", userId)
+    .order("updatedAt", { ascending: false })
+    .limit(limit);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as { id: string; name: string }[];
+}
+
 export async function getInventory() {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -713,6 +729,68 @@ export async function getSalesHistory(
     totalCount: count || 0,
     totalPages: Math.ceil((count || 0) / safePageSize),
   };
+}
+
+export async function updateSale(
+  saleId: string,
+  data: {
+    quantitySold: number;
+    salePricePerUnit: number;
+    dateSold?: Date;
+    notes?: string;
+  },
+) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const cleanId = cleanRequiredString(saleId, "saleId");
+  assertPositiveInt(data?.quantitySold, "quantitySold");
+  assertNonNegativeNumber(data?.salePricePerUnit, "salePricePerUnit");
+  const dateSold = parseOptionalDate(data?.dateSold, "dateSold");
+  const notes = cleanOptionalString(data?.notes, "notes", {
+    maxLength: MAX_LOT_NOTES_LENGTH,
+  });
+
+  const supabase = await createClient();
+
+  const { data: sale, error: fetchError } = await supabase
+    .from("Sale")
+    .select(
+      "id, quantitySold, totalSalePrice, totalProfit, Product!inner(userId)",
+    )
+    .eq("id", cleanId)
+    .eq("Product.userId", userId)
+    .single();
+
+  if (fetchError || !sale) throw new Error("Sale not found or access denied");
+
+  // Preserve the original buy price per unit when recalculating profit
+  const buyPricePerUnit =
+    sale.quantitySold > 0
+      ? (sale.totalSalePrice - sale.totalProfit) / sale.quantitySold
+      : 0;
+
+  const newTotalSalePrice =
+    Math.round(data.quantitySold * data.salePricePerUnit * 100) / 100;
+  const newTotalProfit =
+    Math.round(
+      (newTotalSalePrice - data.quantitySold * buyPricePerUnit) * 100,
+    ) / 100;
+
+  const { error } = await supabase
+    .from("Sale")
+    .update({
+      quantitySold: data.quantitySold,
+      totalSalePrice: newTotalSalePrice,
+      totalProfit: newTotalProfit,
+      dateSold: dateSold ? dateSold.toISOString() : undefined,
+      notes: notes ?? null,
+    })
+    .eq("id", cleanId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/sales");
 }
 
 export async function deleteSale(saleId: string) {
