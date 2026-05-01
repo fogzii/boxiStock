@@ -38,6 +38,58 @@ async function gateStockBulk(userId: string) {
   );
 }
 
+type SupabaseInstance = Awaited<ReturnType<typeof createClient>>;
+
+// Re-aggregates Product sales stats from the Sale table.
+// Called after every sale insert / update / delete so that
+// Product.lastSoldAt / totalRevenue / totalProfit / totalUnitsSold / saleCount
+// stay in sync and the grouped sales history query never touches Sale for headers.
+async function syncProductSalesStats(
+  supabase: SupabaseInstance,
+  productId: string,
+) {
+  const { data: rows } = await supabase
+    .from("Sale")
+    .select("quantitySold, totalSalePrice, totalProfit, dateSold, createdAt")
+    .eq("productId", productId);
+
+  if (!rows || rows.length === 0) {
+    await (supabase.from("Product") as any)
+      .update({
+        lastSoldAt: null,
+        totalRevenue: 0,
+        totalProfit: 0,
+        totalUnitsSold: 0,
+        saleCount: 0,
+      })
+      .eq("id", productId);
+    return;
+  }
+
+  let totalRevenue = 0;
+  let totalProfit = 0;
+  let totalUnitsSold = 0;
+  let latestDate = new Date(0);
+
+  for (const s of rows as any[]) {
+    totalRevenue += s.totalSalePrice;
+    totalProfit += s.totalProfit;
+    totalUnitsSold += s.quantitySold;
+    const d = new Date(s.dateSold ?? s.createdAt);
+    if (d > latestDate) latestDate = d;
+  }
+
+  await (supabase.from("Product") as any)
+    .update({
+      lastSoldAt: latestDate.toISOString(),
+      totalRevenue,
+      totalProfit,
+      totalUnitsSold,
+      saleCount: rows.length,
+    })
+    .eq("id", productId);
+}
+
 export async function getRecentProducts(limit = 3) {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
@@ -585,6 +637,8 @@ export async function sellLotUnits(
 
   if (saleError) throw new Error(`Sale insert failed: ${saleError.message}`);
 
+  await syncProductSalesStats(supabase, lot.productId);
+
   revalidatePath("/", "layout");
 }
 
@@ -731,6 +785,105 @@ export async function getSalesHistory(
   };
 }
 
+export async function getSalesHistoryGrouped(
+  page: number = 1,
+  pageSize: number = 10,
+  search?: string,
+) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const safePage = Number.isInteger(page) && page > 0 ? page : 1;
+  const safePageSize =
+    Number.isInteger(pageSize) && pageSize > 0 && pageSize <= 100
+      ? pageSize
+      : 10;
+
+  const supabase = await createClient();
+
+  const safeSearch =
+    search && typeof search === "string" && search.trim() !== ""
+      ? escapeLikePattern(search.trim().slice(0, 200))
+      : null;
+
+  // Count matching products that have at least one sale
+  let countQuery = (supabase.from("Product") as any)
+    .select("id", { count: "exact", head: true })
+    .eq("userId", userId)
+    .not("lastSoldAt", "is", null);
+  if (safeSearch) countQuery = countQuery.ilike("name", `%${safeSearch}%`);
+  const { count, error: countError } = await countQuery;
+  if (countError) throw new Error(countError.message);
+
+  const start = (safePage - 1) * safePageSize;
+  const end = start + safePageSize - 1;
+
+  // Fetch product group headers — reads only Product table, no Sale join needed
+  let headersQuery = (supabase.from("Product") as any)
+    .select(
+      "id, name, lastSoldAt, totalRevenue, totalProfit, totalUnitsSold, saleCount",
+    )
+    .eq("userId", userId)
+    .not("lastSoldAt", "is", null)
+    .order("lastSoldAt", { ascending: false })
+    .range(start, end);
+  if (safeSearch) headersQuery = headersQuery.ilike("name", `%${safeSearch}%`);
+  const { data: products, error: productsError } = await headersQuery;
+  if (productsError) throw new Error(productsError.message);
+
+  if (!products || products.length === 0) {
+    return {
+      groups: [],
+      totalCount: count ?? 0,
+      totalPages: Math.ceil((count ?? 0) / safePageSize),
+    };
+  }
+
+  // Batch-fetch individual sales for the current page of products (2 queries total)
+  const productIds = (products as any[]).map((p) => p.id);
+  const { data: rawSales, error: salesError } = await supabase
+    .from("Sale")
+    .select(
+      "id, dateSold, createdAt, quantitySold, totalSalePrice, totalProfit, notes, productId",
+    )
+    .in("productId", productIds)
+    .order("dateSold", { ascending: false, nullsFirst: false })
+    .order("createdAt", { ascending: false });
+  if (salesError) throw new Error(salesError.message);
+
+  // Index individual sales by productId
+  const salesByProduct = new Map<string, any[]>();
+  for (const s of (rawSales as any[]) ?? []) {
+    if (!salesByProduct.has(s.productId)) salesByProduct.set(s.productId, []);
+    salesByProduct.get(s.productId)!.push(s);
+  }
+
+  const groups = (products as any[]).map((p) => ({
+    productId: p.id,
+    productName: p.name,
+    latestDate: p.lastSoldAt as string,
+    totalQuantity: (p.totalUnitsSold ?? 0) as number,
+    totalSalePrice: (p.totalRevenue ?? 0) as number,
+    totalProfit: (p.totalProfit ?? 0) as number,
+    sales: (salesByProduct.get(p.id) ?? []).map((s: any) => ({
+      id: s.id,
+      dateSold: s.dateSold as string | null,
+      createdAt: s.createdAt as string,
+      quantitySold: s.quantitySold as number,
+      totalSalePrice: s.totalSalePrice as number,
+      totalProfit: s.totalProfit as number,
+      notes: s.notes as string | null,
+      Product: { name: p.name as string },
+    })),
+  }));
+
+  return {
+    groups,
+    totalCount: count ?? 0,
+    totalPages: Math.ceil((count ?? 0) / safePageSize),
+  };
+}
+
 export async function updateSale(
   saleId: string,
   data: {
@@ -757,7 +910,7 @@ export async function updateSale(
   const { data: sale, error: fetchError } = await supabase
     .from("Sale")
     .select(
-      "id, quantitySold, totalSalePrice, totalProfit, Product!inner(userId)",
+      "id, quantitySold, totalSalePrice, totalProfit, productId, Product!inner(userId)",
     )
     .eq("id", cleanId)
     .eq("Product.userId", userId)
@@ -790,6 +943,9 @@ export async function updateSale(
     .eq("id", cleanId);
 
   if (error) throw new Error(error.message);
+
+  await syncProductSalesStats(supabase, (sale as any).productId);
+
   revalidatePath("/sales");
 }
 
@@ -805,7 +961,7 @@ export async function deleteSale(saleId: string) {
   // Verify ownership via the joined Product before deleting
   const { data: sale, error: fetchError } = await supabase
     .from("Sale")
-    .select("id, Product!inner(userId)")
+    .select("id, productId, Product!inner(userId)")
     .eq("id", saleId)
     .eq("Product.userId", userId)
     .single();
@@ -814,6 +970,39 @@ export async function deleteSale(saleId: string) {
 
   const { error } = await supabase.from("Sale").delete().eq("id", saleId);
   if (error) throw new Error(error.message);
+
+  await syncProductSalesStats(supabase, (sale as any).productId);
+
+  revalidatePath("/sales");
+}
+
+export async function deleteProductSales(productId: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const cleanId = cleanRequiredString(productId, "productId");
+
+  const supabase = await createClient();
+
+  const { data: product, error: fetchError } = await supabase
+    .from("Product")
+    .select("id")
+    .eq("id", cleanId)
+    .eq("userId", userId)
+    .single();
+
+  if (fetchError || !product)
+    throw new Error("Product not found or access denied");
+
+  const { error } = await supabase
+    .from("Sale")
+    .delete()
+    .eq("productId", cleanId);
+
+  if (error) throw new Error(error.message);
+
+  await syncProductSalesStats(supabase, cleanId);
 
   revalidatePath("/sales");
 }
@@ -1152,6 +1341,7 @@ export async function bulkAddSales(
   });
 
   const supabase = await createClient();
+  const affectedProductIds = new Set<string>();
 
   for (const item of validated) {
     const escapedName = escapeLikePattern(item.productName);
@@ -1287,9 +1477,14 @@ export async function bulkAddSales(
       if (saleError)
         throw new Error(`Sale insert failed: ${saleError.message}`);
 
+      affectedProductIds.add(product.id);
       remainingToSell -= qtyFromLot;
     }
   }
+
+  await Promise.all(
+    [...affectedProductIds].map((pid) => syncProductSalesStats(supabase, pid)),
+  );
 
   revalidatePath("/", "layout");
   return { success: true };

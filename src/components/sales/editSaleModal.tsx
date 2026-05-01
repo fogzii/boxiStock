@@ -16,7 +16,7 @@ const MAX_NOTES_LENGTH = 50;
 
 interface SaleItem {
   id: string;
-  dateSold: string;
+  dateSold: string | null;
   createdAt: string;
   quantitySold: number;
   totalSalePrice: number;

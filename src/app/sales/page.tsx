@@ -1,5 +1,5 @@
 import { TrendingUp, Wallet } from "lucide-react";
-import { getSalesHistory, getSalesMetrics } from "@/actions/stock";
+import { getSalesHistoryGrouped, getSalesMetrics } from "@/actions/stock";
 import { SalesTable } from "@/components/sales/salesTable";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { StatCard } from "@/components/ui/StatCard";
@@ -16,7 +16,7 @@ export default async function SalesPage({
 
   const [metrics, history] = await Promise.all([
     getSalesMetrics(),
-    getSalesHistory(currentPage, pageSize, searchParamStr),
+    getSalesHistoryGrouped(currentPage, pageSize, searchParamStr),
   ]);
 
   const formatter = new Intl.NumberFormat("en-US", {
@@ -56,7 +56,9 @@ export default async function SalesPage({
 
       {/* Sales Table and Pagination */}
       <SalesTable
-        history={history}
+        groups={history.groups}
+        totalCount={history.totalCount}
+        totalPages={history.totalPages}
         currentPage={currentPage}
         pageSize={pageSize}
       />
