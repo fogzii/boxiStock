@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, unstable_cache } from "next/cache";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -806,19 +806,16 @@ export async function getSalesHistoryGrouped(
       ? escapeLikePattern(search.trim().slice(0, 200))
       : null;
 
-  // Count matching products that have at least one sale
+  const start = (safePage - 1) * safePageSize;
+  const end = start + safePageSize - 1;
+
+  // Count and headers are independent — run in parallel
   let countQuery = (supabase.from("Product") as any)
     .select("id", { count: "exact", head: true })
     .eq("userId", userId)
     .not("lastSoldAt", "is", null);
   if (safeSearch) countQuery = countQuery.ilike("name", `%${safeSearch}%`);
-  const { count, error: countError } = await countQuery;
-  if (countError) throw new Error(countError.message);
 
-  const start = (safePage - 1) * safePageSize;
-  const end = start + safePageSize - 1;
-
-  // Fetch product group headers — reads only Product table, no Sale join needed
   let headersQuery = (supabase.from("Product") as any)
     .select(
       "id, name, lastSoldAt, totalRevenue, totalProfit, totalUnitsSold, saleCount",
@@ -828,7 +825,13 @@ export async function getSalesHistoryGrouped(
     .order("lastSoldAt", { ascending: false })
     .range(start, end);
   if (safeSearch) headersQuery = headersQuery.ilike("name", `%${safeSearch}%`);
-  const { data: products, error: productsError } = await headersQuery;
+
+  const [
+    { count, error: countError },
+    { data: products, error: productsError },
+  ] = await Promise.all([countQuery, headersQuery]);
+
+  if (countError) throw new Error(countError.message);
   if (productsError) throw new Error(productsError.message);
 
   if (!products || products.length === 0) {
@@ -1011,58 +1014,60 @@ export async function getSalesMetrics() {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
 
-  const supabase = await createClient();
+  return unstable_cache(
+    async (uid: string) => {
+      const supabase = await createClient();
 
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(today.getDate() - 7);
+      const sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(today.getDate() - 7);
 
-  const [
-    { data: recentSales, error },
-    { data: lifetimeSales, error: lifetimeError },
-  ] = await Promise.all([
-    supabase
-      .from("Sale")
-      .select("*, Product!inner(userId)")
-      .eq("Product.userId", userId)
-      .gte("createdAt", sevenDaysAgo.toISOString()),
-    supabase
-      .from("Sale")
-      .select("totalProfit, Product!inner(userId)")
-      .eq("Product.userId", userId),
-  ]);
+      const [
+        { data: recentSales, error },
+        { data: lifetimeSales, error: lifetimeError },
+      ] = await Promise.all([
+        supabase
+          .from("Sale")
+          .select("*, Product!inner(userId)")
+          .eq("Product.userId", uid)
+          .gte("createdAt", sevenDaysAgo.toISOString()),
+        supabase
+          .from("Sale")
+          .select("totalProfit, Product!inner(userId)")
+          .eq("Product.userId", uid),
+      ]);
 
-  if (error) throw new Error(error.message);
-  if (lifetimeError) throw new Error(lifetimeError.message);
+      if (error) throw new Error(error.message);
+      if (lifetimeError) throw new Error(lifetimeError.message);
 
-  let totalSalesToday = 0;
-  let totalUnitsSoldWeek = 0;
-  let netProfitWeek = 0;
+      let totalSalesToday = 0;
+      let totalUnitsSoldWeek = 0;
+      let netProfitWeek = 0;
 
-  for (const sale of recentSales || []) {
-    const saleDate = new Date(sale.createdAt);
+      for (const sale of recentSales || []) {
+        const saleDate = new Date(sale.createdAt);
+        totalUnitsSoldWeek += sale.quantitySold;
+        netProfitWeek += sale.totalProfit;
+        if (saleDate >= today) totalSalesToday += sale.totalSalePrice;
+      }
 
-    totalUnitsSoldWeek += sale.quantitySold;
-    netProfitWeek += sale.totalProfit;
+      const netProfitLifetime = (lifetimeSales || []).reduce(
+        (sum, s) => sum + s.totalProfit,
+        0,
+      );
 
-    if (saleDate >= today) {
-      totalSalesToday += sale.totalSalePrice;
-    }
-  }
-
-  const netProfitLifetime = (lifetimeSales || []).reduce(
-    (sum, s) => sum + s.totalProfit,
-    0,
-  );
-
-  return {
-    totalSalesToday,
-    totalUnitsSoldWeek,
-    netProfitWeek,
-    netProfitLifetime,
-  };
+      return {
+        totalSalesToday,
+        totalUnitsSoldWeek,
+        netProfitWeek,
+        netProfitLifetime,
+      };
+    },
+    [`sales-metrics-${userId}`],
+    { revalidate: 60 },
+  )(userId);
 }
 
 export async function getDashboardMetrics() {
@@ -1487,5 +1492,102 @@ export async function bulkAddSales(
   );
 
   revalidatePath("/", "layout");
+  return { success: true };
+}
+
+export async function getProductGroupHeaders(
+  page: number = 1,
+  pageSize: number = 5,
+  search?: string,
+  excludeProductId?: string,
+) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+
+  const safePage = Number.isInteger(page) && page > 0 ? page : 1;
+  const safePageSize =
+    Number.isInteger(pageSize) && pageSize > 0 && pageSize <= 50 ? pageSize : 5;
+
+  const supabase = await createClient();
+
+  const safeSearch =
+    search && typeof search === "string" && search.trim() !== ""
+      ? escapeLikePattern(search.trim().slice(0, 200))
+      : null;
+
+  let countQuery = (supabase.from("Product") as any)
+    .select("id", { count: "exact", head: true })
+    .eq("userId", userId)
+    .not("lastSoldAt", "is", null);
+  if (safeSearch) countQuery = countQuery.ilike("name", `%${safeSearch}%`);
+  if (excludeProductId && typeof excludeProductId === "string")
+    countQuery = countQuery.neq("id", excludeProductId);
+  const { count, error: countError } = await countQuery;
+  if (countError) throw new Error(countError.message);
+
+  const start = (safePage - 1) * safePageSize;
+  const end = start + safePageSize - 1;
+
+  let headersQuery = (supabase.from("Product") as any)
+    .select("id, name, lastSoldAt")
+    .eq("userId", userId)
+    .not("lastSoldAt", "is", null)
+    .order("lastSoldAt", { ascending: false })
+    .range(start, end);
+  if (safeSearch) headersQuery = headersQuery.ilike("name", `%${safeSearch}%`);
+  if (excludeProductId && typeof excludeProductId === "string")
+    headersQuery = headersQuery.neq("id", excludeProductId);
+  const { data: products, error: productsError } = await headersQuery;
+  if (productsError) throw new Error(productsError.message);
+
+  const groups = ((products as any[]) ?? []).map((p) => ({
+    productId: p.id as string,
+    productName: p.name as string,
+    latestDate: p.lastSoldAt as string,
+  }));
+
+  return {
+    groups,
+    totalCount: count ?? 0,
+    totalPages: Math.ceil((count ?? 0) / safePageSize),
+  };
+}
+
+export async function mergeProductSales(
+  sourceProductId: string,
+  targetProductId: string,
+) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const cleanSourceId = cleanRequiredString(sourceProductId, "sourceProductId");
+  const cleanTargetId = cleanRequiredString(targetProductId, "targetProductId");
+
+  if (cleanSourceId === cleanTargetId)
+    throw new Error("Cannot merge a product into itself");
+
+  const supabase = await createClient();
+
+  const { data: products, error: fetchError } = await supabase
+    .from("Product")
+    .select("id")
+    .eq("userId", userId)
+    .in("id", [cleanSourceId, cleanTargetId]);
+
+  if (fetchError) throw new Error(fetchError.message);
+  if (!products || products.length !== 2)
+    throw new Error("One or both products not found or access denied");
+
+  const { error: updateError } = await supabase
+    .from("Sale")
+    .update({ productId: cleanTargetId })
+    .eq("productId", cleanSourceId);
+  if (updateError) throw new Error(updateError.message);
+
+  await syncProductSalesStats(supabase, cleanSourceId);
+  await syncProductSalesStats(supabase, cleanTargetId);
+
+  revalidatePath("/sales");
   return { success: true };
 }

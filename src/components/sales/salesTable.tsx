@@ -1,6 +1,16 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Edit2, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronRight,
+  Edit2,
+  Loader2,
+  Merge,
+  Trash2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
@@ -9,7 +19,9 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TablePagination } from "@/components/ui/TablePagination";
+import { CustomTooltip } from "@/components/ui/tooltip";
 import { EditSaleModal } from "./editSaleModal";
+import { MergeSaleModal } from "./mergeSaleModal";
 
 interface SaleItem {
   id: string;
@@ -65,6 +77,7 @@ function ProductGroupRow({
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [isDeletingGroup, setIsDeletingGroup] = React.useState(false);
+  const [mergeOpen, setMergeOpen] = React.useState(false);
 
   const totalBuy = group.totalSalePrice - group.totalProfit;
   const saleCount = group.sales.length;
@@ -127,25 +140,47 @@ function ProductGroupRow({
           {formatter.format(group.totalSalePrice)}
         </td>
         <td
-          className={`px-6 py-4 text-sm font-medium text-right ${
+          className={`px-6 py-4 text-sm font-medium ${
             group.totalProfit >= 0 ? "text-emerald-400" : "text-destructive"
           }`}
         >
           {group.totalProfit >= 0 ? "+" : ""}
           {formatter.format(group.totalProfit)}
         </td>
-        <td className="pl-4 pr-6 py-4 w-[72px]">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setConfirmOpen(true);
-            }}
-            className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
-            aria-label={`Delete all sales for ${group.productName}`}
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+        <td className="pl-4 pr-6 py-4 w-px">
+          <div className="flex items-center gap-3">
+            <CustomTooltip content="Merge this sale into another sale">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMergeOpen(true);
+                }}
+                className="text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                aria-label={`Merge sales for ${group.productName}`}
+              >
+                <Merge className="w-4 h-4" />
+              </button>
+            </CustomTooltip>
+            <CustomTooltip content="Delete all sales for this product">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfirmOpen(true);
+                }}
+                disabled={isDeletingGroup}
+                className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:opacity-40"
+                aria-label={`Delete all sales for ${group.productName}`}
+              >
+                {isDeletingGroup ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+              </button>
+            </CustomTooltip>
+          </div>
         </td>
       </tr>
 
@@ -172,7 +207,7 @@ function ProductGroupRow({
                 {formatter.format(sale.totalSalePrice)}
               </td>
               <td
-                className={`px-6 py-3 text-sm font-medium text-right ${
+                className={`px-6 py-3 text-sm font-medium ${
                   sale.totalProfit >= 0
                     ? "text-emerald-400"
                     : "text-destructive"
@@ -185,29 +220,37 @@ function ProductGroupRow({
                 <div className="flex items-center gap-4">
                   <EditSaleModal sale={sale}>
                     {(open) => (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          open();
-                        }}
-                        disabled={deletingId === sale.id}
-                        className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 cursor-pointer"
-                        aria-label="Edit sale"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
+                      <CustomTooltip content="Edit sale">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            open();
+                          }}
+                          disabled={deletingId === sale.id}
+                          className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 cursor-pointer"
+                          aria-label="Edit sale"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      </CustomTooltip>
                     )}
                   </EditSaleModal>
-                  <button
-                    type="button"
-                    onClick={(e) => handleDeleteSale(e, sale.id)}
-                    disabled={deletingId === sale.id}
-                    className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 cursor-pointer"
-                    aria-label="Delete sale"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <CustomTooltip content="Delete sale">
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteSale(e, sale.id)}
+                      disabled={deletingId === sale.id}
+                      className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 cursor-pointer"
+                      aria-label="Delete sale"
+                    >
+                      {deletingId === sale.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </CustomTooltip>
                 </div>
               </td>
             </tr>
@@ -252,7 +295,56 @@ function ProductGroupRow({
           </div>
         </div>
       </Modal>
+
+      <MergeSaleModal
+        sourceGroup={group}
+        isOpen={mergeOpen}
+        onClose={() => setMergeOpen(false)}
+      />
     </>
+  );
+}
+
+type SortField = "date" | "product" | "quantity" | "buy" | "sell" | "profit";
+type SortDir = "asc" | "desc";
+
+function SortHeader({
+  label,
+  field,
+  sortField,
+  sortDir,
+  onSort,
+  className,
+}: {
+  label: string;
+  field: SortField;
+  sortField: SortField | null;
+  sortDir: SortDir;
+  onSort: (f: SortField) => void;
+  className?: string;
+}) {
+  const isActive = sortField === field;
+  return (
+    <th className={className}>
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className={`flex items-center gap-1 cursor-pointer transition-colors select-none ${
+          isActive ? "text-foreground" : "hover:text-foreground"
+        }`}
+      >
+        {label}
+        {isActive ? (
+          sortDir === "asc" ? (
+            <ArrowUp className="w-3 h-3 text-primary" />
+          ) : (
+            <ArrowDown className="w-3 h-3 text-primary" />
+          )
+        ) : (
+          <ArrowUpDown className="w-3 h-3 opacity-30" />
+        )}
+      </button>
+    </th>
   );
 }
 
@@ -265,6 +357,53 @@ export function SalesTable({
 }: SalesTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
+  const [sortField, setSortField] = React.useState<SortField | null>("date");
+  const [sortDir, setSortDir] = React.useState<SortDir>("desc");
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDir("asc");
+    }
+  };
+
+  const sortedGroups = React.useMemo(() => {
+    if (!sortField) return groups;
+    return [...groups].sort((a, b) => {
+      let aVal: number | string;
+      let bVal: number | string;
+      switch (sortField) {
+        case "date":
+          aVal = a.latestDate ?? "";
+          bVal = b.latestDate ?? "";
+          break;
+        case "product":
+          aVal = a.productName.toLowerCase();
+          bVal = b.productName.toLowerCase();
+          break;
+        case "quantity":
+          aVal = a.totalQuantity;
+          bVal = b.totalQuantity;
+          break;
+        case "buy":
+          aVal = a.totalSalePrice - a.totalProfit;
+          bVal = b.totalSalePrice - b.totalProfit;
+          break;
+        case "sell":
+          aVal = a.totalSalePrice;
+          bVal = b.totalSalePrice;
+          break;
+        case "profit":
+          aVal = a.totalProfit;
+          bVal = b.totalProfit;
+          break;
+      }
+      const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [groups, sortField, sortDir]);
 
   const handlePageChange = (page: number) => {
     startTransition(() => {
@@ -284,12 +423,54 @@ export function SalesTable({
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-muted-foreground uppercase bg-muted/20 border-b border-border">
               <tr>
-                <th className="px-6 py-4 font-medium">Date</th>
-                <th className="px-6 py-4 font-medium">Product</th>
-                <th className="px-6 py-4 font-medium">Quantity</th>
-                <th className="px-6 py-4 font-medium">Buy</th>
-                <th className="px-6 py-4 font-medium">Sell</th>
-                <th className="px-6 py-4 font-medium text-right">Net Profit</th>
+                <SortHeader
+                  label="Date"
+                  field="date"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  className="px-6 py-4 font-medium"
+                />
+                <SortHeader
+                  label="Product"
+                  field="product"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  className="px-6 py-4 font-medium"
+                />
+                <SortHeader
+                  label="Quantity"
+                  field="quantity"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  className="px-6 py-4 font-medium"
+                />
+                <SortHeader
+                  label="Buy"
+                  field="buy"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  className="px-6 py-4 font-medium"
+                />
+                <SortHeader
+                  label="Sell"
+                  field="sell"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  className="px-6 py-4 font-medium"
+                />
+                <SortHeader
+                  label="Net Profit"
+                  field="profit"
+                  sortField={sortField}
+                  sortDir={sortDir}
+                  onSort={handleSort}
+                  className="px-6 py-4 font-medium"
+                />
                 <th className="pl-4 pr-6 py-4 w-[72px]" />
               </tr>
             </thead>
@@ -325,8 +506,8 @@ export function SalesTable({
                     </td>
                   </tr>
                 ))
-              ) : groups.length > 0 ? (
-                groups.map((group) => (
+              ) : sortedGroups.length > 0 ? (
+                sortedGroups.map((group) => (
                   <ProductGroupRow
                     key={group.productId}
                     group={group}
