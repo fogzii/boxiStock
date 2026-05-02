@@ -6,6 +6,7 @@ import {
   Loader2,
   Package,
   PackagePlus,
+  Search,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -284,13 +285,21 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
 
           {/* Product search */}
           <div className="space-y-2">
-            <Label className="text-muted-foreground">Add Products</Label>
-            <Input
-              value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
-              placeholder="Search products..."
-              className="bg-background/50 border-primary/20 h-11"
-            />
+            <div className="relative">
+              <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                <Search className="h-4 w-4 text-muted-foreground" aria-hidden />
+              </div>
+              <Input
+                id="bundle-product-search"
+                type="search"
+                value={productSearch}
+                onChange={(e) => setProductSearch(e.target.value)}
+                placeholder="Search products to add…"
+                aria-label="Search products to add to this bundle"
+                autoComplete="off"
+                className="h-11 bg-background/50 border-primary/20 pl-9"
+              />
+            </div>
             {/* Fixed-height list container prevents modal height jumps */}
             <div className="border border-primary/20 rounded-lg overflow-hidden bg-background/50">
               <ul className="divide-y divide-primary/10">
@@ -537,7 +546,8 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
               {bundleItems.length > 0 && sellPriceStr !== "" && (
                 <div className="flex items-center justify-between pl-4 pr-5 h-9">
                   <span className="text-xs text-muted-foreground/50">
-                    Split equally across {bundleItems.length} product
+                    Profit will be split equally across {bundleItems.length}{" "}
+                    product
                     {bundleItems.length !== 1 ? "s" : ""}
                   </span>
                   <span className="text-xs text-muted-foreground/50">

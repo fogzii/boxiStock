@@ -48,7 +48,7 @@ export function Modal({
       />
       <div
         className={cn(
-          "relative z-50 w-full flex-1 sm:flex-none bg-card sm:border border-primary/10 sm:rounded-2xl sm:max-w-lg p-6 sm:shadow-lg overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300",
+          "relative z-50 w-full min-h-0 max-h-[100dvh] flex-1 overflow-y-auto overscroll-contain bg-card sm:border border-primary/10 sm:rounded-2xl sm:max-w-lg p-6 sm:shadow-lg sm:max-h-[calc(100dvh-2rem)] sm:flex-none animate-in fade-in slide-in-from-bottom-4 duration-300",
           className,
         )}
       >

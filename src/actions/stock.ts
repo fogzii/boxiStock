@@ -1683,17 +1683,23 @@ export async function createBundle(data: {
     if (!lots || lots.length === 0)
       throw new Error(`No stock available for the selected product`);
 
-    type LotWithProduct = {
-      id: string;
-      productId: string;
-      remainingQuantity: number;
-      buyPrice: number;
-      Product: { id: string; userId: string; name: string }[];
-    };
-    const productName = (lots[0] as LotWithProduct).Product[0].name;
+    const embedded = lots[0].Product as
+      | { name: string }
+      | { name: string }[]
+      | null
+      | undefined;
+    const productName =
+      embedded == null
+        ? undefined
+        : Array.isArray(embedded)
+          ? embedded[0]?.name
+          : embedded.name;
+    if (!productName) {
+      throw new Error(`Missing product name for stock lot`);
+    }
     let remaining = item.quantity;
 
-    for (const lot of lots as LotWithProduct[]) {
+    for (const lot of lots) {
       if (remaining === 0) break;
       const take = Math.min(lot.remainingQuantity as number, remaining);
       allConsumptions.push({
