@@ -50,9 +50,9 @@ export function SellUnitsModal({
 
   function handleQuantityChange(e: React.ChangeEvent<HTMLInputElement>) {
     const qty = parseInt(e.target.value, 10);
-    setQuantity(isNaN(qty) ? 0 : qty);
+    setQuantity(Number.isNaN(qty) ? 0 : qty);
     const per = parseFloat(perUnit);
-    if (!isNaN(qty) && qty > 0 && !isNaN(per)) {
+    if (!Number.isNaN(qty) && qty > 0 && !Number.isNaN(per)) {
       setTotal((qty * per).toFixed(2));
     }
   }
@@ -61,14 +61,14 @@ export function SellUnitsModal({
     const val = e.target.value;
     setPerUnit(val);
     const per = parseFloat(val);
-    if (!isNaN(per) && quantity > 0) {
+    if (!Number.isNaN(per) && quantity > 0) {
       setTotal((quantity * per).toFixed(2));
     }
   }
 
   function handlePerUnitBlur() {
     const per = parseFloat(perUnit);
-    if (!isNaN(per)) {
+    if (!Number.isNaN(per)) {
       const rounded = round2(per);
       setPerUnit(rounded.toFixed(2));
       setTotal((quantity * rounded).toFixed(2));
@@ -79,14 +79,14 @@ export function SellUnitsModal({
     const val = e.target.value;
     setTotal(val);
     const tot = parseFloat(val);
-    if (!isNaN(tot) && quantity > 0) {
+    if (!Number.isNaN(tot) && quantity > 0) {
       setPerUnit((tot / quantity).toFixed(2));
     }
   }
 
   function handleTotalBlur() {
     const tot = parseFloat(total);
-    if (!isNaN(tot)) {
+    if (!Number.isNaN(tot)) {
       const rounded = round2(tot);
       setTotal(rounded.toFixed(2));
       if (quantity > 0) {
@@ -100,7 +100,7 @@ export function SellUnitsModal({
     setIsSubmitting(true);
 
     const salePrice = round2(parseFloat(perUnit));
-    if (isNaN(salePrice) || salePrice <= 0) {
+    if (Number.isNaN(salePrice) || salePrice <= 0) {
       alert("Please enter a valid sell price.");
       setIsSubmitting(false);
       return;

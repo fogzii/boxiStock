@@ -39,7 +39,7 @@ export function Modal({
   if (!isOpen) return null;
 
   return ReactDOM.createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex flex-col sm:items-center sm:justify-center sm:p-4">
       <button
         type="button"
         aria-label="Close modal"
@@ -48,7 +48,7 @@ export function Modal({
       />
       <div
         className={cn(
-          "relative z-50 w-full max-w-lg bg-card border border-primary/10 rounded-2xl p-6 shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-300",
+          "relative z-50 w-full flex-1 sm:flex-none bg-card sm:border border-primary/10 sm:rounded-2xl sm:max-w-lg p-6 sm:shadow-lg overflow-y-auto animate-in fade-in slide-in-from-bottom-4 duration-300",
           className,
         )}
       >

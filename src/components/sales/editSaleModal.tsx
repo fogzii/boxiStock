@@ -12,7 +12,7 @@ import { Modal } from "@/components/ui/modal";
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
-const MAX_NOTES_LENGTH = 50;
+const MAX_NOTES_LENGTH = 75;
 
 interface SaleItem {
   id: string;
@@ -175,7 +175,7 @@ export function EditSaleModal({ sale, children }: EditSaleModalProps) {
               <Label htmlFor="es-notes" className="text-muted-foreground">
                 Notes{" "}
                 <span className="text-muted-foreground/50 font-normal">
-                  (optional, max 50 chars)
+                  (optional, max 75 chars)
                 </span>
               </Label>
               <div className="relative">

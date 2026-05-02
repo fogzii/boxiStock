@@ -9,17 +9,19 @@ import {
   Edit2,
   Loader2,
   Merge,
+  Package,
   Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
-import { deleteProductSales, deleteSale } from "@/actions/stock";
+import { deleteBundle, deleteProductSales, deleteSale } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TablePagination } from "@/components/ui/TablePagination";
 import { CustomTooltip } from "@/components/ui/tooltip";
+import { EditBundleModal } from "./editBundleModal";
 import { EditSaleModal } from "./editSaleModal";
 import { MergeSaleModal } from "./mergeSaleModal";
 
@@ -44,12 +46,38 @@ interface ProductSaleGroup {
   sales: SaleItem[];
 }
 
+interface BundleProductDisplay {
+  productId: string | null;
+  productName: string;
+  totalQuantity: number;
+  totalBuyCost: number;
+  weightedAvgBuyPrice: number;
+  allocatedProfit: number;
+  hasRestorable: boolean;
+}
+
+interface BundleGroup {
+  bundleId: string;
+  bundleName: string;
+  dateSold: string | null;
+  createdAt: string;
+  totalSellPrice: number;
+  totalBuyCost: number;
+  totalProfit: number;
+  products: BundleProductDisplay[];
+}
+
 interface SalesTableProps {
   groups: ProductSaleGroup[];
   totalCount: number;
   totalPages: number;
   currentPage: number;
   pageSize: number;
+  bundles: BundleGroup[];
+  bundlesTotalCount: number;
+  bundlesTotalPages: number;
+  bundlesCurrentPage: number;
+  bundlesPageSize: number;
 }
 
 const SKELETON_ROW_KEYS = Array.from(
@@ -305,6 +333,201 @@ function ProductGroupRow({
   );
 }
 
+function BundleGroupRow({
+  bundle,
+  formatter,
+}: {
+  bundle: BundleGroup;
+  formatter: Intl.NumberFormat;
+}) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const router = useRouter();
+
+  const unrestorableNames = bundle.products
+    .filter((p) => !p.hasRestorable)
+    .map((p) => p.productName);
+
+  async function handleDelete() {
+    setIsDeleting(true);
+    try {
+      await deleteBundle(bundle.bundleId);
+      toast.success(`Bundle "${bundle.bundleName}" deleted.`);
+      setConfirmOpen(false);
+      router.refresh();
+    } catch {
+      toast.error("Failed to delete bundle.");
+      setIsDeleting(false);
+    }
+  }
+
+  return (
+    <>
+      {/* Bundle header row */}
+      <tr
+        className="cursor-pointer hover:bg-primary/5 transition-colors"
+        onClick={() => setIsOpen((o) => !o)}
+      >
+        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+          {formatDate(bundle.dateSold ?? bundle.createdAt)}
+        </td>
+        <td className="px-6 py-4">
+          <div className="flex items-center gap-2">
+            {isOpen ? (
+              <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
+            ) : (
+              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+            )}
+            <span className="font-semibold text-foreground text-sm">
+              {bundle.bundleName}
+            </span>
+            <span className="text-xs bg-primary/15 text-primary px-1.5 py-0.5 rounded font-medium">
+              Bundle
+            </span>
+          </div>
+        </td>
+        <td className="px-6 py-4 text-sm">
+          {bundle.products.reduce((s, p) => s + p.totalQuantity, 0)}
+        </td>
+        <td className="px-6 py-4 text-sm text-muted-foreground">
+          {formatter.format(bundle.totalBuyCost)}
+        </td>
+        <td className="px-6 py-4 text-sm font-medium text-primary">
+          {formatter.format(bundle.totalSellPrice)}
+        </td>
+        <td
+          className={`px-6 py-4 text-sm font-medium ${
+            bundle.totalProfit >= 0 ? "text-emerald-400" : "text-destructive"
+          }`}
+        >
+          {bundle.totalProfit >= 0 ? "+" : ""}
+          {formatter.format(bundle.totalProfit)}
+        </td>
+        <td className="pl-4 pr-6 py-4 w-px">
+          <div className="flex items-center gap-3">
+            <EditBundleModal bundle={bundle}>
+              {(open) => (
+                <CustomTooltip content="Edit bundle">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      open();
+                    }}
+                    className="text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                    aria-label="Edit bundle"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                </CustomTooltip>
+              )}
+            </EditBundleModal>
+            <CustomTooltip content="Delete bundle">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setConfirmOpen(true);
+                }}
+                disabled={isDeleting}
+                className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:opacity-40"
+                aria-label="Delete bundle"
+              >
+                {isDeleting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Trash2 className="w-4 h-4" />
+                )}
+              </button>
+            </CustomTooltip>
+          </div>
+        </td>
+      </tr>
+
+      {/* Product sub-rows */}
+      {isOpen &&
+        bundle.products.map((product) => (
+          <tr
+            key={product.productId ?? product.productName}
+            className="bg-white/[0.06] hover:bg-white/[0.09] transition-colors animate-in fade-in slide-in-from-top-1 duration-150"
+          >
+            <td className="pl-14 pr-6 py-3 whitespace-nowrap text-sm text-muted-foreground border-l-2 border-primary/50">
+              —
+            </td>
+            <td className="px-6 py-3 text-sm flex items-center gap-2">
+              <Package className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+              <span>{product.productName}</span>
+              {!product.hasRestorable && (
+                <span className="text-xs text-amber-500/70">(deleted)</span>
+              )}
+            </td>
+            <td className="px-6 py-3 text-sm">{product.totalQuantity}</td>
+            <td className="px-6 py-3 text-sm text-muted-foreground">
+              {formatter.format(product.totalBuyCost)}
+            </td>
+            <td className="px-6 py-3 text-sm text-muted-foreground/50">—</td>
+            <td
+              className={`px-6 py-3 text-sm font-medium ${
+                product.allocatedProfit >= 0
+                  ? "text-emerald-400"
+                  : "text-destructive"
+              }`}
+            >
+              {product.allocatedProfit >= 0 ? "+" : ""}
+              {formatter.format(product.allocatedProfit)}
+            </td>
+            <td className="pl-4 pr-6 py-3 w-px" />
+          </tr>
+        ))}
+
+      {/* Delete confirmation modal */}
+      <Modal
+        isOpen={confirmOpen}
+        onClose={() => !isDeleting && setConfirmOpen(false)}
+        title={`Delete bundle "${bundle.bundleName}"?`}
+      >
+        <div className="flex flex-col gap-6">
+          <div className="text-sm text-foreground/80 leading-relaxed bg-destructive/10 border border-destructive/20 rounded-lg p-3 space-y-2">
+            <p>This will permanently delete this bundle sale record.</p>
+            {unrestorableNames.length > 0 ? (
+              <p className="text-amber-400/90">
+                <strong>⚠ Note:</strong> {unrestorableNames.join(", ")}{" "}
+                {unrestorableNames.length === 1 ? "was" : "were"} fully depleted
+                by this bundle and{" "}
+                {unrestorableNames.length === 1 ? "has" : "have"} been deleted.
+                {unrestorableNames.length === 1 ? " Its" : " Their"} stock
+                cannot be restored.
+              </p>
+            ) : (
+              <p>All stock quantities will be restored.</p>
+            )}
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setConfirmOpen(false)}
+              disabled={isDeleting}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold cursor-pointer"
+            >
+              {isDeleting ? "Deleting..." : "Delete Bundle"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </>
+  );
+}
+
 type SortField = "date" | "product" | "quantity" | "buy" | "sell" | "profit";
 type SortDir = "asc" | "desc";
 
@@ -354,11 +577,20 @@ export function SalesTable({
   totalPages,
   currentPage,
   pageSize,
+  bundles,
+  bundlesTotalCount,
+  bundlesTotalPages,
+  bundlesCurrentPage,
+  bundlesPageSize,
 }: SalesTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
+  const [isBundlesPending, startBundlesTransition] = React.useTransition();
   const [sortField, setSortField] = React.useState<SortField | null>("date");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
+  const [bundleSortField, setBundleSortField] =
+    React.useState<SortField | null>("date");
+  const [bundleSortDir, setBundleSortDir] = React.useState<SortDir>("desc");
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -408,6 +640,59 @@ export function SalesTable({
   const handlePageChange = (page: number) => {
     startTransition(() => {
       router.push(`/sales?page=${page}`);
+    });
+  };
+
+  const handleBundleSort = (field: SortField) => {
+    if (bundleSortField === field) {
+      setBundleSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setBundleSortField(field);
+      setBundleSortDir("asc");
+    }
+  };
+
+  const sortedBundles = React.useMemo(() => {
+    if (!bundleSortField) return bundles;
+    return [...bundles].sort((a, b) => {
+      let aVal: number | string;
+      let bVal: number | string;
+      switch (bundleSortField) {
+        case "date":
+          aVal = a.dateSold ?? a.createdAt ?? "";
+          bVal = b.dateSold ?? b.createdAt ?? "";
+          break;
+        case "product":
+          aVal = a.bundleName.toLowerCase();
+          bVal = b.bundleName.toLowerCase();
+          break;
+        case "quantity":
+          aVal = a.products.reduce((s, p) => s + p.totalQuantity, 0);
+          bVal = b.products.reduce((s, p) => s + p.totalQuantity, 0);
+          break;
+        case "buy":
+          aVal = a.totalBuyCost;
+          bVal = b.totalBuyCost;
+          break;
+        case "sell":
+          aVal = a.totalSellPrice;
+          bVal = b.totalSellPrice;
+          break;
+        case "profit":
+          aVal = a.totalProfit;
+          bVal = b.totalProfit;
+          break;
+      }
+      const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      return bundleSortDir === "asc" ? cmp : -cmp;
+    });
+  }, [bundles, bundleSortField, bundleSortDir]);
+
+  const handleBundlePageChange = (page: number) => {
+    startBundlesTransition(() => {
+      const params = new URLSearchParams(window.location.search);
+      params.set("bpage", String(page));
+      router.push(`/sales?${params.toString()}`);
     });
   };
 
@@ -539,6 +824,133 @@ export function SalesTable({
         onPageChange={handlePageChange}
         className="mt-6 px-1"
       />
+
+      {/* ── Bundle Sales Section ── */}
+      {(bundlesTotalCount > 0 || bundles.length > 0) && (
+        <>
+          <h2 className="mt-10 mb-3 text-xl font-bold tracking-tight text-foreground">
+            Bundle Sales
+          </h2>
+          <div className="bg-card/50 backdrop-blur-md rounded-xl border border-border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-muted-foreground uppercase bg-muted/20 border-b border-border">
+                  <tr>
+                    <SortHeader
+                      label="Date"
+                      field="date"
+                      sortField={bundleSortField}
+                      sortDir={bundleSortDir}
+                      onSort={handleBundleSort}
+                      className="px-6 py-4 font-medium"
+                    />
+                    <SortHeader
+                      label="Bundle"
+                      field="product"
+                      sortField={bundleSortField}
+                      sortDir={bundleSortDir}
+                      onSort={handleBundleSort}
+                      className="px-6 py-4 font-medium"
+                    />
+                    <SortHeader
+                      label="Quantity"
+                      field="quantity"
+                      sortField={bundleSortField}
+                      sortDir={bundleSortDir}
+                      onSort={handleBundleSort}
+                      className="px-6 py-4 font-medium"
+                    />
+                    <SortHeader
+                      label="Buy"
+                      field="buy"
+                      sortField={bundleSortField}
+                      sortDir={bundleSortDir}
+                      onSort={handleBundleSort}
+                      className="px-6 py-4 font-medium"
+                    />
+                    <SortHeader
+                      label="Sell"
+                      field="sell"
+                      sortField={bundleSortField}
+                      sortDir={bundleSortDir}
+                      onSort={handleBundleSort}
+                      className="px-6 py-4 font-medium"
+                    />
+                    <SortHeader
+                      label="Net Profit"
+                      field="profit"
+                      sortField={bundleSortField}
+                      sortDir={bundleSortDir}
+                      onSort={handleBundleSort}
+                      className="px-6 py-4 font-medium"
+                    />
+                    <th className="pl-4 pr-6 py-4 w-[72px]" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                  {isBundlesPending ? (
+                    SKELETON_ROW_KEYS.map((key) => (
+                      <tr
+                        key={key}
+                        className="hover:bg-muted/10 transition-colors"
+                      >
+                        <td className="px-6 py-4">
+                          <Skeleton className="h-5 w-24" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <Skeleton className="h-5 w-40" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <Skeleton className="h-5 w-12" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <Skeleton className="h-5 w-20" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <Skeleton className="h-5 w-20" />
+                        </td>
+                        <td className="px-6 py-4">
+                          <Skeleton className="h-5 w-20" />
+                        </td>
+                        <td className="pl-4 pr-6 py-4 w-px">
+                          <Skeleton className="h-5 w-5" />
+                        </td>
+                      </tr>
+                    ))
+                  ) : sortedBundles.length > 0 ? (
+                    sortedBundles.map((bundle) => (
+                      <BundleGroupRow
+                        key={bundle.bundleId}
+                        bundle={bundle}
+                        formatter={formatter}
+                      />
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-6 py-8 text-center text-muted-foreground"
+                      >
+                        No bundle sales found.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <TablePagination
+            currentPage={bundlesCurrentPage}
+            pageSize={bundlesPageSize}
+            totalCount={bundlesTotalCount}
+            totalPages={bundlesTotalPages}
+            unitLabel="bundles"
+            isPending={isBundlesPending}
+            onPageChange={handleBundlePageChange}
+            className="mt-6 px-1"
+          />
+        </>
+      )}
     </>
   );
 }

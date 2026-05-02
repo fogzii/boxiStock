@@ -4,12 +4,17 @@ import { Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 interface SearchInputProps {
   placeholder?: string;
+  className?: string;
 }
 
-export function SearchInput({ placeholder = "Search..." }: SearchInputProps) {
+export function SearchInput({
+  placeholder = "Search...",
+  className,
+}: SearchInputProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -43,7 +48,7 @@ export function SearchInput({ placeholder = "Search..." }: SearchInputProps) {
   }, [searchTerm, pathname, router, searchParams]);
 
   return (
-    <div className="relative w-full max-w-sm">
+    <div className={cn("relative w-full max-w-sm", className)}>
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
         <Search
           className={`w-4 h-4 transition-colors ${isPending ? "text-primary animate-pulse" : "text-muted-foreground"}`}

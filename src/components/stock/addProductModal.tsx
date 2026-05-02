@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
-const MAX_NOTES_LENGTH = 50;
+const MAX_NOTES_LENGTH = 75;
 
 function NotesInput() {
   const [value, setValue] = React.useState("");
@@ -297,7 +297,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
               <Label htmlFor="notes" className="text-muted-foreground">
                 Notes{" "}
                 <span className="text-muted-foreground/50 font-normal">
-                  (optional, max 50 chars)
+                  (optional, max 75 chars)
                 </span>
               </Label>
               <NotesInput />

@@ -4,6 +4,7 @@ import { format } from "date-fns";
 import {
   Check,
   Edit2,
+  Loader2,
   PackageCheck,
   Pencil,
   ShoppingCart,
@@ -30,7 +31,7 @@ export type StockLot = {
   notes?: string | null;
 };
 
-const MAX_NOTES_LENGTH = 50;
+const MAX_NOTES_LENGTH = 75;
 
 interface LotCardProps {
   lot: StockLot;
@@ -230,15 +231,19 @@ export function LotCard({
               type="button"
               onClick={handleSaveNotes}
               disabled={isSavingNotes}
-              className="p-0.5 hover:bg-primary/10 rounded transition-colors text-primary"
+              className="p-0.5 hover:bg-primary/10 rounded transition-colors text-primary cursor-pointer disabled:cursor-default"
             >
-              <Check className="w-3.5 h-3.5" />
+              {isSavingNotes ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Check className="w-3.5 h-3.5" />
+              )}
             </button>
             <button
               type="button"
               onClick={handleCancelNotes}
               disabled={isSavingNotes}
-              className="p-0.5 hover:bg-destructive/10 rounded transition-colors text-muted-foreground hover:text-destructive"
+              className="p-0.5 hover:bg-destructive/10 rounded transition-colors text-muted-foreground hover:text-destructive cursor-pointer disabled:cursor-default"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -247,7 +252,7 @@ export function LotCard({
           <button
             type="button"
             onClick={() => setIsEditingNotes(true)}
-            className="group/notes flex items-center gap-1.5 text-xs transition-colors"
+            className="group/notes flex items-center gap-1.5 text-xs transition-colors cursor-pointer"
           >
             {lot.notes ? (
               <>
