@@ -273,6 +273,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      get_dashboard_metrics: { Args: { p_user_id: string }; Returns: Json };
       get_inventory_paginated: {
         Args: {
           p_page?: number;
@@ -281,6 +282,18 @@ export type Database = {
           p_user_id: string;
         };
         Returns: Json;
+      };
+      get_sales_by_month: {
+        Args: { p_user_id: string };
+        Returns: {
+          month: number;
+          total_profit: number;
+          year: number;
+        }[];
+      };
+      sync_product_sale_stats: {
+        Args: { p_product_id: string };
+        Returns: undefined;
       };
     };
     Enums: {

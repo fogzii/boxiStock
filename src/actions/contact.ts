@@ -1,6 +1,8 @@
 "use server";
 
+import { headers } from "next/headers";
 import { Resend } from "resend";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 const MAX_LEN = 5000;
 
@@ -10,6 +12,15 @@ export async function sendContactEmail(data: {
   subject: string;
   message: string;
 }) {
+  const ip =
+    (await headers()).get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    "unknown";
+  await enforceRateLimit(
+    `contact:${ip}`,
+    RATE_LIMITS.contact,
+    "contact message",
+  );
+
   const name = (data?.name ?? "").trim().slice(0, 200);
   const email = (data?.email ?? "").trim().slice(0, 200);
   const subject = (data?.subject ?? "").trim().slice(0, 300);

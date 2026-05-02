@@ -2,8 +2,10 @@
 
 import { auth } from "@clerk/nextjs/server";
 import bcrypt from "bcryptjs";
+import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 
 const ALLOWED_SECTIONS = ["dashboard", "stock", "sales"] as const;
@@ -102,7 +104,7 @@ export async function disableShareLink() {
   if (error) throw new Error(error.message);
 }
 
-export async function getPublicShareLink(token: string) {
+async function fetchPublicShareLink(token: string) {
   if (!token || typeof token !== "string") return null;
 
   const supabase = await createClient();
@@ -118,13 +120,24 @@ export async function getPublicShareLink(token: string) {
   if (!data) return null;
   if (data.expiresAt && new Date(data.expiresAt) < new Date()) return null;
 
-  // Derive hasPassword so callers can gate on it without ever seeing the hash
   const { passwordHash, ...rest } = data;
   return { ...rest, hasPassword: !!passwordHash };
 }
 
+export const getPublicShareLink = unstable_cache(
+  fetchPublicShareLink,
+  ["share-link"],
+  { revalidate: 60 },
+);
+
 export async function verifySharePassword(token: string, password: string) {
   if (!token || !password) return { error: "Invalid request" };
+
+  await enforceRateLimit(
+    `share:pw:${token}`,
+    RATE_LIMITS.sharePassword,
+    "password attempt",
+  );
 
   const supabase = await createClient();
   const { data: link } = await supabase
@@ -147,6 +160,7 @@ export async function verifySharePassword(token: string, password: string) {
     httpOnly: true,
     sameSite: "lax",
     path: `/share/${token}`,
+    maxAge: 60 * 60 * 24,
   });
 
   redirect(`/share/${token}`);
