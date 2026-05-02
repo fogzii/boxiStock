@@ -16,6 +16,7 @@ import * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CustomTooltip } from "@/components/ui/tooltip";
+import { useReadOnly } from "@/lib/context/readOnly";
 import { DeleteUnitsModal } from "./deleteUnitsModal";
 import { EditLotModal } from "./editLotModal";
 import { SellUnitsModal } from "./sellUnitsModal";
@@ -50,6 +51,7 @@ export function LotCard({
   onNotesUpdate,
   isUpdating,
 }: LotCardProps) {
+  const isReadOnly = useReadOnly();
   const lotRef = lot.lotIdentity || lot.id.slice(-6).toUpperCase();
   const totalValue = lot.remainingQuantity * lot.buyPrice;
   const isProcessing = isUpdating === lot.id;
@@ -136,7 +138,7 @@ export function LotCard({
 
         {/* Status & Actions */}
         <div className="flex items-center gap-2 w-[250px] justify-end flex-wrap">
-          {!lot.isStocked && (
+          {!isReadOnly && !lot.isStocked && (
             <CustomTooltip
               content={
                 <span>
@@ -159,7 +161,7 @@ export function LotCard({
             </CustomTooltip>
           )}
 
-          {lot.isStocked && (
+          {!isReadOnly && lot.isStocked && (
             <SellUnitsModal lot={lot} productName={productName}>
               {(open) => (
                 <Button
@@ -174,39 +176,49 @@ export function LotCard({
             </SellUnitsModal>
           )}
 
-          <EditLotModal lot={lot} productName={productName}>
-            {(open) => (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={open}
-                disabled={isProcessing}
-                className="text-muted-foreground hover:text-primary cursor-pointer"
-              >
-                <Edit2 className="w-3.5 h-3.5" />
-              </Button>
-            )}
-          </EditLotModal>
+          {!isReadOnly && (
+            <EditLotModal lot={lot} productName={productName}>
+              {(open) => (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={open}
+                  disabled={isProcessing}
+                  className="text-muted-foreground hover:text-primary cursor-pointer"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </EditLotModal>
+          )}
 
-          <DeleteUnitsModal lot={lot} productName={productName}>
-            {(open) => (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={open}
-                disabled={isProcessing}
-                className="text-muted-foreground hover:text-destructive cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </Button>
-            )}
-          </DeleteUnitsModal>
+          {!isReadOnly && (
+            <DeleteUnitsModal lot={lot} productName={productName}>
+              {(open) => (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={open}
+                  disabled={isProcessing}
+                  className="text-muted-foreground hover:text-destructive cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </DeleteUnitsModal>
+          )}
         </div>
       </div>
 
       {/* Notes row — always visible */}
       <div className="px-5 pb-3 pl-[52px]">
-        {isEditingNotes ? (
+        {isReadOnly ? (
+          lot.notes ? (
+            <span className="text-xs italic text-muted-foreground/70">
+              {lot.notes}
+            </span>
+          ) : null
+        ) : isEditingNotes ? (
           <div className="flex items-center gap-1.5">
             <input
               ref={notesInputRef}

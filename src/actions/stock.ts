@@ -132,11 +132,9 @@ export async function getInventory() {
     throw new Error(error.message);
   }
 
-  type LotLike = { remainingQuantity: number; dateAcquired: string };
-
   // Filter out depleted lots and sort by dateAcquired ascending
   const activeProducts = products?.filter((p) => {
-    p.lots = ((p.lots as LotLike[] | null) || [])
+    p.lots = (p.lots ?? [])
       .filter((l) => l.remainingQuantity > 0)
       .sort(
         (a, b) =>
@@ -153,9 +151,16 @@ export async function getInventoryPaginated(
   page: number = 1,
   pageSize: number = 10,
   search?: string,
+  forUserId?: string,
 ) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+  let userId: string;
+  if (forUserId) {
+    userId = forUserId;
+  } else {
+    const { userId: authUserId } = await auth();
+    if (!authUserId) throw new Error("Unauthorized");
+    userId = authUserId;
+  }
 
   // Clamp pagination inputs server-side: page >= 1, pageSize in [1, 100].
   // Postgres function also clamps, but we mirror it here so the client math
@@ -169,7 +174,7 @@ export async function getInventoryPaginated(
   const safeSearch =
     typeof search === "string" && search.trim() !== ""
       ? search.trim().slice(0, 200)
-      : null;
+      : undefined;
 
   const supabase = await createClient();
 
@@ -1042,9 +1047,15 @@ export async function deleteProductSales(productId: string) {
   revalidatePath("/sales");
 }
 
-export async function getSalesMetrics() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+export async function getSalesMetrics(forUserId?: string) {
+  let userId: string;
+  if (forUserId) {
+    userId = forUserId;
+  } else {
+    const { userId: authUserId } = await auth();
+    if (!authUserId) throw new Error("Unauthorized");
+    userId = authUserId;
+  }
 
   return unstable_cache(
     async (uid: string) => {
@@ -1102,9 +1113,15 @@ export async function getSalesMetrics() {
   )(userId);
 }
 
-export async function getDashboardMetrics() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+export async function getDashboardMetrics(forUserId?: string) {
+  let userId: string;
+  if (forUserId) {
+    userId = forUserId;
+  } else {
+    const { userId: authUserId } = await auth();
+    if (!authUserId) throw new Error("Unauthorized");
+    userId = authUserId;
+  }
 
   const supabase = await createClient();
 
@@ -1147,9 +1164,15 @@ export async function getDashboardMetrics() {
   };
 }
 
-export async function getProfitChartData() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+export async function getProfitChartData(forUserId?: string) {
+  let userId: string;
+  if (forUserId) {
+    userId = forUserId;
+  } else {
+    const { userId: authUserId } = await auth();
+    if (!authUserId) throw new Error("Unauthorized");
+    userId = authUserId;
+  }
 
   const supabase = await createClient();
 
@@ -1954,9 +1977,16 @@ export async function getCombinedSalesGrouped(
   page: number = 1,
   pageSize: number = 10,
   search?: string,
+  forUserId?: string,
 ) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("Unauthorized");
+  let userId: string;
+  if (forUserId) {
+    userId = forUserId;
+  } else {
+    const { userId: authUserId } = await auth();
+    if (!authUserId) throw new Error("Unauthorized");
+    userId = authUserId;
+  }
 
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
   const safePageSize =

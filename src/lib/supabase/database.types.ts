@@ -185,6 +185,39 @@ export type Database = {
           },
         ];
       };
+      ShareLink: {
+        Row: {
+          createdAt: string;
+          expiresAt: string | null;
+          id: string;
+          isActive: boolean;
+          passwordHash: string | null;
+          sections: string[];
+          token: string;
+          userId: string;
+        };
+        Insert: {
+          createdAt?: string;
+          expiresAt?: string | null;
+          id?: string;
+          isActive?: boolean;
+          passwordHash?: string | null;
+          sections: string[];
+          token: string;
+          userId: string;
+        };
+        Update: {
+          createdAt?: string;
+          expiresAt?: string | null;
+          id?: string;
+          isActive?: boolean;
+          passwordHash?: string | null;
+          sections?: string[];
+          token?: string;
+          userId?: string;
+        };
+        Relationships: [];
+      };
       StockLot: {
         Row: {
           buyPrice: number;

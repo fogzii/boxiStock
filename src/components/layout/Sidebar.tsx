@@ -8,11 +8,13 @@ import {
   Package,
   PlusCircle,
   Settings,
+  Share2,
   Sparkles,
   X,
 } from "lucide-react";
 import * as React from "react";
 import { NavListItem } from "@/components/layout/NavListItem";
+import { ShareStatsModal } from "@/components/layout/ShareStatsModal";
 import { SidebarProfile } from "@/components/layout/SidebarProfile";
 import { AIImportModal } from "@/components/stock/AIImportModal";
 import { AddProductModal } from "@/components/stock/addProductModal";
@@ -70,6 +72,7 @@ function SidebarActionButton({
 
 export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const [shareOpen, setShareOpen] = React.useState(false);
 
   return (
     <>
@@ -145,6 +148,32 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
 
           {/* Bottom actions */}
           <div className="flex flex-col gap-4 mt-auto">
+            {/* Share Stats — utility style, separated by divider */}
+            <div className="flex flex-col gap-3">
+              <div className="h-px bg-primary/10" />
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                title="Share Stats"
+                className={cn(
+                  "flex items-center justify-center gap-2 border border-primary/20 text-muted-foreground hover:text-foreground hover:bg-primary/10 hover:border-primary/40 rounded-xl py-2 text-sm font-medium transition-all cursor-pointer",
+                  isCollapsed ? "md:px-0 px-3" : "px-3",
+                )}
+              >
+                <Share2 className="w-4 h-4 shrink-0" />
+                <span
+                  className={cn(
+                    "transition-all duration-300 whitespace-nowrap",
+                    isCollapsed
+                      ? "md:opacity-0 md:w-0 overflow-hidden"
+                      : "opacity-100",
+                  )}
+                >
+                  Share Stats
+                </span>
+              </button>
+            </div>
+
             <AddProductModal>
               {(open) => (
                 <SidebarActionButton
@@ -187,6 +216,8 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
           )}
         </button>
       </aside>
+
+      <ShareStatsModal isOpen={shareOpen} onClose={() => setShareOpen(false)} />
     </>
   );
 }

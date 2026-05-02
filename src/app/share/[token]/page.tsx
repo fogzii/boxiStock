@@ -1,0 +1,88 @@
+import { LinkIcon } from "lucide-react";
+import { cookies } from "next/headers";
+import { getPublicShareLink } from "@/actions/share";
+import {
+  getCombinedSalesGrouped,
+  getDashboardMetrics,
+  getInventoryPaginated,
+  getProfitChartData,
+  getSalesMetrics,
+} from "@/actions/stock";
+import { ShareContent } from "./ShareContent";
+import { SharePasswordGate } from "./SharePasswordGate";
+
+export default async function SharePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { token } = await params;
+  const sp = await searchParams;
+  const stockPage = Math.max(1, parseInt(String(sp.stockPage ?? "1"), 10) || 1);
+  const salesPage = Math.max(1, parseInt(String(sp.salesPage ?? "1"), 10) || 1);
+
+  const link = await getPublicShareLink(token);
+
+  if (!link) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+          <LinkIcon className="w-7 h-7 text-primary/60" />
+        </div>
+        <h1 className="text-2xl font-bold text-foreground">Link not found</h1>
+        <p className="text-muted-foreground max-w-sm">
+          This share link is invalid, has expired, or has been disabled by its
+          owner.
+        </p>
+      </div>
+    );
+  }
+
+  // Password gate
+  if (link.hasPassword) {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(`share_session_${token}`);
+    if (!sessionCookie) {
+      return <SharePasswordGate token={token} />;
+    }
+  }
+
+  const uid = link.userId;
+  const has = (s: string) => link.sections.includes(s);
+
+  const [
+    dashboardMetrics,
+    chartData,
+    inventoryData,
+    salesMetrics,
+    salesCombined,
+  ] = await Promise.all([
+    has("dashboard") ? getDashboardMetrics(uid) : null,
+    has("dashboard") ? getProfitChartData(uid) : null,
+    has("stock") ? getInventoryPaginated(stockPage, 10, undefined, uid) : null,
+    has("sales") ? getSalesMetrics(uid) : null,
+    has("sales")
+      ? getCombinedSalesGrouped(salesPage, 10, undefined, uid)
+      : null,
+  ]);
+
+  return (
+    <ShareContent
+      token={token}
+      sections={link.sections}
+      dashboardMetrics={dashboardMetrics}
+      chartData={chartData}
+      inventoryProducts={inventoryData?.products ?? []}
+      inventoryCount={inventoryData?.totalCount ?? 0}
+      stockCurrentPage={stockPage}
+      stockTotalPages={inventoryData?.totalPages ?? 1}
+      salesMetrics={salesMetrics}
+      salesItems={salesCombined?.items ?? []}
+      salesTotal={salesCombined?.total ?? 0}
+      salesCurrentPage={salesPage}
+      salesTotalPages={salesCombined?.totalPages ?? 1}
+    />
+  );
+}

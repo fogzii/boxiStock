@@ -21,6 +21,7 @@ import { Modal } from "@/components/ui/modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TablePagination } from "@/components/ui/TablePagination";
 import { CustomTooltip } from "@/components/ui/tooltip";
+import { useReadOnly } from "@/lib/context/readOnly";
 import { EditBundleModal } from "./editBundleModal";
 import { EditSaleModal } from "./editSaleModal";
 import { MergeSaleModal } from "./mergeSaleModal";
@@ -67,7 +68,7 @@ interface BundleGroup {
   products: BundleProductDisplay[];
 }
 
-type CombinedRow =
+export type CombinedRow =
   | { kind: "product"; data: ProductSaleGroup }
   | { kind: "bundle"; data: BundleGroup };
 
@@ -77,6 +78,7 @@ interface SalesTableProps {
   totalPages: number;
   currentPage: number;
   pageSize: number;
+  onPageChange?: (page: number) => void;
 }
 
 const SKELETON_ROW_KEYS = Array.from(
@@ -100,6 +102,7 @@ function ProductGroupRow({
   group: ProductSaleGroup;
   formatter: Intl.NumberFormat;
 }) {
+  const isReadOnly = useReadOnly();
   const [isOpen, setIsOpen] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -175,39 +178,41 @@ function ProductGroupRow({
           {formatter.format(group.totalProfit)}
         </td>
         <td className="pl-4 pr-6 py-4 w-px">
-          <div className="flex items-center gap-3">
-            <CustomTooltip content="Merge this sale into another sale">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMergeOpen(true);
-                }}
-                className="text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-                aria-label={`Merge sales for ${group.productName}`}
-              >
-                <Merge className="w-4 h-4" />
-              </button>
-            </CustomTooltip>
-            <CustomTooltip content="Delete all sales for this product">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setConfirmOpen(true);
-                }}
-                disabled={isDeletingGroup}
-                className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:opacity-40"
-                aria-label={`Delete all sales for ${group.productName}`}
-              >
-                {isDeletingGroup ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4" />
-                )}
-              </button>
-            </CustomTooltip>
-          </div>
+          {!isReadOnly && (
+            <div className="flex items-center gap-3">
+              <CustomTooltip content="Merge this sale into another sale">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMergeOpen(true);
+                  }}
+                  className="text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                  aria-label={`Merge sales for ${group.productName}`}
+                >
+                  <Merge className="w-4 h-4" />
+                </button>
+              </CustomTooltip>
+              <CustomTooltip content="Delete all sales for this product">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmOpen(true);
+                  }}
+                  disabled={isDeletingGroup}
+                  className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:opacity-40"
+                  aria-label={`Delete all sales for ${group.productName}`}
+                >
+                  {isDeletingGroup ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </button>
+              </CustomTooltip>
+            </div>
+          )}
         </td>
       </tr>
 
@@ -254,41 +259,43 @@ function ProductGroupRow({
                 {formatter.format(sale.totalProfit)}
               </td>
               <td className="pl-4 pr-6 py-3 w-px">
-                <div className="flex items-center gap-4">
-                  <EditSaleModal sale={sale}>
-                    {(open) => (
-                      <CustomTooltip content="Edit sale">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            open();
-                          }}
-                          disabled={deletingId === sale.id}
-                          className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 cursor-pointer"
-                          aria-label="Edit sale"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      </CustomTooltip>
-                    )}
-                  </EditSaleModal>
-                  <CustomTooltip content="Delete sale">
-                    <button
-                      type="button"
-                      onClick={(e) => handleDeleteSale(e, sale.id)}
-                      disabled={deletingId === sale.id}
-                      className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 cursor-pointer"
-                      aria-label="Delete sale"
-                    >
-                      {deletingId === sale.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
+                {!isReadOnly && (
+                  <div className="flex items-center gap-4">
+                    <EditSaleModal sale={sale}>
+                      {(open) => (
+                        <CustomTooltip content="Edit sale">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              open();
+                            }}
+                            disabled={deletingId === sale.id}
+                            className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 cursor-pointer"
+                            aria-label="Edit sale"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                        </CustomTooltip>
                       )}
-                    </button>
-                  </CustomTooltip>
-                </div>
+                    </EditSaleModal>
+                    <CustomTooltip content="Delete sale">
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteSale(e, sale.id)}
+                        disabled={deletingId === sale.id}
+                        className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 cursor-pointer"
+                        aria-label="Delete sale"
+                      >
+                        {deletingId === sale.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </CustomTooltip>
+                  </div>
+                )}
               </td>
             </tr>
           );
@@ -349,6 +356,7 @@ function BundleGroupRow({
   bundle: BundleGroup;
   formatter: Intl.NumberFormat;
 }) {
+  const isReadOnly = useReadOnly();
   const [isOpen, setIsOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
@@ -414,43 +422,45 @@ function BundleGroupRow({
           {formatter.format(bundle.totalProfit)}
         </td>
         <td className="pl-4 pr-6 py-4 w-px">
-          <div className="flex items-center gap-3">
-            <EditBundleModal bundle={bundle}>
-              {(open) => (
-                <CustomTooltip content="Edit bundle">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      open();
-                    }}
-                    className="text-muted-foreground hover:text-primary transition-colors cursor-pointer"
-                    aria-label="Edit bundle"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                </CustomTooltip>
-              )}
-            </EditBundleModal>
-            <CustomTooltip content="Delete bundle">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setConfirmOpen(true);
-                }}
-                disabled={isDeleting}
-                className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:opacity-40"
-                aria-label="Delete bundle"
-              >
-                {isDeleting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4" />
+          {!isReadOnly && (
+            <div className="flex items-center gap-3">
+              <EditBundleModal bundle={bundle}>
+                {(open) => (
+                  <CustomTooltip content="Edit bundle">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        open();
+                      }}
+                      className="text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                      aria-label="Edit bundle"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                  </CustomTooltip>
                 )}
-              </button>
-            </CustomTooltip>
-          </div>
+              </EditBundleModal>
+              <CustomTooltip content="Delete bundle">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setConfirmOpen(true);
+                  }}
+                  disabled={isDeleting}
+                  className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:opacity-40"
+                  aria-label="Delete bundle"
+                >
+                  {isDeleting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4" />
+                  )}
+                </button>
+              </CustomTooltip>
+            </div>
+          )}
         </td>
       </tr>
 
@@ -616,7 +626,9 @@ export function SalesTable({
   totalPages,
   currentPage,
   pageSize,
+  onPageChange,
 }: SalesTableProps) {
+  const isReadOnly = useReadOnly();
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
   const [sortField, setSortField] = React.useState<SortField | null>("date");
@@ -669,9 +681,13 @@ export function SalesTable({
 
   const handlePageChange = (page: number) => {
     startTransition(() => {
-      const params = new URLSearchParams(window.location.search);
-      params.set("page", String(page));
-      router.push(`/sales?${params.toString()}`);
+      if (onPageChange) {
+        onPageChange(page);
+      } else {
+        const params = new URLSearchParams(window.location.search);
+        params.set("page", String(page));
+        router.push(`/sales?${params.toString()}`);
+      }
     });
   };
 

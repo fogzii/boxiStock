@@ -31,6 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useReadOnly } from "@/lib/context/readOnly";
 
 export type ProductWithLots = {
   id: string;
@@ -44,6 +45,7 @@ interface StockTableProps {
   totalCount?: number;
   totalPages?: number;
   pageSize?: number;
+  onPageChange?: (page: number) => void;
 }
 
 const SKELETON_ROW_KEYS = Array.from(
@@ -52,6 +54,7 @@ const SKELETON_ROW_KEYS = Array.from(
 );
 
 function ProductRow({ product }: { product: ProductWithLots }) {
+  const isReadOnly = useReadOnly();
   const [isOpen, setIsOpen] = React.useState(false);
   const [lots, setLots] = React.useState(product.lots);
   const [isUpdating, setIsUpdating] = React.useState<string | null>(null);
@@ -193,16 +196,18 @@ function ProductRow({ product }: { product: ProductWithLots }) {
                 <span className="font-semibold text-foreground text-sm">
                   {product.name}
                 </span>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsEditingName(true);
-                  }}
-                  className="p-1 hover:bg-primary/10 rounded-md transition-all text-muted-foreground hover:text-primary"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                </button>
+                {!isReadOnly && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsEditingName(true);
+                    }}
+                    className="p-1 hover:bg-primary/10 rounded-md transition-all text-muted-foreground hover:text-primary"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -243,20 +248,25 @@ function ProductRow({ product }: { product: ProductWithLots }) {
               ))}
 
               {/* Add More Stock */}
-              <div className="px-5 py-3 border-t border-primary/10">
-                <AddLotModal productId={product.id} productName={product.name}>
-                  {(open) => (
-                    <button
-                      type="button"
-                      onClick={open}
-                      className="flex items-center gap-2 text-xs font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 px-3 py-1.5 rounded-md transition-all cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      Add more stock
-                    </button>
-                  )}
-                </AddLotModal>
-              </div>
+              {!isReadOnly && (
+                <div className="px-5 py-3 border-t border-primary/10">
+                  <AddLotModal
+                    productId={product.id}
+                    productName={product.name}
+                  >
+                    {(open) => (
+                      <button
+                        type="button"
+                        onClick={open}
+                        className="flex items-center gap-2 text-xs font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 px-3 py-1.5 rounded-md transition-all cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Add more stock
+                      </button>
+                    )}
+                  </AddLotModal>
+                </div>
+              )}
             </div>
           </TableCell>
         </TableRow>
@@ -271,13 +281,18 @@ export function StockTable({
   totalCount = 0,
   totalPages = 1,
   pageSize = 10,
+  onPageChange,
 }: StockTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
 
   const handlePageChange = (page: number) => {
     startTransition(() => {
-      router.push(`/stock?page=${page}`);
+      if (onPageChange) {
+        onPageChange(page);
+      } else {
+        router.push(`/stock?page=${page}`);
+      }
     });
   };
 
