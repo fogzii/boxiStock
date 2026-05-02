@@ -7,6 +7,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Manrope } from "next/font/google";
 import { AIImportProvider } from "@/context/AIImportContext";
+import { clerkAppearance } from "@/lib/clerk-appearance";
 import { cn } from "@/lib/utils";
 
 const manrope = Manrope({
@@ -39,7 +40,7 @@ export default function RootLayout({
       <body
         className={`${manrope.variable} antialiased min-h-screen flex flex-col`}
       >
-        <ClerkProvider>
+        <ClerkProvider appearance={clerkAppearance}>
           <AIImportProvider>
             {children}
             <Toaster position="bottom-right" theme="dark" richColors />

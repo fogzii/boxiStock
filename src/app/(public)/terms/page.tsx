@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: "Terms of Service",
 };
 
-const EFFECTIVE_DATE = "April 25, 2025";
+const EFFECTIVE_DATE = "May 3, 2026";
 
 export default function TermsPage() {
   return (
@@ -114,7 +114,30 @@ export default function TermsPage() {
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            6. AI-Assisted Features
+            6. Share Links
+          </h2>
+          <p>
+            BoxiStock allows you to generate publicly accessible share links
+            that expose selected inventory and sales data to anyone who holds
+            the link. You are solely responsible for the data you choose to
+            share and for distributing share links only to intended recipients.
+          </p>
+          <p>
+            Optional password protection is provided as a convenience measure
+            and does not constitute a guarantee of security. We are not
+            responsible for unauthorized access resulting from a share link or
+            password being disclosed to unintended parties.
+          </p>
+          <p>
+            If your account is terminated or you revoke a share link, that link
+            will no longer be accessible. We are not liable for any prior
+            exposure of data that occurred while the link was active.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-foreground">
+            7. AI-Assisted Features
           </h2>
           <p>
             BoxiStock includes AI-powered features (such as AI-assisted import)
@@ -127,7 +150,7 @@ export default function TermsPage() {
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            7. Disclaimer of Warranties
+            8. Disclaimer of Warranties
           </h2>
           <p>
             THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT
@@ -140,7 +163,7 @@ export default function TermsPage() {
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            8. Limitation of Liability
+            9. Limitation of Liability
           </h2>
           <p>
             TO THE FULLEST EXTENT PERMITTED BY LAW, BOXISTOCK AND ITS OPERATORS
@@ -153,20 +176,21 @@ export default function TermsPage() {
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            9. Termination
+            10. Termination
           </h2>
           <p>
             We reserve the right to suspend or terminate your access to the
             Service at any time, with or without cause, and with or without
             notice. You may delete your account at any time by contacting us.
-            Upon termination, your data may be deleted in accordance with our
-            Privacy Policy.
+            Upon termination, your account data will be deleted in accordance
+            with our Privacy Policy. Any active share links associated with your
+            account will be deactivated immediately upon termination.
           </p>
         </section>
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            10. Changes to Terms
+            11. Changes to Terms
           </h2>
           <p>
             We may modify these Terms at any time. If we make material changes,
@@ -177,7 +201,7 @@ export default function TermsPage() {
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            11. Governing Law
+            12. Governing Law
           </h2>
           <p>
             These Terms are governed by and construed in accordance with
@@ -188,7 +212,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">12. Contact</h2>
+          <h2 className="text-lg font-semibold text-foreground">13. Contact</h2>
           <p>
             For questions about these Terms, please contact us at{" "}
             <a

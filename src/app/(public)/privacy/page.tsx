@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: "Privacy Policy",
 };
 
-const EFFECTIVE_DATE = "April 25, 2025";
+const EFFECTIVE_DATE = "May 3, 2026";
 
 export default function PrivacyPage() {
   return (
@@ -49,15 +49,23 @@ export default function PrivacyPage() {
             associated with your user account.
           </p>
           <p>
-            <strong className="text-foreground">Usage data:</strong> We may
-            collect basic usage information such as page visits and feature
-            interactions to help us improve the Service. This data is not linked
-            to personally identifiable information.
+            <strong className="text-foreground">Usage data:</strong> We collect
+            usage information such as page visits and feature interactions via
+            PostHog to help us understand how the Service is used and improve
+            it. This data is associated with a pseudonymous identifier and is
+            not sold to third parties.
           </p>
           <p>
             <strong className="text-foreground">Contact messages:</strong> If
             you contact us via the contact form, we collect your name, email
             address, and message content to respond to your inquiry.
+          </p>
+          <p>
+            <strong className="text-foreground">Share link access:</strong> When
+            a third party views a share link you have created, basic access
+            information (such as request timestamps) may be logged for security
+            and abuse-prevention purposes. We do not collect personal
+            information about share link viewers beyond what is described here.
           </p>
         </section>
 
@@ -88,7 +96,29 @@ export default function PrivacyPage() {
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            4. Third-Party Services
+            4. Share Links and Public Data Exposure
+          </h2>
+          <p>
+            BoxiStock allows you to create share links that make selected
+            inventory and sales data publicly accessible to anyone with the
+            link. When you activate a share link, the data included in that
+            share (product names, quantities, prices, and related figures) is
+            accessible without authentication, subject to any password you have
+            set.
+          </p>
+          <p>
+            You control what data is shared and may revoke a share link at any
+            time. Once revoked, the link will no longer display your data.
+            However, we are not responsible for any copies or screenshots taken
+            by third parties while the link was active. Do not include
+            information in a share link that you are not comfortable making
+            publicly available.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-foreground">
+            5. Third-Party Services
           </h2>
           <p>BoxiStock uses the following third-party services to operate:</p>
           <ul className="list-disc list-inside space-y-1 text-foreground/80 ml-2">
@@ -112,6 +142,37 @@ export default function PrivacyPage() {
               infrastructure.
             </li>
             <li>
+              <strong className="text-foreground">Vercel</strong> — Hosting and
+              edge network infrastructure. All HTTP requests to BoxiStock pass
+              through Vercel's servers. Vercel may log request metadata (IP
+              addresses, timestamps) for operational purposes in accordance with
+              their{" "}
+              <a
+                href="https://vercel.com/legal/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Privacy Policy
+              </a>
+              .
+            </li>
+            <li>
+              <strong className="text-foreground">PostHog</strong> — Product
+              analytics platform used to collect usage data (page views, feature
+              interactions). PostHog processes this data in accordance with
+              their{" "}
+              <a
+                href="https://posthog.com/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Privacy Policy
+              </a>
+              .
+            </li>
+            <li>
               <strong className="text-foreground">Anthropic</strong> — AI model
               provider used to power AI-assisted import features. When you use
               AI features, the text you submit is sent to Anthropic's API for
@@ -132,20 +193,21 @@ export default function PrivacyPage() {
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            5. Data Retention
+            6. Data Retention
           </h2>
           <p>
             We retain your account and inventory data for as long as your
             account is active. If you delete your account, we will delete your
             data from our active systems within a reasonable period, subject to
-            any legal retention requirements. Some residual data may remain in
-            backups for a limited time.
+            any legal retention requirements. All share links associated with
+            your account are deactivated upon deletion. Some residual data may
+            remain in backups for a limited time.
           </p>
         </section>
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            6. Data Security
+            7. Data Security
           </h2>
           <p>
             We take reasonable technical and organizational measures to protect
@@ -158,7 +220,7 @@ export default function PrivacyPage() {
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            7. Your Rights
+            8. Your Rights
           </h2>
           <p>Depending on your location, you may have the right to:</p>
           <ul className="list-disc list-inside space-y-1 text-foreground/80 ml-2">
@@ -184,7 +246,7 @@ export default function PrivacyPage() {
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            8. Children's Privacy
+            9. Children&apos;s Privacy
           </h2>
           <p>
             The Service is not directed to individuals under the age of 18. We
@@ -196,7 +258,7 @@ export default function PrivacyPage() {
 
         <section className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
-            9. Changes to This Policy
+            10. Changes to This Policy
           </h2>
           <p>
             We may update this Privacy Policy from time to time. When we do, we
@@ -206,7 +268,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">10. Contact</h2>
+          <h2 className="text-lg font-semibold text-foreground">11. Contact</h2>
           <p>
             For privacy-related questions or requests, please contact us at{" "}
             <a

@@ -59,26 +59,11 @@ export function SidebarProfile({ isCollapsed }: SidebarProfileProps) {
       {/* Clerk UserButton (avatar + dropdown with sign-out, account management) */}
       <UserButton
         appearance={{
-          variables: {
-            colorBackground: "#0f0f12",
-            colorText: "#ffffff",
-            colorTextSecondary: "#d4d4d8",
-            colorInputBackground: "#18181b",
-            colorInputText: "#ffffff",
-            colorPrimary: "#9180a8",
-            colorNeutral: "#ffffff",
-          },
           elements: {
             avatarBox: "w-9 h-9 ring-2 ring-primary/20",
             userButtonPopoverCard: {
               transform: "translate(-14px, -16px)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
-              border: "1px solid rgba(255,255,255,0.1)",
             },
-            userButtonPopoverActionButtonIcon: "text-zinc-400",
-            userPreviewMainIdentifier: { color: "#ffffff" },
-            userPreviewSecondaryIdentifier: { color: "#d4d4d8" },
-            userButtonPopoverActionButtonText: { color: "#ffffff" },
           },
         }}
       />
