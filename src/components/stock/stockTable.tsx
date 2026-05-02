@@ -32,6 +32,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useReadOnly } from "@/lib/context/readOnly";
+import { cn } from "@/lib/utils";
+import { StockStatusBadge } from "./StockStatusBadge";
 
 export type ProductWithLots = {
   id: string;
@@ -95,6 +97,20 @@ function ProductRow({ product }: { product: ProductWithLots }) {
       lot.isStocked ? acc + lot.remainingQuantity * lot.buyPrice : acc,
     0,
   );
+
+  const pendingStock = lots.reduce(
+    (acc, lot) => (!lot.isStocked ? acc + lot.remainingQuantity : acc),
+    0,
+  );
+
+  const pendingValue = lots.reduce(
+    (acc, lot) =>
+      !lot.isStocked ? acc + lot.remainingQuantity * lot.buyPrice : acc,
+    0,
+  );
+
+  const hasPending = pendingStock > 0;
+  const showPendingTotals = totalStock === 0 && hasPending;
 
   const handleMarkStocked = async (lotId: string) => {
     try {
@@ -196,6 +212,7 @@ function ProductRow({ product }: { product: ProductWithLots }) {
                 <span className="font-semibold text-foreground text-sm">
                   {product.name}
                 </span>
+                {hasPending && <StockStatusBadge isStocked={false} />}
                 {!isReadOnly && (
                   <button
                     type="button"
@@ -212,11 +229,21 @@ function ProductRow({ product }: { product: ProductWithLots }) {
             )}
           </div>
         </TableCell>
-        <TableCell className="px-5 py-4 text-right text-sm text-foreground w-[250px]">
-          {totalStock} Units
+        <TableCell
+          className={cn(
+            "px-5 py-4 text-right text-sm w-[250px]",
+            showPendingTotals ? "text-yellow-500" : "text-foreground",
+          )}
+        >
+          {showPendingTotals ? pendingStock : totalStock} Units
         </TableCell>
-        <TableCell className="px-5 py-4 text-right text-sm font-semibold text-foreground w-[250px]">
-          ${totalValue.toFixed(2)}
+        <TableCell
+          className={cn(
+            "px-5 py-4 text-right text-sm font-semibold w-[250px]",
+            showPendingTotals ? "text-yellow-500" : "text-foreground",
+          )}
+        >
+          ${(showPendingTotals ? pendingValue : totalValue).toFixed(2)}
         </TableCell>
       </TableRow>
 

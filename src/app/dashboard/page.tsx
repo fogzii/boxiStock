@@ -35,7 +35,7 @@ export default async function DashboardPage() {
           icon={Package}
         />
         <StatCard
-          title="Current ROI"
+          title="Current ROI (Sold Stock Only)"
           value={`${metrics.currentROI.toFixed(1)}%`}
           icon={Percent}
         />

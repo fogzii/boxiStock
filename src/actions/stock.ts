@@ -1052,12 +1052,12 @@ export async function getDashboardMetrics(forUserId?: string) {
   const metrics = data as {
     totalLifetimeProfit: number;
     currentInventoryValue: number;
-    totalCapitalSpent: number;
+    totalSoldCost: number;
   };
 
   const currentROI =
-    metrics.totalCapitalSpent > 0
-      ? (metrics.totalLifetimeProfit / metrics.totalCapitalSpent) * 100
+    metrics.totalSoldCost > 0
+      ? (metrics.totalLifetimeProfit / metrics.totalSoldCost) * 100
       : 0;
 
   return {

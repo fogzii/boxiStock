@@ -132,7 +132,7 @@ export function ShareContent({
                 icon={Package}
               />
               <StatCard
-                title="Current ROI"
+                title="Current ROI (Sold Stock Only)"
                 value={`${dashboardMetrics.currentROI.toFixed(1)}%`}
                 icon={Percent}
               />

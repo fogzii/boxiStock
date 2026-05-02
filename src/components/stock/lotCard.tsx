@@ -13,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import * as React from "react";
-import { Badge } from "@/components/ui/badge";
+import { StockStatusBadge } from "@/components/stock/StockStatusBadge";
 import { Button } from "@/components/ui/button";
 import { CustomTooltip } from "@/components/ui/tooltip";
 import { useReadOnly } from "@/lib/context/readOnly";
@@ -108,16 +108,7 @@ export function LotCard({
               <p className="text-sm font-semibold text-foreground">
                 {lot.lotIdentity ? lot.lotIdentity : `Lot #${lotRef}`}
               </p>
-              <Badge
-                variant={lot.isStocked ? "default" : "secondary"}
-                className={
-                  lot.isStocked
-                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20 px-1.5 py-0 text-[10px]"
-                    : "bg-amber-500/15 text-amber-400 border-amber-500/20 px-1.5 py-0 text-[10px]"
-                }
-              >
-                {lot.isStocked ? "In Stock" : "Pending"}
-              </Badge>
+              <StockStatusBadge isStocked={lot.isStocked} />
             </div>
             <p className="text-xs text-muted-foreground">
               {lot.isStocked ? "Received" : "Created"}{" "}
