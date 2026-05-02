@@ -67,17 +67,16 @@ interface BundleGroup {
   products: BundleProductDisplay[];
 }
 
+type CombinedRow =
+  | { kind: "product"; data: ProductSaleGroup }
+  | { kind: "bundle"; data: BundleGroup };
+
 interface SalesTableProps {
-  groups: ProductSaleGroup[];
-  totalCount: number;
+  items: CombinedRow[];
+  total: number;
   totalPages: number;
   currentPage: number;
   pageSize: number;
-  bundles: BundleGroup[];
-  bundlesTotalCount: number;
-  bundlesTotalPages: number;
-  bundlesCurrentPage: number;
-  bundlesPageSize: number;
 }
 
 const SKELETON_ROW_KEYS = Array.from(
@@ -221,11 +220,21 @@ function ProductGroupRow({
               key={sale.id}
               className="bg-white/[0.06] hover:bg-white/[0.09] transition-colors animate-in fade-in slide-in-from-top-1 duration-150"
             >
-              <td className="pl-14 pr-6 py-3 whitespace-nowrap text-sm text-muted-foreground border-l-2 border-primary/50">
+              <td className="px-6 py-3 whitespace-nowrap text-sm text-muted-foreground border-l-2 border-primary/50">
                 {formatDate(sale.dateSold ?? sale.createdAt)}
               </td>
-              <td className="px-6 py-3 text-xs text-muted-foreground/50 truncate max-w-[180px]">
-                {sale.notes ?? ""}
+              <td className="px-6 py-3">
+                <div className="flex items-center gap-2">
+                  <Package className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                  <span className="text-sm text-foreground">
+                    {group.productName}
+                  </span>
+                </div>
+                {sale.notes && (
+                  <p className="text-xs text-muted-foreground/70 mt-0.5 truncate max-w-[200px] pl-[22px]">
+                    {sale.notes}
+                  </p>
+                )}
               </td>
               <td className="px-6 py-3 text-sm">{sale.quantitySold}</td>
               <td className="px-6 py-3 text-sm text-muted-foreground">
@@ -458,9 +467,6 @@ function BundleGroupRow({
             <td className="px-6 py-3 text-sm flex items-center gap-2">
               <Package className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
               <span>{product.productName}</span>
-              {!product.hasRestorable && (
-                <span className="text-xs text-amber-500/70">(deleted)</span>
-              )}
             </td>
             <td className="px-6 py-3 text-sm">{product.totalQuantity}</td>
             <td className="px-6 py-3 text-sm text-muted-foreground">
@@ -571,26 +577,50 @@ function SortHeader({
   );
 }
 
+function getEffectiveDate(item: CombinedRow): string {
+  if (item.kind === "product") return item.data.latestDate ?? "";
+  return item.data.dateSold ?? item.data.createdAt ?? "";
+}
+
+function getItemName(item: CombinedRow): string {
+  return item.kind === "product"
+    ? item.data.productName.toLowerCase()
+    : item.data.bundleName.toLowerCase();
+}
+
+function getItemQty(item: CombinedRow): number {
+  return item.kind === "product"
+    ? item.data.totalQuantity
+    : item.data.products.reduce((s, p) => s + p.totalQuantity, 0);
+}
+
+function getItemBuy(item: CombinedRow): number {
+  return item.kind === "product"
+    ? item.data.totalSalePrice - item.data.totalProfit
+    : item.data.totalBuyCost;
+}
+
+function getItemSell(item: CombinedRow): number {
+  return item.kind === "product"
+    ? item.data.totalSalePrice
+    : item.data.totalSellPrice;
+}
+
+function getItemProfit(item: CombinedRow): number {
+  return item.data.totalProfit;
+}
+
 export function SalesTable({
-  groups,
-  totalCount,
+  items,
+  total,
   totalPages,
   currentPage,
   pageSize,
-  bundles,
-  bundlesTotalCount,
-  bundlesTotalPages,
-  bundlesCurrentPage,
-  bundlesPageSize,
 }: SalesTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
-  const [isBundlesPending, startBundlesTransition] = React.useTransition();
   const [sortField, setSortField] = React.useState<SortField | null>("date");
   const [sortDir, setSortDir] = React.useState<SortDir>("desc");
-  const [bundleSortField, setBundleSortField] =
-    React.useState<SortField | null>("date");
-  const [bundleSortDir, setBundleSortDir] = React.useState<SortDir>("desc");
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -601,97 +631,46 @@ export function SalesTable({
     }
   };
 
-  const sortedGroups = React.useMemo(() => {
-    if (!sortField) return groups;
-    return [...groups].sort((a, b) => {
+  const sortedItems = React.useMemo(() => {
+    if (!sortField) return items;
+    return [...items].sort((a, b) => {
       let aVal: number | string;
       let bVal: number | string;
       switch (sortField) {
         case "date":
-          aVal = a.latestDate ?? "";
-          bVal = b.latestDate ?? "";
+          aVal = getEffectiveDate(a);
+          bVal = getEffectiveDate(b);
           break;
         case "product":
-          aVal = a.productName.toLowerCase();
-          bVal = b.productName.toLowerCase();
+          aVal = getItemName(a);
+          bVal = getItemName(b);
           break;
         case "quantity":
-          aVal = a.totalQuantity;
-          bVal = b.totalQuantity;
+          aVal = getItemQty(a);
+          bVal = getItemQty(b);
           break;
         case "buy":
-          aVal = a.totalSalePrice - a.totalProfit;
-          bVal = b.totalSalePrice - b.totalProfit;
+          aVal = getItemBuy(a);
+          bVal = getItemBuy(b);
           break;
         case "sell":
-          aVal = a.totalSalePrice;
-          bVal = b.totalSalePrice;
+          aVal = getItemSell(a);
+          bVal = getItemSell(b);
           break;
         case "profit":
-          aVal = a.totalProfit;
-          bVal = b.totalProfit;
+          aVal = getItemProfit(a);
+          bVal = getItemProfit(b);
           break;
       }
       const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [groups, sortField, sortDir]);
+  }, [items, sortField, sortDir]);
 
   const handlePageChange = (page: number) => {
     startTransition(() => {
-      router.push(`/sales?page=${page}`);
-    });
-  };
-
-  const handleBundleSort = (field: SortField) => {
-    if (bundleSortField === field) {
-      setBundleSortDir((d) => (d === "asc" ? "desc" : "asc"));
-    } else {
-      setBundleSortField(field);
-      setBundleSortDir("asc");
-    }
-  };
-
-  const sortedBundles = React.useMemo(() => {
-    if (!bundleSortField) return bundles;
-    return [...bundles].sort((a, b) => {
-      let aVal: number | string;
-      let bVal: number | string;
-      switch (bundleSortField) {
-        case "date":
-          aVal = a.dateSold ?? a.createdAt ?? "";
-          bVal = b.dateSold ?? b.createdAt ?? "";
-          break;
-        case "product":
-          aVal = a.bundleName.toLowerCase();
-          bVal = b.bundleName.toLowerCase();
-          break;
-        case "quantity":
-          aVal = a.products.reduce((s, p) => s + p.totalQuantity, 0);
-          bVal = b.products.reduce((s, p) => s + p.totalQuantity, 0);
-          break;
-        case "buy":
-          aVal = a.totalBuyCost;
-          bVal = b.totalBuyCost;
-          break;
-        case "sell":
-          aVal = a.totalSellPrice;
-          bVal = b.totalSellPrice;
-          break;
-        case "profit":
-          aVal = a.totalProfit;
-          bVal = b.totalProfit;
-          break;
-      }
-      const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-      return bundleSortDir === "asc" ? cmp : -cmp;
-    });
-  }, [bundles, bundleSortField, bundleSortDir]);
-
-  const handleBundlePageChange = (page: number) => {
-    startBundlesTransition(() => {
       const params = new URLSearchParams(window.location.search);
-      params.set("bpage", String(page));
+      params.set("page", String(page));
       router.push(`/sales?${params.toString()}`);
     });
   };
@@ -791,14 +770,22 @@ export function SalesTable({
                     </td>
                   </tr>
                 ))
-              ) : sortedGroups.length > 0 ? (
-                sortedGroups.map((group) => (
-                  <ProductGroupRow
-                    key={group.productId}
-                    group={group}
-                    formatter={formatter}
-                  />
-                ))
+              ) : sortedItems.length > 0 ? (
+                sortedItems.map((item) =>
+                  item.kind === "product" ? (
+                    <ProductGroupRow
+                      key={item.data.productId}
+                      group={item.data}
+                      formatter={formatter}
+                    />
+                  ) : (
+                    <BundleGroupRow
+                      key={item.data.bundleId}
+                      bundle={item.data}
+                      formatter={formatter}
+                    />
+                  ),
+                )
               ) : (
                 <tr>
                   <td
@@ -817,140 +804,13 @@ export function SalesTable({
       <TablePagination
         currentPage={currentPage}
         pageSize={pageSize}
-        totalCount={totalCount}
+        totalCount={total}
         totalPages={totalPages}
-        unitLabel="products"
+        unitLabel="entries"
         isPending={isPending}
         onPageChange={handlePageChange}
         className="mt-6 px-1"
       />
-
-      {/* ── Bundle Sales Section ── */}
-      {(bundlesTotalCount > 0 || bundles.length > 0) && (
-        <>
-          <h2 className="mt-10 mb-3 text-xl font-bold tracking-tight text-foreground">
-            Bundle Sales
-          </h2>
-          <div className="bg-card/50 backdrop-blur-md rounded-xl border border-border overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="text-xs text-muted-foreground uppercase bg-muted/20 border-b border-border">
-                  <tr>
-                    <SortHeader
-                      label="Date"
-                      field="date"
-                      sortField={bundleSortField}
-                      sortDir={bundleSortDir}
-                      onSort={handleBundleSort}
-                      className="px-6 py-4 font-medium"
-                    />
-                    <SortHeader
-                      label="Bundle"
-                      field="product"
-                      sortField={bundleSortField}
-                      sortDir={bundleSortDir}
-                      onSort={handleBundleSort}
-                      className="px-6 py-4 font-medium"
-                    />
-                    <SortHeader
-                      label="Quantity"
-                      field="quantity"
-                      sortField={bundleSortField}
-                      sortDir={bundleSortDir}
-                      onSort={handleBundleSort}
-                      className="px-6 py-4 font-medium"
-                    />
-                    <SortHeader
-                      label="Buy"
-                      field="buy"
-                      sortField={bundleSortField}
-                      sortDir={bundleSortDir}
-                      onSort={handleBundleSort}
-                      className="px-6 py-4 font-medium"
-                    />
-                    <SortHeader
-                      label="Sell"
-                      field="sell"
-                      sortField={bundleSortField}
-                      sortDir={bundleSortDir}
-                      onSort={handleBundleSort}
-                      className="px-6 py-4 font-medium"
-                    />
-                    <SortHeader
-                      label="Net Profit"
-                      field="profit"
-                      sortField={bundleSortField}
-                      sortDir={bundleSortDir}
-                      onSort={handleBundleSort}
-                      className="px-6 py-4 font-medium"
-                    />
-                    <th className="pl-4 pr-6 py-4 w-[72px]" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/50">
-                  {isBundlesPending ? (
-                    SKELETON_ROW_KEYS.map((key) => (
-                      <tr
-                        key={key}
-                        className="hover:bg-muted/10 transition-colors"
-                      >
-                        <td className="px-6 py-4">
-                          <Skeleton className="h-5 w-24" />
-                        </td>
-                        <td className="px-6 py-4">
-                          <Skeleton className="h-5 w-40" />
-                        </td>
-                        <td className="px-6 py-4">
-                          <Skeleton className="h-5 w-12" />
-                        </td>
-                        <td className="px-6 py-4">
-                          <Skeleton className="h-5 w-20" />
-                        </td>
-                        <td className="px-6 py-4">
-                          <Skeleton className="h-5 w-20" />
-                        </td>
-                        <td className="px-6 py-4">
-                          <Skeleton className="h-5 w-20" />
-                        </td>
-                        <td className="pl-4 pr-6 py-4 w-px">
-                          <Skeleton className="h-5 w-5" />
-                        </td>
-                      </tr>
-                    ))
-                  ) : sortedBundles.length > 0 ? (
-                    sortedBundles.map((bundle) => (
-                      <BundleGroupRow
-                        key={bundle.bundleId}
-                        bundle={bundle}
-                        formatter={formatter}
-                      />
-                    ))
-                  ) : (
-                    <tr>
-                      <td
-                        colSpan={7}
-                        className="px-6 py-8 text-center text-muted-foreground"
-                      >
-                        No bundle sales found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <TablePagination
-            currentPage={bundlesCurrentPage}
-            pageSize={bundlesPageSize}
-            totalCount={bundlesTotalCount}
-            totalPages={bundlesTotalPages}
-            unitLabel="bundles"
-            isPending={isBundlesPending}
-            onPageChange={handleBundlePageChange}
-            className="mt-6 px-1"
-          />
-        </>
-      )}
     </>
   );
 }

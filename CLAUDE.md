@@ -54,6 +54,12 @@ Whenever user-facing work depends on **network, server actions, or slow queries*
 - For **explicit actions** (submit, refresh, destructive confirm), use **`Button` disabled state**, swapped label text (e.g. “Adding…” / “Saving…”), and/or a **small spinner** (**`Loader2`** from `lucide-react` with `animate-spin`) in the trigger area — match patterns already used in modals or pages rather than introducing a second loading language.
 - Do not leave UI **static with no clue** during multi-second operations; skeletons/spinners should cover the regions that depend on pending data.
 
+## Supabase types
+
+- Generated types live in **`src/lib/supabase/database.types.ts`** and are consumed by the server client in **`src/lib/supabase/server.ts`**.
+- **Run `npm run db:types` after any schema change**: adding/removing/renaming a table or column, changing a column's type or nullability, adding an RPC function, enum, or view. This regenerates the file from the live database.
+- Do not hand-edit `database.types.ts` — it will be overwritten on the next run.
+
 ## Code quality reminders
 
 - Keep changes scoped; follow existing naming, Tailwind conventions, and client/server boundaries in the codebase.

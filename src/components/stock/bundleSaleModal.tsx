@@ -153,11 +153,6 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
     return () => clearTimeout(timer);
   }, [isOpen, productSearch, productPage]);
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: productSearch change should reset pagination
-  React.useEffect(() => {
-    setProductPage(1);
-  }, [productSearch]);
-
   function resetForm() {
     setBundleName("");
     setSellPriceStr("");
@@ -293,7 +288,10 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
                 id="bundle-product-search"
                 type="search"
                 value={productSearch}
-                onChange={(e) => setProductSearch(e.target.value)}
+                onChange={(e) => {
+                  setProductSearch(e.target.value);
+                  setProductPage(1);
+                }}
                 placeholder="Search products to add…"
                 aria-label="Search products to add to this bundle"
                 autoComplete="off"

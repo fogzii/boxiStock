@@ -1,9 +1,5 @@
 import { TrendingUp, Wallet } from "lucide-react";
-import {
-  getBundlesGrouped,
-  getSalesHistoryGrouped,
-  getSalesMetrics,
-} from "@/actions/stock";
+import { getCombinedSalesGrouped, getSalesMetrics } from "@/actions/stock";
 import { SalesTable } from "@/components/sales/salesTable";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { StatCard } from "@/components/ui/StatCard";
@@ -11,18 +7,16 @@ import { StatCard } from "@/components/ui/StatCard";
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string; bpage?: string }>;
+  searchParams: Promise<{ page?: string; search?: string }>;
 }) {
   const unresolvedParams = await searchParams;
   const currentPage = Number(unresolvedParams?.page) || 1;
-  const bundlesCurrentPage = Number(unresolvedParams?.bpage) || 1;
   const searchParamStr = unresolvedParams?.search;
   const pageSize = 10;
 
-  const [metrics, history, bundlesResult] = await Promise.all([
+  const [metrics, combined] = await Promise.all([
     getSalesMetrics(),
-    getSalesHistoryGrouped(currentPage, pageSize, searchParamStr),
-    getBundlesGrouped(bundlesCurrentPage, pageSize, searchParamStr),
+    getCombinedSalesGrouped(currentPage, pageSize, searchParamStr),
   ]);
 
   const formatter = new Intl.NumberFormat("en-US", {
@@ -62,16 +56,11 @@ export default async function SalesPage({
 
       {/* Sales Table and Pagination */}
       <SalesTable
-        groups={history.groups}
-        totalCount={history.totalCount}
-        totalPages={history.totalPages}
+        items={combined.items}
+        total={combined.total}
+        totalPages={combined.totalPages}
         currentPage={currentPage}
         pageSize={pageSize}
-        bundles={bundlesResult.bundles}
-        bundlesTotalCount={bundlesResult.totalCount}
-        bundlesTotalPages={bundlesResult.totalPages}
-        bundlesCurrentPage={bundlesCurrentPage}
-        bundlesPageSize={pageSize}
       />
     </div>
   );

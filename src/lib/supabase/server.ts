@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
 
 /**
  * Server-only Supabase client.
@@ -23,7 +24,7 @@ export async function createClient() {
     );
   }
 
-  return createSupabaseClient(url, secretKey, {
+  return createSupabaseClient<Database>(url, secretKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

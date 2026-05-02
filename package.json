@@ -10,7 +10,8 @@
     "check:fix": "biome check --write",
     "format": "biome format --write",
     "lint": "biome lint",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:types": "npx supabase gen types typescript --project-id idgpprtyleutgqinrouo > src/lib/supabase/database.types.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
