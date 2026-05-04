@@ -338,8 +338,6 @@ export async function updateLot(
     .single();
 
   if (!lot) throw new Error("Lot not found or unauthorized");
-  if (data.remainingQuantity > lot.initialQuantity)
-    throw new Error("remainingQuantity cannot exceed initialQuantity");
 
   const now = new Date().toISOString();
 
@@ -347,6 +345,7 @@ export async function updateLot(
     .from("StockLot")
     .update({
       remainingQuantity: data.remainingQuantity,
+      initialQuantity: Math.max(data.remainingQuantity, lot.initialQuantity),
       buyPrice: data.buyPrice,
       isStocked: data.isStocked,
       dateAcquired: (dateAcquired ?? new Date()).toISOString(),

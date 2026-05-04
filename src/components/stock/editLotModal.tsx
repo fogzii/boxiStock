@@ -58,11 +58,7 @@ export function EditLotModal({
   const handleQuantityBlur = () => {
     const n = Math.floor(parseFloat(quantity));
     setQuantity(
-      String(
-        Number.isFinite(n) && n >= 1
-          ? Math.min(n, lot.initialQuantity)
-          : lot.remainingQuantity,
-      ),
+      String(Number.isFinite(n) && n >= 1 ? n : lot.remainingQuantity),
     );
   };
 
@@ -131,7 +127,6 @@ export function EditLotModal({
                   id="edit-quantity"
                   type="number"
                   min="1"
-                  max={lot.initialQuantity}
                   step="1"
                   value={quantity}
                   onChange={(e) => setQuantity(e.target.value)}
