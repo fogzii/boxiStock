@@ -274,15 +274,27 @@ export type Database = {
     };
     Functions: {
       get_dashboard_metrics: { Args: { p_user_id: string }; Returns: Json };
-      get_inventory_paginated: {
-        Args: {
-          p_page?: number;
-          p_page_size?: number;
-          p_search?: string;
-          p_user_id: string;
-        };
-        Returns: Json;
-      };
+      get_inventory_paginated:
+        | {
+            Args: {
+              p_page?: number;
+              p_page_size?: number;
+              p_search?: string;
+              p_user_id: string;
+            };
+            Returns: Json;
+          }
+        | {
+            Args: {
+              p_page?: number;
+              p_page_size?: number;
+              p_search?: string;
+              p_sort?: string;
+              p_status?: string;
+              p_user_id: string;
+            };
+            Returns: Json;
+          };
       get_sales_by_month: {
         Args: { p_user_id: string };
         Returns: {

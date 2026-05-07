@@ -8,6 +8,7 @@ import {
   Edit2,
   Package,
   Plus,
+  ShoppingCart,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -20,6 +21,7 @@ import {
 } from "@/actions/stock";
 import { AddLotModal } from "@/components/stock/addLotModal";
 import { LotCard, type StockLot } from "@/components/stock/lotCard";
+import { SellAllModal } from "@/components/stock/sellAllModal";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TablePagination } from "@/components/ui/TablePagination";
@@ -274,9 +276,23 @@ function ProductRow({ product }: { product: ProductWithLots }) {
                 />
               ))}
 
-              {/* Add More Stock */}
+              {/* Row actions: Sell All + Add More Stock */}
               {!isReadOnly && (
-                <div className="px-5 py-3 border-t border-primary/10">
+                <div className="px-5 py-3 border-t border-primary/10 flex items-center gap-3">
+                  {totalStock > 0 && (
+                    <SellAllModal product={product}>
+                      {(open) => (
+                        <button
+                          type="button"
+                          onClick={open}
+                          className="flex items-center gap-2 text-xs font-medium text-primary-foreground bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-md transition-all cursor-pointer"
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5" />
+                          Sell all
+                        </button>
+                      )}
+                    </SellAllModal>
+                  )}
                   <AddLotModal
                     productId={product.id}
                     productName={product.name}

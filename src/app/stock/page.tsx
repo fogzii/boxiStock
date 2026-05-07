@@ -1,6 +1,7 @@
 import { DatabaseZap } from "lucide-react";
 import { getInventoryPaginated, seedMockData } from "@/actions/stock";
 import { BundleSaleButton } from "@/components/stock/bundleSaleModal";
+import { StockFilters } from "@/components/stock/StockFilters";
 import { StockTable } from "@/components/stock/stockTable";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/SearchInput";
@@ -8,18 +9,28 @@ import { SearchInput } from "@/components/ui/SearchInput";
 export default async function StockPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    search?: string;
+    sort?: string;
+    status?: string;
+  }>;
 }) {
   const isProduction = process.env.NODE_ENV === "production";
   const resolvedParams = await searchParams;
   const currentPage = Number(resolvedParams?.page) || 1;
   const searchParamStr = resolvedParams?.search;
+  const sortParam = resolvedParams?.sort;
+  const statusParam = resolvedParams?.status;
   const pageSize = 10;
 
   const { products, totalCount, totalPages } = await getInventoryPaginated(
     currentPage,
     pageSize,
     searchParamStr,
+    undefined,
+    sortParam,
+    statusParam,
   );
 
   return (
@@ -28,12 +39,15 @@ export default async function StockPage({
       <h1 className="mb-5 text-3xl font-bold tracking-tight text-foreground">
         Stock Inventory
       </h1>
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-3">
         <SearchInput
           placeholder="Search products or lots..."
           className="flex-1 max-w-lg"
         />
         <BundleSaleButton />
+      </div>
+      <div className="mb-4">
+        <StockFilters currentSort={sortParam} currentStatus={statusParam} />
         {!isProduction && totalCount === 0 && !searchParamStr && (
           <form
             action={async () => {

@@ -67,11 +67,23 @@ export async function getRecentProducts(limit = 3) {
   return (data ?? []) as { id: string; name: string }[];
 }
 
+const VALID_SORTS = new Set([
+  "name_asc",
+  "name_desc",
+  "stock_asc",
+  "stock_desc",
+  "value_asc",
+  "value_desc",
+]);
+const VALID_STATUSES = new Set(["all", "stocked", "pending"]);
+
 export async function getInventoryPaginated(
   page: number = 1,
   pageSize: number = 10,
   search?: string,
   forUserId?: string,
+  sort?: string,
+  status?: string,
 ) {
   let userId: string;
   if (forUserId) {
@@ -96,49 +108,71 @@ export async function getInventoryPaginated(
       ? search.trim().slice(0, 200)
       : undefined;
 
-  const supabase = await createClient();
+  const safeSort =
+    typeof sort === "string" && VALID_SORTS.has(sort) ? sort : undefined;
+  const safeStatus =
+    typeof status === "string" && VALID_STATUSES.has(status) ? status : "all";
 
-  // Single round-trip to Postgres. The RPC does the stock filter, search,
-  // count, pagination, and lot embedding server-side, so we never build
-  // giant `id=in.(…)` URLs (those were pushing on Cloudflare URL limits
-  // and caused intermittent 525s under large inventories).
-  const { data, error } = await supabase.rpc("get_inventory_paginated", {
-    p_user_id: userId,
-    p_search: safeSearch,
-    p_page: safePage,
-    p_page_size: safePageSize,
-  });
+  // Cache per unique (userId + all filter/pagination params). Invalidated
+  // automatically when any mutation calls revalidatePath("/", "layout").
+  return unstable_cache(
+    async (
+      uid: string,
+      page: number,
+      size: number,
+      search: string | undefined,
+      sort: string | undefined,
+      status: string,
+    ) => {
+      const supabase = await createClient();
 
-  if (error) throw new Error(error.message);
+      // Single round-trip to Postgres. The RPC does the stock filter, search,
+      // count, pagination, and lot embedding server-side, so we never build
+      // giant `id=in.(…)` URLs (those were pushing on Cloudflare URL limits
+      // and caused intermittent 525s under large inventories).
+      const { data, error } = await supabase.rpc("get_inventory_paginated", {
+        p_user_id: uid,
+        p_search: search,
+        p_page: page,
+        p_page_size: size,
+        p_sort: sort,
+        p_status: status,
+      });
 
-  type PaginatedLot = {
-    id: string;
-    initialQuantity: number;
-    remainingQuantity: number;
-    buyPrice: number;
-    isStocked: boolean;
-    dateAcquired: Date;
-    lotIdentity?: string | null;
-    notes?: string | null;
-  };
-  type PaginatedProduct = {
-    id: string;
-    name: string;
-    lots: PaginatedLot[];
-  };
+      if (error) throw new Error(error.message);
 
-  const payload = (data ?? {}) as {
-    totalCount?: number;
-    products?: PaginatedProduct[];
-  };
-  const totalCount = payload.totalCount ?? 0;
-  const products = payload.products ?? [];
+      type PaginatedLot = {
+        id: string;
+        initialQuantity: number;
+        remainingQuantity: number;
+        buyPrice: number;
+        isStocked: boolean;
+        dateAcquired: Date;
+        lotIdentity?: string | null;
+        notes?: string | null;
+      };
+      type PaginatedProduct = {
+        id: string;
+        name: string;
+        lots: PaginatedLot[];
+      };
 
-  return {
-    products,
-    totalCount,
-    totalPages: Math.ceil(totalCount / safePageSize),
-  };
+      const payload = (data ?? {}) as {
+        totalCount?: number;
+        products?: PaginatedProduct[];
+      };
+      const totalCount = payload.totalCount ?? 0;
+      const products = payload.products ?? [];
+
+      return {
+        products,
+        totalCount,
+        totalPages: Math.ceil(totalCount / size),
+      };
+    },
+    [`inventory-${userId}`],
+    { revalidate: 30 },
+  )(userId, safePage, safePageSize, safeSearch, safeSort, safeStatus);
 }
 
 export async function addProduct(data: {
@@ -1915,267 +1949,290 @@ export async function getCombinedSalesGrouped(
       ? pageSize
       : 10;
 
-  const supabase = await createClient();
-
   const safeSearch =
     search && typeof search === "string" && search.trim() !== ""
       ? escapeLikePattern(search.trim().slice(0, 200))
       : null;
 
-  type ProductHeaderRow = {
-    id: string;
-    name: string;
-    lastSoldAt: string;
-    totalRevenue: number;
-    totalProfit: number;
-    totalUnitsSold: number;
-    saleCount: number;
-  };
-  type BundleHeaderRow = {
-    id: string;
-    name: string;
-    totalSellPrice: number;
-    totalBuyCost: number;
-    totalProfit: number;
-    dateSold: string | null;
-    createdAt: string;
-  };
-  type SaleRow = {
-    id: string;
-    dateSold: string | null;
-    createdAt: string;
-    quantitySold: number;
-    totalSalePrice: number;
-    totalProfit: number;
-    notes: string | null;
-    productId: string;
-  };
-  type BundleItemRow = {
-    id: string;
-    bundleId: string;
-    productId: string | null;
-    productName: string;
-    quantityConsumed: number;
-    buyPricePerUnit: number;
-    totalBuyCost: number;
-    lotId: string | null;
-  };
+  // Cache per unique (userId + all filter/pagination params). Invalidated
+  // automatically when any mutation calls revalidatePath("/", "layout").
+  return unstable_cache(
+    async (
+      userId: string,
+      safePage: number,
+      safePageSize: number,
+      safeSearch: string | null,
+    ) => {
+      const supabase = await createClient();
 
-  // Fetch all headers (no pagination) to merge and sort across both types
-  let productHeadersQuery = supabase
-    .from("Product")
-    .select(
-      "id, name, lastSoldAt, totalRevenue, totalProfit, totalUnitsSold, saleCount",
-    )
-    .eq("userId", userId)
-    .not("lastSoldAt", "is", null)
-    .order("lastSoldAt", { ascending: false });
-  if (safeSearch)
-    productHeadersQuery = productHeadersQuery.ilike("name", `%${safeSearch}%`);
-
-  let bundleHeadersQuery = supabase
-    .from("Bundle")
-    .select(
-      "id, name, totalSellPrice, totalBuyCost, totalProfit, dateSold, createdAt",
-    )
-    .eq("userId", userId)
-    .order("createdAt", { ascending: false });
-  if (safeSearch)
-    bundleHeadersQuery = bundleHeadersQuery.ilike("name", `%${safeSearch}%`);
-
-  const [
-    { data: allProducts, error: productsError },
-    { data: allBundles, error: bundlesError },
-  ] = await Promise.all([productHeadersQuery, bundleHeadersQuery]);
-
-  if (productsError) throw new Error(productsError.message);
-  if (bundlesError) throw new Error(bundlesError.message);
-
-  // Merge and sort by effective date descending
-  type TaggedItem =
-    | { kind: "product"; effectiveDate: string; data: ProductHeaderRow }
-    | { kind: "bundle"; effectiveDate: string; data: BundleHeaderRow };
-
-  const tagged: TaggedItem[] = [
-    ...((allProducts as ProductHeaderRow[]) ?? []).map((p) => ({
-      kind: "product" as const,
-      effectiveDate: p.lastSoldAt,
-      data: p,
-    })),
-    ...((allBundles as BundleHeaderRow[]) ?? []).map((b) => ({
-      kind: "bundle" as const,
-      effectiveDate: b.dateSold ?? b.createdAt,
-      data: b,
-    })),
-  ];
-
-  tagged.sort((a, b) => {
-    if (a.effectiveDate > b.effectiveDate) return -1;
-    if (a.effectiveDate < b.effectiveDate) return 1;
-    return 0;
-  });
-
-  const total = tagged.length;
-  const start = (safePage - 1) * safePageSize;
-  const pageSlice = tagged.slice(start, start + safePageSize);
-
-  // Fetch full details only for items on the current page
-  const productIds = pageSlice
-    .filter(
-      (
-        item,
-      ): item is {
-        kind: "product";
-        effectiveDate: string;
-        data: ProductHeaderRow;
-      } => item.kind === "product",
-    )
-    .map((item) => item.data.id);
-  const bundleIds = pageSlice
-    .filter(
-      (
-        item,
-      ): item is {
-        kind: "bundle";
-        effectiveDate: string;
-        data: BundleHeaderRow;
-      } => item.kind === "bundle",
-    )
-    .map((item) => item.data.id);
-
-  const [salesResult, bundleItemsResult] = await Promise.all([
-    productIds.length > 0
-      ? supabase
-          .from("Sale")
-          .select(
-            "id, dateSold, createdAt, quantitySold, totalSalePrice, totalProfit, notes, productId",
-          )
-          .in("productId", productIds)
-          .order("dateSold", { ascending: false, nullsFirst: false })
-          .order("createdAt", { ascending: false })
-      : Promise.resolve({ data: [] as SaleRow[], error: null }),
-    bundleIds.length > 0
-      ? supabase
-          .from("BundleItem")
-          .select(
-            "id, bundleId, productId, productName, quantityConsumed, buyPricePerUnit, totalBuyCost, lotId",
-          )
-          .in("bundleId", bundleIds)
-      : Promise.resolve({ data: [] as BundleItemRow[], error: null }),
-  ]);
-
-  if (salesResult.error) throw new Error(salesResult.error.message);
-  if (bundleItemsResult.error) throw new Error(bundleItemsResult.error.message);
-
-  const salesByProduct = new Map<string, SaleRow[]>();
-  for (const s of (salesResult.data as SaleRow[]) ?? []) {
-    if (!salesByProduct.has(s.productId)) salesByProduct.set(s.productId, []);
-    salesByProduct.get(s.productId)?.push(s);
-  }
-
-  const itemsByBundle = new Map<string, BundleItemRow[]>();
-  for (const item of (bundleItemsResult.data as BundleItemRow[]) ?? []) {
-    if (!itemsByBundle.has(item.bundleId)) itemsByBundle.set(item.bundleId, []);
-    itemsByBundle.get(item.bundleId)?.push(item);
-  }
-
-  const items = pageSlice.map((tagged) => {
-    if (tagged.kind === "product") {
-      const p = tagged.data;
-      return {
-        kind: "product" as const,
-        data: {
-          productId: p.id,
-          productName: p.name,
-          latestDate: p.lastSoldAt,
-          totalQuantity: p.totalUnitsSold ?? 0,
-          totalSalePrice: p.totalRevenue ?? 0,
-          totalProfit: p.totalProfit ?? 0,
-          sales: (salesByProduct.get(p.id) ?? []).map((s) => ({
-            id: s.id,
-            dateSold: s.dateSold,
-            createdAt: s.createdAt,
-            quantitySold: s.quantitySold,
-            totalSalePrice: s.totalSalePrice,
-            totalProfit: s.totalProfit,
-            notes: s.notes,
-            Product: { name: p.name },
-          })),
-        },
+      type ProductHeaderRow = {
+        id: string;
+        name: string;
+        lastSoldAt: string;
+        totalRevenue: number;
+        totalProfit: number;
+        totalUnitsSold: number;
+        saleCount: number;
       };
-    }
-
-    const b = tagged.data;
-    const bundleItems = itemsByBundle.get(b.id) ?? [];
-
-    const productMap = new Map<
-      string,
-      {
+      type BundleHeaderRow = {
+        id: string;
+        name: string;
+        totalSellPrice: number;
+        totalBuyCost: number;
+        totalProfit: number;
+        dateSold: string | null;
+        createdAt: string;
+      };
+      type SaleRow = {
+        id: string;
+        dateSold: string | null;
+        createdAt: string;
+        quantitySold: number;
+        totalSalePrice: number;
+        totalProfit: number;
+        notes: string | null;
+        productId: string;
+      };
+      type BundleItemRow = {
+        id: string;
+        bundleId: string;
         productId: string | null;
         productName: string;
-        totalQuantity: number;
+        quantityConsumed: number;
+        buyPricePerUnit: number;
         totalBuyCost: number;
-        hasRestorable: boolean;
-      }
-    >();
+        lotId: string | null;
+      };
 
-    for (const item of bundleItems) {
-      const key = (item.productId as string | null) ?? item.productName;
-      if (!productMap.has(key)) {
-        productMap.set(key, {
-          productId: item.productId as string | null,
-          productName: item.productName as string,
-          totalQuantity: 0,
-          totalBuyCost: 0,
-          hasRestorable: false,
-        });
-      }
-      const p = productMap.get(key);
-      if (!p) continue;
-      p.totalQuantity += item.quantityConsumed;
-      p.totalBuyCost += item.totalBuyCost;
-      if (item.lotId) p.hasRestorable = true;
-    }
+      // Fetch all headers (no pagination) to merge and sort across both types
+      let productHeadersQuery = supabase
+        .from("Product")
+        .select(
+          "id, name, lastSoldAt, totalRevenue, totalProfit, totalUnitsSold, saleCount",
+        )
+        .eq("userId", userId)
+        .not("lastSoldAt", "is", null)
+        .order("lastSoldAt", { ascending: false });
+      if (safeSearch)
+        productHeadersQuery = productHeadersQuery.ilike(
+          "name",
+          `%${safeSearch}%`,
+        );
 
-    const products = [...productMap.values()];
-    const numDistinctProducts = products.length;
-    const allocatedProfitPerProduct =
-      numDistinctProducts > 0
-        ? Math.round(((b.totalProfit as number) / numDistinctProducts) * 100) /
-          100
-        : 0;
+      let bundleHeadersQuery = supabase
+        .from("Bundle")
+        .select(
+          "id, name, totalSellPrice, totalBuyCost, totalProfit, dateSold, createdAt",
+        )
+        .eq("userId", userId)
+        .order("createdAt", { ascending: false });
+      if (safeSearch)
+        bundleHeadersQuery = bundleHeadersQuery.ilike(
+          "name",
+          `%${safeSearch}%`,
+        );
 
-    return {
-      kind: "bundle" as const,
-      data: {
-        bundleId: b.id as string,
-        bundleName: b.name as string,
-        dateSold: b.dateSold as string | null,
-        createdAt: b.createdAt as string,
-        totalSellPrice: b.totalSellPrice as number,
-        totalBuyCost: b.totalBuyCost as number,
-        totalProfit: b.totalProfit as number,
-        products: products.map((p) => ({
-          productId: p.productId,
-          productName: p.productName,
-          totalQuantity: p.totalQuantity,
-          totalBuyCost: Math.round(p.totalBuyCost * 100) / 100,
-          weightedAvgBuyPrice:
-            p.totalQuantity > 0
-              ? Math.round((p.totalBuyCost / p.totalQuantity) * 100) / 100
-              : 0,
-          allocatedProfit: allocatedProfitPerProduct,
-          hasRestorable: p.hasRestorable,
+      const [
+        { data: allProducts, error: productsError },
+        { data: allBundles, error: bundlesError },
+      ] = await Promise.all([productHeadersQuery, bundleHeadersQuery]);
+
+      if (productsError) throw new Error(productsError.message);
+      if (bundlesError) throw new Error(bundlesError.message);
+
+      // Merge and sort by effective date descending
+      type TaggedItem =
+        | { kind: "product"; effectiveDate: string; data: ProductHeaderRow }
+        | { kind: "bundle"; effectiveDate: string; data: BundleHeaderRow };
+
+      const tagged: TaggedItem[] = [
+        ...((allProducts as ProductHeaderRow[]) ?? []).map((p) => ({
+          kind: "product" as const,
+          effectiveDate: p.lastSoldAt,
+          data: p,
         })),
-      },
-    };
-  });
+        ...((allBundles as BundleHeaderRow[]) ?? []).map((b) => ({
+          kind: "bundle" as const,
+          effectiveDate: b.dateSold ?? b.createdAt,
+          data: b,
+        })),
+      ];
 
-  return {
-    items,
-    total,
-    totalPages: Math.ceil(total / safePageSize),
-  };
+      tagged.sort((a, b) => {
+        if (a.effectiveDate > b.effectiveDate) return -1;
+        if (a.effectiveDate < b.effectiveDate) return 1;
+        return 0;
+      });
+
+      const total = tagged.length;
+      const start = (safePage - 1) * safePageSize;
+      const pageSlice = tagged.slice(start, start + safePageSize);
+
+      // Fetch full details only for items on the current page
+      const productIds = pageSlice
+        .filter(
+          (
+            item,
+          ): item is {
+            kind: "product";
+            effectiveDate: string;
+            data: ProductHeaderRow;
+          } => item.kind === "product",
+        )
+        .map((item) => item.data.id);
+      const bundleIds = pageSlice
+        .filter(
+          (
+            item,
+          ): item is {
+            kind: "bundle";
+            effectiveDate: string;
+            data: BundleHeaderRow;
+          } => item.kind === "bundle",
+        )
+        .map((item) => item.data.id);
+
+      const [salesResult, bundleItemsResult] = await Promise.all([
+        productIds.length > 0
+          ? supabase
+              .from("Sale")
+              .select(
+                "id, dateSold, createdAt, quantitySold, totalSalePrice, totalProfit, notes, productId",
+              )
+              .in("productId", productIds)
+              .order("dateSold", { ascending: false, nullsFirst: false })
+              .order("createdAt", { ascending: false })
+          : Promise.resolve({ data: [] as SaleRow[], error: null }),
+        bundleIds.length > 0
+          ? supabase
+              .from("BundleItem")
+              .select(
+                "id, bundleId, productId, productName, quantityConsumed, buyPricePerUnit, totalBuyCost, lotId",
+              )
+              .in("bundleId", bundleIds)
+          : Promise.resolve({ data: [] as BundleItemRow[], error: null }),
+      ]);
+
+      if (salesResult.error) throw new Error(salesResult.error.message);
+      if (bundleItemsResult.error)
+        throw new Error(bundleItemsResult.error.message);
+
+      const salesByProduct = new Map<string, SaleRow[]>();
+      for (const s of (salesResult.data as SaleRow[]) ?? []) {
+        if (!salesByProduct.has(s.productId))
+          salesByProduct.set(s.productId, []);
+        salesByProduct.get(s.productId)?.push(s);
+      }
+
+      const itemsByBundle = new Map<string, BundleItemRow[]>();
+      for (const item of (bundleItemsResult.data as BundleItemRow[]) ?? []) {
+        if (!itemsByBundle.has(item.bundleId))
+          itemsByBundle.set(item.bundleId, []);
+        itemsByBundle.get(item.bundleId)?.push(item);
+      }
+
+      const items = pageSlice.map((tagged) => {
+        if (tagged.kind === "product") {
+          const p = tagged.data;
+          return {
+            kind: "product" as const,
+            data: {
+              productId: p.id,
+              productName: p.name,
+              latestDate: p.lastSoldAt,
+              totalQuantity: p.totalUnitsSold ?? 0,
+              totalSalePrice: p.totalRevenue ?? 0,
+              totalProfit: p.totalProfit ?? 0,
+              sales: (salesByProduct.get(p.id) ?? []).map((s) => ({
+                id: s.id,
+                dateSold: s.dateSold,
+                createdAt: s.createdAt,
+                quantitySold: s.quantitySold,
+                totalSalePrice: s.totalSalePrice,
+                totalProfit: s.totalProfit,
+                notes: s.notes,
+                Product: { name: p.name },
+              })),
+            },
+          };
+        }
+
+        const b = tagged.data;
+        const bundleItems = itemsByBundle.get(b.id) ?? [];
+
+        const productMap = new Map<
+          string,
+          {
+            productId: string | null;
+            productName: string;
+            totalQuantity: number;
+            totalBuyCost: number;
+            hasRestorable: boolean;
+          }
+        >();
+
+        for (const item of bundleItems) {
+          const key = (item.productId as string | null) ?? item.productName;
+          if (!productMap.has(key)) {
+            productMap.set(key, {
+              productId: item.productId as string | null,
+              productName: item.productName as string,
+              totalQuantity: 0,
+              totalBuyCost: 0,
+              hasRestorable: false,
+            });
+          }
+          const p = productMap.get(key);
+          if (!p) continue;
+          p.totalQuantity += item.quantityConsumed;
+          p.totalBuyCost += item.totalBuyCost;
+          if (item.lotId) p.hasRestorable = true;
+        }
+
+        const products = [...productMap.values()];
+        const numDistinctProducts = products.length;
+        const allocatedProfitPerProduct =
+          numDistinctProducts > 0
+            ? Math.round(
+                ((b.totalProfit as number) / numDistinctProducts) * 100,
+              ) / 100
+            : 0;
+
+        return {
+          kind: "bundle" as const,
+          data: {
+            bundleId: b.id as string,
+            bundleName: b.name as string,
+            dateSold: b.dateSold as string | null,
+            createdAt: b.createdAt as string,
+            totalSellPrice: b.totalSellPrice as number,
+            totalBuyCost: b.totalBuyCost as number,
+            totalProfit: b.totalProfit as number,
+            products: products.map((p) => ({
+              productId: p.productId,
+              productName: p.productName,
+              totalQuantity: p.totalQuantity,
+              totalBuyCost: Math.round(p.totalBuyCost * 100) / 100,
+              weightedAvgBuyPrice:
+                p.totalQuantity > 0
+                  ? Math.round((p.totalBuyCost / p.totalQuantity) * 100) / 100
+                  : 0,
+              allocatedProfit: allocatedProfitPerProduct,
+              hasRestorable: p.hasRestorable,
+            })),
+          },
+        };
+      });
+
+      return {
+        items,
+        total,
+        totalPages: Math.ceil(total / safePageSize),
+      };
+    },
+    [`sales-combined-${userId}`],
+    { revalidate: 30 },
+  )(userId, safePage, safePageSize, safeSearch);
 }
 
 export async function updateBundle(
