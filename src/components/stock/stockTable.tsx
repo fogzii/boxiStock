@@ -50,6 +50,7 @@ interface StockTableProps {
   totalPages?: number;
   pageSize?: number;
   onPageChange?: (page: number) => void;
+  isExternalPending?: boolean;
 }
 
 const SKELETON_ROW_KEYS = Array.from(
@@ -325,9 +326,11 @@ export function StockTable({
   totalPages = 1,
   pageSize = 10,
   onPageChange,
+  isExternalPending = false,
 }: StockTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
+  const showSkeleton = isPending || isExternalPending;
 
   const handlePageChange = (page: number) => {
     startTransition(() => {
@@ -339,7 +342,7 @@ export function StockTable({
     });
   };
 
-  if (products.length === 0 && !isPending) {
+  if (products.length === 0 && !showSkeleton) {
     return (
       <div className="text-center py-16 bg-primary/5 rounded-2xl border border-primary/10">
         <Package className="w-12 h-12 text-primary/40 mx-auto mb-4" />
@@ -374,7 +377,7 @@ export function StockTable({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {isPending
+          {showSkeleton
             ? SKELETON_ROW_KEYS.map((key) => (
                 <TableRow
                   key={key}
@@ -410,7 +413,7 @@ export function StockTable({
         totalCount={totalCount}
         totalPages={totalPages}
         unitLabel="products"
-        isPending={isPending}
+        isPending={showSkeleton}
         onPageChange={handlePageChange}
         className="p-4 border-t border-primary/10"
       />

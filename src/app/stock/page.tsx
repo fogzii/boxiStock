@@ -1,8 +1,11 @@
 import { DatabaseZap } from "lucide-react";
-import { getInventoryPaginated, seedMockData } from "@/actions/stock";
+import {
+  getInventoryPaginated,
+  getInventoryValueByStatus,
+  seedMockData,
+} from "@/actions/stock";
 import { BundleSaleButton } from "@/components/stock/bundleSaleModal";
-import { StockFilters } from "@/components/stock/StockFilters";
-import { StockTable } from "@/components/stock/stockTable";
+import { StockPageControls } from "@/components/stock/StockPageControls";
 import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/SearchInput";
 
@@ -24,14 +27,18 @@ export default async function StockPage({
   const statusParam = resolvedParams?.status;
   const pageSize = 10;
 
-  const { products, totalCount, totalPages } = await getInventoryPaginated(
-    currentPage,
-    pageSize,
-    searchParamStr,
-    undefined,
-    sortParam,
-    statusParam,
-  );
+  const [{ products, totalCount, totalPages }, totalStockValue] =
+    await Promise.all([
+      getInventoryPaginated(
+        currentPage,
+        pageSize,
+        searchParamStr,
+        undefined,
+        sortParam,
+        statusParam,
+      ),
+      getInventoryValueByStatus(statusParam),
+    ]);
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 sm:px-8 pt-6 sm:pt-8">
@@ -47,13 +54,13 @@ export default async function StockPage({
         <BundleSaleButton />
       </div>
       <div className="mb-4">
-        <StockFilters currentSort={sortParam} currentStatus={statusParam} />
         {!isProduction && totalCount === 0 && !searchParamStr && (
           <form
             action={async () => {
               "use server";
               await seedMockData();
             }}
+            className="mb-3"
           >
             <Button type="submit" size="sm" variant="outline" className="group">
               <DatabaseZap className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
@@ -63,16 +70,16 @@ export default async function StockPage({
         )}
       </div>
 
-      {/* Expandable Product Rows */}
-      <div className="mb-4 pb-8">
-        <StockTable
-          products={products}
-          currentPage={currentPage}
-          pageSize={pageSize}
-          totalCount={totalCount}
-          totalPages={totalPages}
-        />
-      </div>
+      <StockPageControls
+        currentSort={sortParam}
+        currentStatus={statusParam}
+        totalStockValue={totalStockValue}
+        products={products}
+        currentPage={currentPage}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        totalPages={totalPages}
+      />
     </div>
   );
 }

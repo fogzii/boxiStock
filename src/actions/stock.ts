@@ -1066,6 +1066,28 @@ export async function getSalesMetrics(forUserId?: string) {
   )(userId);
 }
 
+export async function getInventoryValueByStatus(
+  status?: string,
+  forUserId?: string,
+): Promise<number> {
+  let userId: string;
+  if (forUserId) {
+    userId = forUserId;
+  } else {
+    const { userId: authUserId } = await auth();
+    if (!authUserId) throw new Error("Unauthorized");
+    userId = authUserId;
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_inventory_value_by_status", {
+    p_user_id: userId,
+    p_status: status ?? "all",
+  });
+  if (error) throw new Error(error.message);
+  return Math.round((data as number) * 100) / 100;
+}
+
 export async function getDashboardMetrics(forUserId?: string) {
   let userId: string;
   if (forUserId) {

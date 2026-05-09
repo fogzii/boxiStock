@@ -295,6 +295,10 @@ export type Database = {
             };
             Returns: Json;
           };
+      get_inventory_value_by_status: {
+        Args: { p_status?: string; p_user_id: string };
+        Returns: number;
+      };
       get_sales_by_month: {
         Args: { p_user_id: string };
         Returns: {

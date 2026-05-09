@@ -147,7 +147,11 @@ export function LotCard({
                 className="bg-primary/20 hover:bg-primary/30 text-primary border-none cursor-pointer"
               >
                 <PackageCheck className="w-3.5 h-3.5 mr-1" />
-                {isProcessing ? "..." : "Stocked"}
+                {isProcessing ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  "Stocked"
+                )}
               </Button>
             </CustomTooltip>
           )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, Check, ChevronDown } from "lucide-react";
+import { ArrowUpDown, Check, ChevronDown, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
 import { cn } from "@/lib/utils";
@@ -24,34 +24,54 @@ const STATUS_OPTIONS = [
 interface StockFiltersProps {
   currentSort?: string;
   currentStatus?: string;
+  onNavigate?: (url: string) => void;
+  totalStockValue?: number;
+  isPending?: boolean;
 }
 
 export function StockFilters({
   currentSort,
   currentStatus,
+  onNavigate,
+  totalStockValue,
+  isPending = false,
 }: StockFiltersProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
   const [sortOpen, setSortOpen] = React.useState(false);
+  const [pendingKey, setPendingKey] = React.useState<string | null>(null);
   const dropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    if (!isPending) setPendingKey(null);
+  }, [isPending]);
 
   const activeSort = currentSort ?? "";
   const activeStatus = currentStatus ?? "all";
   const activeSortLabel =
     SORT_OPTIONS.find((o) => o.value === activeSort)?.label ?? "Recent first";
 
-  function pushParams(updates: Record<string, string | undefined>) {
+  function pushParams(
+    updates: Record<string, string | undefined>,
+    key: string,
+  ) {
     const params = new URLSearchParams(searchParams.toString());
     params.delete("page");
-    for (const [key, val] of Object.entries(updates)) {
+    for (const [k, val] of Object.entries(updates)) {
       if (!val || val === "" || val === "all") {
-        params.delete(key);
+        params.delete(k);
       } else {
-        params.set(key, val);
+        params.set(k, val);
       }
     }
-    router.push(`${pathname}?${params.toString()}`);
+    setPendingKey(key);
+    const url = `${pathname}?${params.toString()}`;
+    if (onNavigate) {
+      onNavigate(url);
+    } else {
+      router.push(url);
+    }
   }
 
   // Close dropdown on outside click
@@ -70,7 +90,21 @@ export function StockFilters({
   }, [sortOpen]);
 
   return (
-    <div className="flex items-center justify-between gap-3 flex-wrap">
+    <div className="flex items-center gap-3 flex-wrap">
+      {/* Total stock value */}
+      {totalStockValue !== undefined && (
+        <div className="flex items-center gap-1.5 text-sm mr-auto">
+          <span className="text-muted-foreground">Total Stock Value:</span>
+          <span className="font-semibold text-foreground">
+            $
+            {totalStockValue.toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </span>
+        </div>
+      )}
+
       {/* Sort custom dropdown */}
       <div ref={dropdownRef} className="relative">
         <button
@@ -94,14 +128,17 @@ export function StockFilters({
           <div className="absolute top-full left-0 mt-1 z-50 w-full min-w-[190px] rounded-lg border border-primary/20 bg-card shadow-lg shadow-black/20 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100">
             {SORT_OPTIONS.map((opt) => {
               const isSelected = activeSort === opt.value;
+              const isThisPending =
+                isPending && pendingKey === `sort-${opt.value}`;
               return (
                 <button
                   key={opt.value}
                   type="button"
                   onClick={() => {
-                    pushParams({ sort: opt.value });
+                    pushParams({ sort: opt.value }, `sort-${opt.value}`);
                     setSortOpen(false);
                   }}
+                  disabled={isPending}
                   className={cn(
                     "cursor-pointer w-full flex items-center justify-between px-3 py-2 text-sm transition-colors",
                     isSelected
@@ -110,7 +147,11 @@ export function StockFilters({
                   )}
                 >
                   {opt.label}
-                  {isSelected && <Check className="w-3.5 h-3.5 shrink-0" />}
+                  {isThisPending ? (
+                    <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+                  ) : (
+                    isSelected && <Check className="w-3.5 h-3.5 shrink-0" />
+                  )}
                 </button>
               );
             })}
@@ -122,13 +163,18 @@ export function StockFilters({
       <div className="flex items-center border border-primary/20 rounded-lg overflow-hidden bg-background/50">
         {STATUS_OPTIONS.map((opt) => {
           const isActive = activeStatus === opt.value;
+          const isThisPending =
+            isPending && pendingKey === `status-${opt.value}`;
           return (
             <button
               key={opt.value}
               type="button"
-              onClick={() => pushParams({ status: opt.value })}
+              onClick={() =>
+                pushParams({ status: opt.value }, `status-${opt.value}`)
+              }
+              disabled={isPending}
               className={cn(
-                "cursor-pointer px-3 h-9 text-sm font-medium transition-colors",
+                "cursor-pointer px-3 h-9 text-sm font-medium transition-colors inline-flex items-center gap-1.5",
                 isActive
                   ? opt.value === "stocked"
                     ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
@@ -139,6 +185,9 @@ export function StockFilters({
                 "border-r border-primary/20 last:border-r-0",
               )}
             >
+              {isThisPending && (
+                <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+              )}
               {opt.label}
             </button>
           );
