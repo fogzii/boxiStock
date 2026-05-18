@@ -146,7 +146,9 @@ export function SellUnitsModal({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="quantity">Quantity to Sell</Label>
+            <Label htmlFor="quantity" className="text-muted-foreground">
+              Quantity to Sell
+            </Label>
             <Input
               id="quantity"
               name="quantity"
@@ -156,14 +158,16 @@ export function SellUnitsModal({
               value={quantity}
               onChange={handleQuantityChange}
               required
-              className="bg-background border-border/50"
+              className="bg-background/50 border-primary/20 h-11"
             />
           </div>
 
           <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row gap-3 items-end">
+            <div className="flex flex-row gap-3 items-end">
               <div className="space-y-2 flex-1">
-                <Label htmlFor="perUnit">Sell Price (per unit)</Label>
+                <Label htmlFor="perUnit" className="text-muted-foreground">
+                  Sell Price (per unit)
+                </Label>
                 <Input
                   id="perUnit"
                   name="salePrice"
@@ -174,14 +178,16 @@ export function SellUnitsModal({
                   onChange={handlePerUnitChange}
                   onBlur={handlePerUnitBlur}
                   required
-                  className="bg-background border-border/50"
+                  className="bg-background/50 border-primary/20 h-11"
                 />
               </div>
-              <div className="text-foreground/40 text-sm font-medium pb-2.5 hidden sm:block select-none">
+              <div className="text-foreground/40 text-sm font-medium pb-2.5 select-none">
                 or
               </div>
               <div className="space-y-2 flex-1">
-                <Label htmlFor="total">Sell Price (total)</Label>
+                <Label htmlFor="total" className="text-muted-foreground">
+                  Sell Price (total)
+                </Label>
                 <Input
                   id="total"
                   type="number"
@@ -191,7 +197,7 @@ export function SellUnitsModal({
                   onChange={handleTotalChange}
                   onBlur={handleTotalBlur}
                   required
-                  className="bg-background border-border/50"
+                  className="bg-background/50 border-primary/20 h-11"
                 />
               </div>
             </div>
@@ -200,21 +206,21 @@ export function SellUnitsModal({
             </p>
           </div>
 
-          <div className="flex justify-end gap-3 mt-2">
+          <div className="flex flex-col gap-3 mt-4">
+            <Button
+              type="submit"
+              disabled={isSubmitting || lot.remainingQuantity === 0}
+              className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold shadow-lg shadow-primary/20 cursor-pointer text-sm rounded-lg"
+            >
+              {isSubmitting ? "Processing..." : "Confirm Sale"}
+            </Button>
             <Button
               type="button"
               variant="ghost"
               onClick={() => setIsOpen(false)}
-              className="cursor-pointer"
+              className="w-full h-12 cursor-pointer text-sm rounded-lg hover:bg-white/5"
             >
               Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting || lot.remainingQuantity === 0}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold cursor-pointer"
-            >
-              {isSubmitting ? "Processing..." : "Confirm Sale"}
             </Button>
           </div>
         </form>

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import DatePicker from "react-date-picker";
 import { toast } from "sonner";
-import { createBundle } from "@/actions/stock";
+import { sellAllLots } from "@/actions/stock";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -64,12 +64,11 @@ export function SellAllModal({ product, children }: SellAllModalProps) {
     if (!canSubmit) return;
     setIsSubmitting(true);
     try {
-      await createBundle({
-        name: product.name,
-        totalSellPrice: round2(sellPrice),
-        dateSold: dateSold instanceof Date ? dateSold : new Date(),
-        items: [{ productId: product.id, quantity: totalQty }],
-      });
+      await sellAllLots(
+        product.id,
+        round2(sellPrice),
+        dateSold instanceof Date ? dateSold : new Date(),
+      );
       toast.success(`Sold all ${totalQty} units of "${product.name}".`);
       handleClose();
       router.refresh();

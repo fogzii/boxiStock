@@ -610,6 +610,78 @@ export async function sellLotUnits(
   revalidatePath("/", "layout");
 }
 
+export async function sellAllLots(
+  productId: string,
+  totalSellPrice: number,
+  dateSold: Date,
+) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const cleanProductId = cleanRequiredString(productId, "productId");
+  assertNonNegativeNumber(totalSellPrice, "totalSellPrice");
+
+  const supabase = await createClient();
+
+  const { data: lots } = await supabase
+    .from("StockLot")
+    .select("*, Product!inner(userId)")
+    .eq("productId", cleanProductId)
+    .eq("Product.userId", userId)
+    .gt("remainingQuantity", 0)
+    .order("dateAcquired", { ascending: true });
+
+  if (!lots || lots.length === 0) throw new Error("No stock to sell");
+
+  const totalQty = lots.reduce((s, l) => s + l.remainingQuantity, 0);
+  const perUnitPrice = Math.round((totalSellPrice / totalQty) * 100) / 100;
+  const dateSoldIso = dateSold.toISOString();
+  const now = new Date().toISOString();
+
+  // Pre-compute each lot's sale price, then adjust last lot for any cent remainder.
+  const lotSalePrices = lots.map(
+    (l) => Math.round(l.remainingQuantity * perUnitPrice * 100) / 100,
+  );
+  const priceSum =
+    Math.round(lotSalePrices.reduce((s, p) => s + p, 0) * 100) / 100;
+  const remainder = Math.round((totalSellPrice - priceSum) * 100) / 100;
+  lotSalePrices[lotSalePrices.length - 1] =
+    Math.round((lotSalePrices[lotSalePrices.length - 1] + remainder) * 100) /
+    100;
+
+  for (let i = 0; i < lots.length; i++) {
+    const lot = lots[i];
+    const lotSalePrice = lotSalePrices[i];
+    const lotProfit =
+      Math.round((lotSalePrice - lot.remainingQuantity * lot.buyPrice) * 100) /
+      100;
+
+    const { error: updateError } = await supabase
+      .from("StockLot")
+      .update({ remainingQuantity: 0 })
+      .eq("id", lot.id);
+    if (updateError)
+      throw new Error(`Lot update failed: ${updateError.message}`);
+
+    const { error: saleError } = await supabase.from("Sale").insert([
+      {
+        id: crypto.randomUUID(),
+        productId: cleanProductId,
+        quantitySold: lot.remainingQuantity,
+        totalSalePrice: lotSalePrice,
+        totalProfit: lotProfit,
+        dateSold: dateSoldIso,
+        createdAt: now,
+      },
+    ]);
+    if (saleError) throw new Error(`Sale insert failed: ${saleError.message}`);
+  }
+
+  await syncProductSalesStats(supabase, cleanProductId);
+  revalidatePath("/", "layout");
+}
+
 export async function seedMockData() {
   const { userId } = await auth();
   if (!userId) throw new Error("Unauthorized");
