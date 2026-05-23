@@ -31,5 +31,11 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules",
+    "packages/box-ds/tsup.config.ts",
+    "packages/box-ds/vite.config.ts",
+    "packages/box-ds/docs-src",
+    "packages/box-ds/docs-dist"
+  ]
 }
