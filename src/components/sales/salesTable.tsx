@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, CustomTooltip, Modal, Skeleton } from "@box-ds";
 import {
   ArrowDown,
   ArrowUp,
@@ -16,15 +17,12 @@ import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 import { deleteBundle, deleteProductSales, deleteSale } from "@/actions/stock";
-import { Button } from "@/components/ui/button";
-import { Modal } from "@/components/ui/modal";
-import { Skeleton } from "@/components/ui/skeleton";
+import { EditBundleModal } from "@/components/modals/editBundleModal";
+import { EditSaleModal } from "@/components/modals/editSaleModal";
+import { MergeSaleModal } from "@/components/modals/mergeSaleModal";
 import { TablePagination } from "@/components/ui/TablePagination";
-import { CustomTooltip } from "@/components/ui/tooltip";
 import { useReadOnly } from "@/lib/context/readOnly";
-import { EditBundleModal } from "./editBundleModal";
-import { EditSaleModal } from "./editSaleModal";
-import { MergeSaleModal } from "./mergeSaleModal";
+import { formatCurrency } from "@/lib/formatting";
 
 interface SaleItem {
   id: string;
@@ -95,13 +93,7 @@ function formatDate(dateStr: string | null | undefined): string {
   });
 }
 
-function ProductGroupRow({
-  group,
-  formatter,
-}: {
-  group: ProductSaleGroup;
-  formatter: Intl.NumberFormat;
-}) {
+function ProductGroupRow({ group }: { group: ProductSaleGroup }) {
   const isReadOnly = useReadOnly();
   const [isOpen, setIsOpen] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
@@ -144,7 +136,7 @@ function ProductGroupRow({
         className="cursor-pointer hover:bg-primary/5 transition-colors"
         onClick={() => setIsOpen((o) => !o)}
       >
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+        <td className="px-6 py-4 whitespace-nowrap text-body-sm text-muted-foreground">
           {formatDate(group.latestDate)}
         </td>
         <td className="px-6 py-4">
@@ -154,28 +146,28 @@ function ProductGroupRow({
             ) : (
               <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
             )}
-            <span className="font-semibold text-foreground text-sm">
+            <span className="text-body-sm-strong text-foreground">
               {group.productName}
             </span>
-            <span className="text-xs text-muted-foreground/50">
+            <span className="text-caption text-muted-foreground/50">
               ({saleCount} {saleCount === 1 ? "sale" : "sales"})
             </span>
           </div>
         </td>
-        <td className="px-6 py-4 text-sm">{group.totalQuantity}</td>
-        <td className="px-6 py-4 text-sm text-muted-foreground">
-          {formatter.format(totalBuy)}
+        <td className="px-6 py-4 text-body-sm">{group.totalQuantity}</td>
+        <td className="px-6 py-4 text-body-sm text-muted-foreground">
+          {formatCurrency(totalBuy)}
         </td>
-        <td className="px-6 py-4 text-sm font-medium text-primary">
-          {formatter.format(group.totalSalePrice)}
+        <td className="px-6 py-4 text-body-sm-strong text-primary">
+          {formatCurrency(group.totalSalePrice)}
         </td>
         <td
-          className={`px-6 py-4 text-sm font-medium ${
-            group.totalProfit >= 0 ? "text-emerald-400" : "text-destructive"
+          className={`px-6 py-4 text-body-sm-strong ${
+            group.totalProfit >= 0 ? "text-positive" : "text-destructive"
           }`}
         >
           {group.totalProfit >= 0 ? "+" : ""}
-          {formatter.format(group.totalProfit)}
+          {formatCurrency(group.totalProfit)}
         </td>
         <td className="pl-4 pr-6 py-4 w-px">
           {!isReadOnly && (
@@ -187,7 +179,7 @@ function ProductGroupRow({
                     e.stopPropagation();
                     setMergeOpen(true);
                   }}
-                  className="text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                  className="text-muted-foreground hover:text-primary transition-colors"
                   aria-label={`Merge sales for ${group.productName}`}
                 >
                   <Merge className="w-4 h-4" />
@@ -201,7 +193,7 @@ function ProductGroupRow({
                     setConfirmOpen(true);
                   }}
                   disabled={isDeletingGroup}
-                  className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:opacity-40"
+                  className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
                   aria-label={`Delete all sales for ${group.productName}`}
                 >
                   {isDeletingGroup ? (
@@ -223,40 +215,38 @@ function ProductGroupRow({
           return (
             <tr
               key={sale.id}
-              className="bg-white/[0.06] hover:bg-white/[0.09] transition-colors animate-in fade-in slide-in-from-top-1 duration-150"
+              className="bg-muted/30 hover:bg-muted/50 transition-colors animate-in fade-in slide-in-from-top-1 duration-150"
             >
-              <td className="px-6 py-3 whitespace-nowrap text-sm text-muted-foreground border-l-2 border-primary/50">
+              <td className="px-6 py-3 whitespace-nowrap text-body-sm text-muted-foreground border-l-2 border-primary/50">
                 {formatDate(sale.dateSold ?? sale.createdAt)}
               </td>
               <td className="px-6 py-3">
                 <div className="flex items-center gap-2">
                   <Package className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-                  <span className="text-sm text-foreground">
+                  <span className="text-body-sm text-foreground">
                     {group.productName}
                   </span>
                 </div>
                 {sale.notes && (
-                  <p className="text-xs text-muted-foreground/70 mt-0.5 truncate max-w-[200px] pl-[22px]">
+                  <p className="text-caption text-muted-foreground/70 mt-0.5 truncate max-w-[200px] pl-[22px]">
                     {sale.notes}
                   </p>
                 )}
               </td>
-              <td className="px-6 py-3 text-sm">{sale.quantitySold}</td>
-              <td className="px-6 py-3 text-sm text-muted-foreground">
-                {formatter.format(saleBuy)}
+              <td className="px-6 py-3 text-body-sm">{sale.quantitySold}</td>
+              <td className="px-6 py-3 text-body-sm text-muted-foreground">
+                {formatCurrency(saleBuy)}
               </td>
-              <td className="px-6 py-3 text-sm font-medium text-primary">
-                {formatter.format(sale.totalSalePrice)}
+              <td className="px-6 py-3 text-body-sm-strong text-primary">
+                {formatCurrency(sale.totalSalePrice)}
               </td>
               <td
-                className={`px-6 py-3 text-sm font-medium ${
-                  sale.totalProfit >= 0
-                    ? "text-emerald-400"
-                    : "text-destructive"
+                className={`px-6 py-3 text-body-sm-strong ${
+                  sale.totalProfit >= 0 ? "text-positive" : "text-destructive"
                 }`}
               >
                 {sale.totalProfit >= 0 ? "+" : ""}
-                {formatter.format(sale.totalProfit)}
+                {formatCurrency(sale.totalProfit)}
               </td>
               <td className="pl-4 pr-6 py-3 w-px">
                 {!isReadOnly && (
@@ -271,7 +261,7 @@ function ProductGroupRow({
                               open();
                             }}
                             disabled={deletingId === sale.id}
-                            className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40 cursor-pointer"
+                            className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
                             aria-label="Edit sale"
                           >
                             <Edit2 className="w-4 h-4" />
@@ -284,7 +274,7 @@ function ProductGroupRow({
                         type="button"
                         onClick={(e) => handleDeleteSale(e, sale.id)}
                         disabled={deletingId === sale.id}
-                        className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40 cursor-pointer"
+                        className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
                         aria-label="Delete sale"
                       >
                         {deletingId === sale.id ? (
@@ -308,7 +298,7 @@ function ProductGroupRow({
         title={`Delete all sales for "${group.productName}"?`}
       >
         <div className="flex flex-col gap-6">
-          <p className="text-sm text-foreground/80 leading-relaxed bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+          <p className="text-body-sm text-foreground/80 bg-negative-bg border border-negative/20 rounded-lg p-3">
             This will permanently delete{" "}
             <strong className="text-foreground">
               {saleCount} {saleCount === 1 ? "sale" : "sales"}
@@ -319,18 +309,17 @@ function ProductGroupRow({
           <div className="flex justify-end gap-3">
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               onClick={() => setConfirmOpen(false)}
               disabled={isDeletingGroup}
-              className="cursor-pointer"
             >
               Cancel
             </Button>
             <Button
               type="button"
+              variant="destructive"
               onClick={handleDeleteGroup}
               disabled={isDeletingGroup}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold cursor-pointer"
             >
               {isDeletingGroup
                 ? "Deleting..."
@@ -349,13 +338,7 @@ function ProductGroupRow({
   );
 }
 
-function BundleGroupRow({
-  bundle,
-  formatter,
-}: {
-  bundle: BundleGroup;
-  formatter: Intl.NumberFormat;
-}) {
+function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
   const isReadOnly = useReadOnly();
   const [isOpen, setIsOpen] = React.useState(false);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
@@ -386,7 +369,7 @@ function BundleGroupRow({
         className="cursor-pointer hover:bg-primary/5 transition-colors"
         onClick={() => setIsOpen((o) => !o)}
       >
-        <td className="px-6 py-4 whitespace-nowrap text-sm text-muted-foreground">
+        <td className="px-6 py-4 whitespace-nowrap text-body-sm text-muted-foreground">
           {formatDate(bundle.dateSold ?? bundle.createdAt)}
         </td>
         <td className="px-6 py-4">
@@ -396,30 +379,30 @@ function BundleGroupRow({
             ) : (
               <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
             )}
-            <span className="font-semibold text-foreground text-sm">
+            <span className="text-body-sm-strong text-foreground">
               {bundle.bundleName}
             </span>
-            <span className="text-xs bg-primary/15 text-primary px-1.5 py-0.5 rounded font-medium">
+            <span className="text-caption bg-primary/15 text-primary px-1.5 py-0.5 rounded">
               Bundle
             </span>
           </div>
         </td>
-        <td className="px-6 py-4 text-sm">
+        <td className="px-6 py-4 text-body-sm">
           {bundle.products.reduce((s, p) => s + p.totalQuantity, 0)}
         </td>
-        <td className="px-6 py-4 text-sm text-muted-foreground">
-          {formatter.format(bundle.totalBuyCost)}
+        <td className="px-6 py-4 text-body-sm text-muted-foreground">
+          {formatCurrency(bundle.totalBuyCost)}
         </td>
-        <td className="px-6 py-4 text-sm font-medium text-primary">
-          {formatter.format(bundle.totalSellPrice)}
+        <td className="px-6 py-4 text-body-sm-strong text-primary">
+          {formatCurrency(bundle.totalSellPrice)}
         </td>
         <td
-          className={`px-6 py-4 text-sm font-medium ${
-            bundle.totalProfit >= 0 ? "text-emerald-400" : "text-destructive"
+          className={`px-6 py-4 text-body-sm-strong ${
+            bundle.totalProfit >= 0 ? "text-positive" : "text-destructive"
           }`}
         >
           {bundle.totalProfit >= 0 ? "+" : ""}
-          {formatter.format(bundle.totalProfit)}
+          {formatCurrency(bundle.totalProfit)}
         </td>
         <td className="pl-4 pr-6 py-4 w-px">
           {!isReadOnly && (
@@ -433,7 +416,7 @@ function BundleGroupRow({
                         e.stopPropagation();
                         open();
                       }}
-                      className="text-muted-foreground hover:text-primary transition-colors cursor-pointer"
+                      className="text-muted-foreground hover:text-primary transition-colors"
                       aria-label="Edit bundle"
                     >
                       <Edit2 className="w-4 h-4" />
@@ -449,7 +432,7 @@ function BundleGroupRow({
                     setConfirmOpen(true);
                   }}
                   disabled={isDeleting}
-                  className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer disabled:opacity-40"
+                  className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
                   aria-label="Delete bundle"
                 >
                   {isDeleting ? (
@@ -469,29 +452,31 @@ function BundleGroupRow({
         bundle.products.map((product) => (
           <tr
             key={product.productId ?? product.productName}
-            className="bg-white/[0.06] hover:bg-white/[0.09] transition-colors animate-in fade-in slide-in-from-top-1 duration-150"
+            className="bg-muted/30 hover:bg-muted/50 transition-colors animate-in fade-in slide-in-from-top-1 duration-150"
           >
-            <td className="pl-14 pr-6 py-3 whitespace-nowrap text-sm text-muted-foreground border-l-2 border-primary/50">
+            <td className="pl-14 pr-6 py-3 whitespace-nowrap text-body-sm text-muted-foreground border-l-2 border-primary/50">
               —
             </td>
-            <td className="px-6 py-3 text-sm flex items-center gap-2">
+            <td className="px-6 py-3 text-body-sm flex items-center gap-2">
               <Package className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
               <span>{product.productName}</span>
             </td>
-            <td className="px-6 py-3 text-sm">{product.totalQuantity}</td>
-            <td className="px-6 py-3 text-sm text-muted-foreground">
-              {formatter.format(product.totalBuyCost)}
+            <td className="px-6 py-3 text-body-sm">{product.totalQuantity}</td>
+            <td className="px-6 py-3 text-body-sm text-muted-foreground">
+              {formatCurrency(product.totalBuyCost)}
             </td>
-            <td className="px-6 py-3 text-sm text-muted-foreground/50">—</td>
+            <td className="px-6 py-3 text-body-sm text-muted-foreground/50">
+              —
+            </td>
             <td
-              className={`px-6 py-3 text-sm font-medium ${
+              className={`px-6 py-3 text-body-sm-strong ${
                 product.allocatedProfit >= 0
-                  ? "text-emerald-400"
+                  ? "text-positive"
                   : "text-destructive"
               }`}
             >
               {product.allocatedProfit >= 0 ? "+" : ""}
-              {formatter.format(product.allocatedProfit)}
+              {formatCurrency(product.allocatedProfit)}
             </td>
             <td className="pl-4 pr-6 py-3 w-px" />
           </tr>
@@ -504,10 +489,10 @@ function BundleGroupRow({
         title={`Delete bundle "${bundle.bundleName}"?`}
       >
         <div className="flex flex-col gap-6">
-          <div className="text-sm text-foreground/80 leading-relaxed bg-destructive/10 border border-destructive/20 rounded-lg p-3 space-y-2">
+          <div className="text-body-sm text-foreground/80 bg-negative-bg border border-negative/20 rounded-lg p-3 space-y-2">
             <p>This will permanently delete this bundle sale record.</p>
             {unrestorableNames.length > 0 ? (
-              <p className="text-amber-400/90">
+              <p className="text-warning/90">
                 <strong>⚠ Note:</strong> {unrestorableNames.join(", ")}{" "}
                 {unrestorableNames.length === 1 ? "was" : "were"} fully depleted
                 by this bundle and{" "}
@@ -522,18 +507,17 @@ function BundleGroupRow({
           <div className="flex justify-end gap-3">
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               onClick={() => setConfirmOpen(false)}
               disabled={isDeleting}
-              className="cursor-pointer"
             >
               Cancel
             </Button>
             <Button
               type="button"
+              variant="destructive"
               onClick={handleDelete}
               disabled={isDeleting}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground font-bold cursor-pointer"
             >
               {isDeleting ? "Deleting..." : "Delete Bundle"}
             </Button>
@@ -568,7 +552,7 @@ function SortHeader({
       <button
         type="button"
         onClick={() => onSort(field)}
-        className={`flex items-center gap-1 cursor-pointer transition-colors select-none ${
+        className={`flex items-center gap-1 transition-colors select-none ${
           isActive ? "text-foreground" : "hover:text-foreground"
         }`}
       >
@@ -628,7 +612,7 @@ export function SalesTable({
   pageSize,
   onPageChange,
 }: SalesTableProps) {
-  const isReadOnly = useReadOnly();
+  const _isReadOnly = useReadOnly();
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
   const [sortField, setSortField] = React.useState<SortField | null>("date");
@@ -691,17 +675,12 @@ export function SalesTable({
     });
   };
 
-  const formatter = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
-
   return (
     <>
       <div className="bg-card/50 backdrop-blur-md rounded-xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs text-muted-foreground uppercase bg-muted/20 border-b border-border">
+          <table className="w-full text-body-sm text-left">
+            <thead className="text-caption text-muted-foreground uppercase bg-muted/20 border-b border-border">
               <tr>
                 <SortHeader
                   label="Date"
@@ -709,7 +688,7 @@ export function SalesTable({
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={handleSort}
-                  className="px-6 py-4 font-medium"
+                  className="px-6 py-4"
                 />
                 <SortHeader
                   label="Product"
@@ -717,7 +696,7 @@ export function SalesTable({
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={handleSort}
-                  className="px-6 py-4 font-medium"
+                  className="px-6 py-4"
                 />
                 <SortHeader
                   label="Quantity"
@@ -725,7 +704,7 @@ export function SalesTable({
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={handleSort}
-                  className="px-6 py-4 font-medium"
+                  className="px-6 py-4"
                 />
                 <SortHeader
                   label="Buy"
@@ -733,7 +712,7 @@ export function SalesTable({
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={handleSort}
-                  className="px-6 py-4 font-medium"
+                  className="px-6 py-4"
                 />
                 <SortHeader
                   label="Sell"
@@ -741,7 +720,7 @@ export function SalesTable({
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={handleSort}
-                  className="px-6 py-4 font-medium"
+                  className="px-6 py-4"
                 />
                 <SortHeader
                   label="Net Profit"
@@ -749,7 +728,7 @@ export function SalesTable({
                   sortField={sortField}
                   sortDir={sortDir}
                   onSort={handleSort}
-                  className="px-6 py-4 font-medium"
+                  className="px-6 py-4"
                 />
                 <th className="pl-4 pr-6 py-4 w-[72px]" />
               </tr>
@@ -792,13 +771,11 @@ export function SalesTable({
                     <ProductGroupRow
                       key={item.data.productId}
                       group={item.data}
-                      formatter={formatter}
                     />
                   ) : (
                     <BundleGroupRow
                       key={item.data.bundleId}
                       bundle={item.data}
-                      formatter={formatter}
                     />
                   ),
                 )

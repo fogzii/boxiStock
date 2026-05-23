@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, Input } from "@box-ds";
 import {
   ArrowLeft,
   PackageSearch,
@@ -13,16 +14,11 @@ import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { bulkAddLotsAndProducts, bulkAddSales } from "@/actions/stock";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useAIImport } from "@/context/AIImportContext";
+import { round2 } from "@/lib/formatting";
 
 const _today = new Date();
 const TODAY = `${String(_today.getDate()).padStart(2, "0")}-${String(_today.getMonth() + 1).padStart(2, "0")}-${_today.getFullYear()}`;
-
-function round2(value: number): number {
-  return Math.round(value * 100) / 100;
-}
 
 function clampPositiveInt(value: number): number {
   const n = Math.floor(value);
@@ -227,7 +223,7 @@ export default function AIImportReviewPage() {
         <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             {/* min-w keeps it scrollable on mobile; colgroup pins narrow cols */}
-            <table className="w-full min-w-[700px] text-sm text-left">
+            <table className="w-full min-w-[700px] text-body-sm text-left">
               <colgroup>
                 <col />
                 <col style={{ width: "80px" }} />
@@ -236,13 +232,13 @@ export default function AIImportReviewPage() {
                 <col style={{ width: "108px" }} />
                 <col style={{ width: "40px" }} />
               </colgroup>
-              <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
+              <thead className="bg-canvas-soft text-body uppercase text-caption">
                 <tr>
-                  <th className="px-4 py-4 font-semibold">Product Name</th>
-                  <th className="px-2 py-4 font-semibold text-right">Qty</th>
-                  <th className="px-2 py-4 font-semibold text-right">Price</th>
-                  <th className="px-4 py-4 font-semibold">Notes</th>
-                  <th className="px-2 py-4 font-semibold text-center whitespace-nowrap">
+                  <th className="px-4 py-4">Product Name</th>
+                  <th className="px-2 py-4 text-right">Qty</th>
+                  <th className="px-2 py-4 text-right">Price</th>
+                  <th className="px-4 py-4">Notes</th>
+                  <th className="px-2 py-4 text-center whitespace-nowrap">
                     Received date
                   </th>
                   <th />
@@ -338,14 +334,15 @@ export default function AIImportReviewPage() {
                         />
                       </td>
                       <td className="py-2 pr-3 text-center">
-                        <button
+                        <Button
                           type="button"
+                          size="icon-sm"
+                          variant="destructive-ghost"
                           onClick={() => handleDeleteStockRow(globalIdx)}
-                          className="cursor-pointer p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                           aria-label="Delete row"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -359,7 +356,7 @@ export default function AIImportReviewPage() {
             <button
               type="button"
               onClick={handleAddStockRow}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-1 cursor-pointer"
+              className="flex items-center gap-1.5 text-caption text-body hover:text-primary transition-colors py-1"
             >
               <Plus className="w-3.5 h-3.5" />
               Add row
@@ -380,7 +377,7 @@ export default function AIImportReviewPage() {
       <div className="space-y-4">
         <div className="rounded-xl border border-border bg-background shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-sm text-left">
+            <table className="w-full min-w-[820px] text-body-sm text-left">
               <colgroup>
                 <col />
                 <col style={{ width: "80px" }} />
@@ -390,14 +387,14 @@ export default function AIImportReviewPage() {
                 <col style={{ width: "108px" }} />
                 <col style={{ width: "40px" }} />
               </colgroup>
-              <thead className="bg-muted/50 text-muted-foreground uppercase text-xs">
+              <thead className="bg-canvas-soft text-body uppercase text-caption">
                 <tr>
-                  <th className="px-4 py-4 font-semibold">Product Name</th>
-                  <th className="px-2 py-4 font-semibold text-right">Qty</th>
-                  <th className="px-2 py-4 font-semibold text-right">Buy</th>
-                  <th className="px-2 py-4 font-semibold text-right">Sell</th>
-                  <th className="px-4 py-4 font-semibold">Notes</th>
-                  <th className="px-2 py-4 font-semibold text-center whitespace-nowrap">
+                  <th className="px-4 py-4">Product Name</th>
+                  <th className="px-2 py-4 text-right">Qty</th>
+                  <th className="px-2 py-4 text-right">Buy</th>
+                  <th className="px-2 py-4 text-right">Sell</th>
+                  <th className="px-4 py-4">Notes</th>
+                  <th className="px-2 py-4 text-center whitespace-nowrap">
                     Date sold
                   </th>
                   <th />
@@ -519,14 +516,15 @@ export default function AIImportReviewPage() {
                         />
                       </td>
                       <td className="py-2 pr-3 text-center">
-                        <button
+                        <Button
                           type="button"
+                          size="icon-sm"
+                          variant="destructive-ghost"
                           onClick={() => handleDeleteSaleRow(globalIdx)}
-                          className="cursor-pointer p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                           aria-label="Delete row"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -540,7 +538,7 @@ export default function AIImportReviewPage() {
             <button
               type="button"
               onClick={handleAddSaleRow}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-1 cursor-pointer"
+              className="flex items-center gap-1.5 text-caption text-body hover:text-primary transition-colors py-1"
             >
               <Plus className="w-3.5 h-3.5" />
               Add row
@@ -562,7 +560,7 @@ export default function AIImportReviewPage() {
       >
         Previous
       </Button>
-      <span className="text-sm font-medium">
+      <span className="text-body-sm-strong">
         Page {page} of {totalPages}
       </span>
       <Button
@@ -580,11 +578,11 @@ export default function AIImportReviewPage() {
     <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-3">
+          <h1 className="font-display text-display-md text-foreground flex items-center gap-3">
             <PackageSearch className="w-8 h-8 text-primary" />
             AI Import Review
           </h1>
-          <p className="text-muted-foreground mt-2 text-sm sm:text-base">
+          <p className="text-body mt-2 text-body-sm sm:text-body-md">
             Please verify the extracted information. You can edit, add, or
             remove rows before confirming.
           </p>
@@ -593,7 +591,7 @@ export default function AIImportReviewPage() {
 
       <div>
         <div className="flex border-b border-border/50 mb-4 pb-2 select-none">
-          <div className="px-4 py-2 font-bold text-lg text-primary border-b-2 border-primary">
+          <div className="px-4 py-2 text-body-lg text-primary border-b-2 border-primary">
             {importData.type === "stock"
               ? "Parsed Stock Lots"
               : "Parsed Sales History"}
@@ -611,7 +609,7 @@ export default function AIImportReviewPage() {
               <button
                 type="button"
                 onClick={handleAddStockRow}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-1 cursor-pointer"
+                className="flex items-center gap-1.5 text-caption text-body hover:text-primary transition-colors py-1"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add row
@@ -629,7 +627,7 @@ export default function AIImportReviewPage() {
               <button
                 type="button"
                 onClick={handleAddSaleRow}
-                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors py-1 cursor-pointer"
+                className="flex items-center gap-1.5 text-caption text-body hover:text-primary transition-colors py-1"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add row
@@ -642,9 +640,9 @@ export default function AIImportReviewPage() {
         {/* Row 1: Cancel + Try Again */}
         <div className="flex items-center justify-between gap-3">
           <Button
-            variant="ghost"
+            variant="outline"
             onClick={handleCancel}
-            className="h-12 text-muted-foreground hover:text-foreground cursor-pointer"
+            className="h-12 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Cancel
@@ -652,7 +650,7 @@ export default function AIImportReviewPage() {
           <Button
             variant="outline"
             onClick={handleTryAgain}
-            className="h-12 px-6 border-primary/20 hover:bg-primary/5 shadow-sm cursor-pointer"
+            className="h-12 px-6 border-primary/20 hover:bg-primary/5 shadow-sm"
           >
             <RefreshCcw className="w-4 h-4 mr-2 text-primary" />
             Try Again
@@ -667,7 +665,7 @@ export default function AIImportReviewPage() {
               ? stockLots.length === 0
               : sales.length === 0)
           }
-          className="h-12 w-full bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-white gap-2 font-bold cursor-pointer sm:hidden"
+          className="h-12 w-full bg-primary hover:bg-primary-active shadow-glow-subtle text-ink-deep gap-2 sm:hidden"
         >
           {isSaving ? "Saving..." : "Confirm & Save"}
           <Save className="w-4 h-4" />
@@ -681,7 +679,7 @@ export default function AIImportReviewPage() {
                 ? stockLots.length === 0
                 : sales.length === 0)
             }
-            className="h-12 bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20 text-white gap-2 font-bold px-8 cursor-pointer"
+            className="h-12 bg-primary hover:bg-primary-active shadow-glow-subtle text-ink-deep gap-2 px-8"
           >
             {isSaving ? "Saving..." : "Confirm & Save"}
             <Save className="w-4 h-4" />

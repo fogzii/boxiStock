@@ -1,9 +1,9 @@
 "use client";
 
+import { Input } from "@box-ds";
 import { Search } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 interface SearchInputProps {
@@ -59,7 +59,7 @@ export function SearchInput({
         placeholder={placeholder}
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
-        className="pl-9 h-9 text-sm w-full bg-card"
+        className="pl-9 h-9 text-body-sm w-full bg-card"
       />
     </div>
   );

@@ -9,16 +9,16 @@ const EFFECTIVE_DATE = "May 3, 2026";
 export default function TermsPage() {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 sm:px-8 py-12 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
+      <h1 className="font-display text-display-md text-foreground mb-2">
         Terms of Service
       </h1>
-      <p className="text-sm text-muted-foreground mb-10">
+      <p className="text-body-sm text-body mb-10">
         Effective date: {EFFECTIVE_DATE}
       </p>
 
-      <div className="prose-content space-y-8 text-sm text-foreground/90 leading-relaxed">
+      <div className="prose-content space-y-8 text-body-sm text-foreground/90">
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             1. Acceptance of Terms
           </h2>
           <p>
@@ -30,7 +30,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             2. Description of Service
           </h2>
           <p>
@@ -43,7 +43,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             3. User Accounts
           </h2>
           <p>
@@ -66,7 +66,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             4. Acceptable Use
           </h2>
           <p>You agree not to:</p>
@@ -95,7 +95,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             5. Your Data
           </h2>
           <p>
@@ -113,7 +113,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             6. Share Links
           </h2>
           <p>
@@ -136,7 +136,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             7. AI-Assisted Features
           </h2>
           <p>
@@ -149,7 +149,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             8. Disclaimer of Warranties
           </h2>
           <p>
@@ -162,7 +162,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             9. Limitation of Liability
           </h2>
           <p>
@@ -175,7 +175,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             10. Termination
           </h2>
           <p>
@@ -189,7 +189,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             11. Changes to Terms
           </h2>
           <p>
@@ -200,7 +200,7 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             12. Governing Law
           </h2>
           <p>
@@ -212,7 +212,9 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">13. Contact</h2>
+          <h2 className="font-display text-display-xs text-foreground">
+            13. Contact
+          </h2>
           <p>
             For questions about these Terms, please contact us at{" "}
             <a

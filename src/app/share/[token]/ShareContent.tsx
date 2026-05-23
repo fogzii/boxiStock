@@ -104,7 +104,7 @@ export function ShareContent({
                 type="button"
                 onClick={() => setActiveTab(key)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px cursor-pointer",
+                  "flex items-center gap-2 px-4 py-2.5 text-body-sm-strong border-b-2 transition-colors -mb-px",
                   activeTab === key
                     ? "border-primary text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-primary/40",

@@ -34,7 +34,7 @@ export function NavListItem({
       <Icon className="w-5 h-5 shrink-0" />
       <span
         className={cn(
-          "font-semibold text-sm whitespace-nowrap transition-all duration-300",
+          "text-body-sm-strong whitespace-nowrap transition-all duration-300",
           isCollapsed ? "md:opacity-0 md:w-0 overflow-hidden" : "opacity-100",
         )}
       >

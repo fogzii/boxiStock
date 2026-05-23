@@ -9,16 +9,16 @@ const EFFECTIVE_DATE = "May 3, 2026";
 export default function PrivacyPage() {
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 sm:px-8 py-12 max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
+      <h1 className="font-display text-display-md text-foreground mb-2">
         Privacy Policy
       </h1>
-      <p className="text-sm text-muted-foreground mb-10">
+      <p className="text-body-sm text-body mb-10">
         Effective date: {EFFECTIVE_DATE}
       </p>
 
-      <div className="space-y-8 text-sm text-foreground/90 leading-relaxed">
+      <div className="space-y-8 text-body-sm text-foreground/90">
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             1. Introduction
           </h2>
           <p>
@@ -31,7 +31,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             2. Information We Collect
           </h2>
           <p>
@@ -70,7 +70,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             3. How We Use Your Information
           </h2>
           <ul className="list-disc list-inside space-y-1 text-foreground/80 ml-2">
@@ -95,7 +95,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             4. Share Links and Public Data Exposure
           </h2>
           <p>
@@ -117,7 +117,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             5. Third-Party Services
           </h2>
           <p>BoxiStock uses the following third-party services to operate:</p>
@@ -192,7 +192,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             6. Data Retention
           </h2>
           <p>
@@ -206,7 +206,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             7. Data Security
           </h2>
           <p>
@@ -219,7 +219,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             8. Your Rights
           </h2>
           <p>Depending on your location, you may have the right to:</p>
@@ -245,7 +245,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             9. Children&apos;s Privacy
           </h2>
           <p>
@@ -257,7 +257,7 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">
+          <h2 className="font-display text-display-xs text-foreground">
             10. Changes to This Policy
           </h2>
           <p>
@@ -268,7 +268,9 @@ export default function PrivacyPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">11. Contact</h2>
+          <h2 className="font-display text-display-xs text-foreground">
+            11. Contact
+          </h2>
           <p>
             For privacy-related questions or requests, please contact us at{" "}
             <a

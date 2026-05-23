@@ -1,5 +1,6 @@
 "use client";
 
+import { Button, CustomTooltip } from "@box-ds";
 import { format } from "date-fns";
 import {
   Check,
@@ -13,13 +14,11 @@ import {
   X,
 } from "lucide-react";
 import * as React from "react";
+import { DeleteUnitsModal } from "@/components/modals/deleteUnitsModal";
+import { EditLotModal } from "@/components/modals/editLotModal";
+import { SellUnitsModal } from "@/components/modals/sellUnitsModal";
 import { StockStatusBadge } from "@/components/stock/StockStatusBadge";
-import { Button } from "@/components/ui/button";
-import { CustomTooltip } from "@/components/ui/tooltip";
 import { useReadOnly } from "@/lib/context/readOnly";
-import { DeleteUnitsModal } from "./deleteUnitsModal";
-import { EditLotModal } from "./editLotModal";
-import { SellUnitsModal } from "./sellUnitsModal";
 
 export type StockLot = {
   id: string;
@@ -105,12 +104,12 @@ export function LotCard({
           </div>
           <div className="flex flex-col gap-1">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-foreground">
+              <p className="text-body-sm-strong text-foreground">
                 {lot.lotIdentity ? lot.lotIdentity : `Lot #${lotRef}`}
               </p>
               <StockStatusBadge isStocked={lot.isStocked} />
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-caption text-muted-foreground">
               {lot.isStocked ? "Received" : "Created"}{" "}
               {format(new Date(lot.dateAcquired), "MMM dd, yyyy")}
             </p>
@@ -119,10 +118,10 @@ export function LotCard({
 
         {/* Quantity & Unit Price */}
         <div className="w-[250px] text-right flex flex-col gap-1">
-          <p className="text-sm font-medium text-foreground">
+          <p className="text-body-sm-strong text-foreground">
             {lot.remainingQuantity} units @ ${lot.buyPrice.toFixed(2)}
           </p>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-caption text-muted-foreground">
             ${totalValue.toFixed(2)} Total
           </p>
         </div>
@@ -144,7 +143,7 @@ export function LotCard({
                 size="sm"
                 onClick={() => onMarkStocked(lot.id)}
                 disabled={isProcessing}
-                className="bg-primary/20 hover:bg-primary/30 text-primary border-none cursor-pointer"
+                className="bg-primary/20 hover:bg-primary/30 text-primary border-none"
               >
                 <PackageCheck className="w-3.5 h-3.5 mr-1" />
                 {isProcessing ? (
@@ -162,7 +161,7 @@ export function LotCard({
                 <Button
                   size="sm"
                   onClick={open}
-                  className="bg-primary/20 hover:bg-primary/30 text-primary border-none cursor-pointer"
+                  className="bg-primary/20 hover:bg-primary/30 text-primary border-none"
                 >
                   <ShoppingCart className="w-3.5 h-3.5 mr-1" />
                   Sell
@@ -179,7 +178,7 @@ export function LotCard({
                   variant="ghost"
                   onClick={open}
                   disabled={isProcessing}
-                  className="text-muted-foreground hover:text-primary cursor-pointer"
+                  className="text-muted-foreground hover:text-primary"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
                 </Button>
@@ -192,10 +191,9 @@ export function LotCard({
               {(open) => (
                 <Button
                   size="sm"
-                  variant="ghost"
+                  variant="destructive-ghost"
                   onClick={open}
                   disabled={isProcessing}
-                  className="text-muted-foreground hover:text-destructive cursor-pointer"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </Button>
@@ -209,7 +207,7 @@ export function LotCard({
       <div className="px-5 pb-3 pl-[52px]">
         {isReadOnly ? (
           lot.notes ? (
-            <span className="text-xs italic text-muted-foreground/70">
+            <span className="text-caption italic text-muted-foreground/70">
               {lot.notes}
             </span>
           ) : null
@@ -229,7 +227,7 @@ export function LotCard({
               disabled={isSavingNotes}
               maxLength={MAX_NOTES_LENGTH}
               placeholder="Add a short note..."
-              className="h-6 flex-1 max-w-[260px] text-xs bg-primary/5 border border-primary/20 rounded px-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-50"
+              className="h-6 flex-1 max-w-[260px] text-caption bg-primary/5 border border-primary/20 rounded px-2 text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-colors disabled:opacity-50"
             />
             <span className="text-[10px] text-muted-foreground/40 tabular-nums">
               {notesValue.length}/{MAX_NOTES_LENGTH}
@@ -238,7 +236,7 @@ export function LotCard({
               type="button"
               onClick={handleSaveNotes}
               disabled={isSavingNotes}
-              className="p-0.5 hover:bg-primary/10 rounded transition-colors text-primary cursor-pointer disabled:cursor-default"
+              className="p-0.5 hover:bg-primary/10 rounded transition-colors text-primary disabled:cursor-default"
             >
               {isSavingNotes ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -246,20 +244,21 @@ export function LotCard({
                 <Check className="w-3.5 h-3.5" />
               )}
             </button>
-            <button
+            <Button
               type="button"
+              size="icon-sm"
+              variant="ghost"
               onClick={handleCancelNotes}
               disabled={isSavingNotes}
-              className="p-0.5 hover:bg-destructive/10 rounded transition-colors text-muted-foreground hover:text-destructive cursor-pointer disabled:cursor-default"
             >
               <X className="w-3.5 h-3.5" />
-            </button>
+            </Button>
           </div>
         ) : (
           <button
             type="button"
             onClick={() => setIsEditingNotes(true)}
-            className="group/notes flex items-center gap-1.5 text-xs transition-colors cursor-pointer"
+            className="group/notes flex items-center gap-1.5 text-caption transition-colors"
           >
             {lot.notes ? (
               <>

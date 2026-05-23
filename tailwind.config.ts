@@ -7,6 +7,7 @@ const config = {
     "./components/**/*.{ts,tsx}",
     "./app/**/*.{ts,tsx}",
     "./src/**/*.{ts,tsx}",
+    "./packages/**/*.{ts,tsx}",
   ],
   theme: {
     container: {
@@ -50,6 +51,18 @@ const config = {
         card: {
           DEFAULT: "var(--card)",
           foreground: "var(--card-foreground)",
+        },
+        positive: {
+          DEFAULT: "var(--positive)",
+          surface: "var(--positive-surface)",
+        },
+        warning: {
+          DEFAULT: "var(--warning)",
+          surface: "var(--warning-surface)",
+        },
+        negative: {
+          DEFAULT: "var(--negative)",
+          surface: "var(--negative-surface)",
         },
         sidebar: {
           DEFAULT: "var(--sidebar)",

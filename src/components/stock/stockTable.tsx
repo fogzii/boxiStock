@@ -1,6 +1,17 @@
 "use client";
 
 import {
+  Button,
+  Input,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@box-ds";
+import {
   Check,
   ChevronDown,
   ChevronRight,
@@ -19,20 +30,10 @@ import {
   updateLotNotes,
   updateProductName,
 } from "@/actions/stock";
-import { AddLotModal } from "@/components/stock/addLotModal";
+import { AddLotModal } from "@/components/modals/addLotModal";
+import { SellAllModal } from "@/components/modals/sellAllModal";
 import { LotCard, type StockLot } from "@/components/stock/lotCard";
-import { SellAllModal } from "@/components/stock/sellAllModal";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { TablePagination } from "@/components/ui/TablePagination";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useReadOnly } from "@/lib/context/readOnly";
 import { cn } from "@/lib/utils";
 import { StockStatusBadge } from "./StockStatusBadge";
@@ -179,7 +180,7 @@ function ProductRow({ product }: { product: ProductWithLots }) {
                 <Input
                   value={editedName}
                   onChange={(e) => setEditedName(e.target.value)}
-                  className="h-7 text-sm font-semibold max-w-[200px]"
+                  className="h-7 text-body-sm-strong max-w-[200px]"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleEditName();
@@ -198,21 +199,22 @@ function ProductRow({ product }: { product: ProductWithLots }) {
                 >
                   <Check className="w-4 h-4" />
                 </button>
-                <button
+                <Button
                   type="button"
+                  size="icon-sm"
+                  variant="ghost"
                   onClick={() => {
                     setIsEditingName(false);
                     setEditedName(product.name);
                   }}
                   disabled={isUpdating === "name"}
-                  className="p-1 hover:bg-destructive/10 rounded-md transition-colors text-destructive"
                 >
                   <X className="w-4 h-4" />
-                </button>
+                </Button>
               </div>
             ) : (
               <div className="flex items-center gap-2 group/name">
-                <span className="font-semibold text-foreground text-sm">
+                <span className="text-body-sm-strong text-foreground">
                   {product.name}
                 </span>
                 {hasPending && <StockStatusBadge isStocked={false} />}
@@ -234,16 +236,16 @@ function ProductRow({ product }: { product: ProductWithLots }) {
         </TableCell>
         <TableCell
           className={cn(
-            "px-5 py-4 text-right text-sm w-[250px]",
-            showPendingTotals ? "text-yellow-500" : "text-foreground",
+            "px-5 py-4 text-right text-body-sm w-[250px]",
+            showPendingTotals ? "text-warning" : "text-foreground",
           )}
         >
           {showPendingTotals ? pendingStock : totalStock} Units
         </TableCell>
         <TableCell
           className={cn(
-            "px-5 py-4 text-right text-sm font-semibold w-[250px]",
-            showPendingTotals ? "text-yellow-500" : "text-foreground",
+            "px-5 py-4 text-right text-body-sm-strong w-[250px]",
+            showPendingTotals ? "text-warning" : "text-foreground",
           )}
         >
           ${(showPendingTotals ? pendingValue : totalValue).toFixed(2)}
@@ -256,7 +258,7 @@ function ProductRow({ product }: { product: ProductWithLots }) {
           <TableCell colSpan={3} className="p-0">
             <div className="animate-in fade-in slide-in-from-top-2 duration-200 border-t border-primary/20">
               {/* Lot Sub-Header (desktop only) */}
-              <div className="hidden md:flex md:items-center px-5 py-2 border-t border-primary/20 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+              <div className="hidden md:flex md:items-center px-5 py-2 border-t border-primary/20 text-caption uppercase tracking-widest text-muted-foreground">
                 <span className="flex-1">Lot Identity</span>
                 <span className="w-[250px] text-right">
                   Quantity & Unit Price
@@ -286,7 +288,7 @@ function ProductRow({ product }: { product: ProductWithLots }) {
                         <button
                           type="button"
                           onClick={open}
-                          className="flex items-center gap-2 text-xs font-medium text-primary-foreground bg-primary hover:bg-primary/90 px-3 py-1.5 rounded-md transition-all cursor-pointer"
+                          className="flex items-center gap-2 text-caption text-primary-foreground bg-primary hover:bg-primary-active px-3 py-1.5 rounded-md transition-all"
                         >
                           <ShoppingCart className="w-3.5 h-3.5" />
                           Sell all
@@ -302,7 +304,7 @@ function ProductRow({ product }: { product: ProductWithLots }) {
                       <button
                         type="button"
                         onClick={open}
-                        className="flex items-center gap-2 text-xs font-medium text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 px-3 py-1.5 rounded-md transition-all cursor-pointer"
+                        className="flex items-center gap-2 text-caption text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 px-3 py-1.5 rounded-md transition-all"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         Add more stock
@@ -346,10 +348,10 @@ export function StockTable({
     return (
       <div className="text-center py-16 bg-primary/5 rounded-2xl border border-primary/10">
         <Package className="w-12 h-12 text-primary/40 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-foreground mb-2">
+        <h3 className="font-display text-display-xs text-foreground mb-2">
           No Inventory Found
         </h3>
-        <p className="text-muted-foreground text-sm max-w-md mx-auto">
+        <p className="text-muted-foreground text-body-sm max-w-md mx-auto">
           Add your first product to start tracking inventory and lots.
         </p>
       </div>
@@ -360,7 +362,7 @@ export function StockTable({
     <div className="rounded-2xl border border-primary/10 overflow-hidden bg-background shadow-sm">
       <Table>
         <TableHeader>
-          <TableRow className="bg-primary/5 text-muted-foreground text-xs uppercase tracking-widest font-bold hover:bg-primary/5">
+          <TableRow className="bg-primary/5 text-muted-foreground text-caption uppercase tracking-widest hover:bg-primary/5">
             <TableHead className="px-5 py-2">Product</TableHead>
             <TableHead className="px-5 py-2 text-right w-[250px]">
               <span className="inline-flex items-center justify-end gap-2 w-full">

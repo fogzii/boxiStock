@@ -31,8 +31,10 @@ export default async function SharePage({
         <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
           <LinkIcon className="w-7 h-7 text-primary/60" />
         </div>
-        <h1 className="text-2xl font-bold text-foreground">Link not found</h1>
-        <p className="text-muted-foreground max-w-sm">
+        <h1 className="font-display text-display-xs text-foreground">
+          Link not found
+        </h1>
+        <p className="text-body-md text-body max-w-sm">
           This share link is invalid, has expired, or has been disabled by its
           owner.
         </p>

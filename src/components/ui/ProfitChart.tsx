@@ -94,21 +94,21 @@ export function ProfitChart({
     >
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
         <div>
-          <h4 className="text-xl font-bold text-foreground">
+          <h4 className="font-display text-display-xs text-foreground">
             Profit Over Time
           </h4>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-muted-foreground text-sm">
+            <span className="text-muted-foreground text-body-sm">
               {modeLabels[mode].sublabel}
             </span>
           </div>
         </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-4 w-full sm:w-auto">
+        <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
           <button
             type="button"
             onClick={() => setIsCumulative(!isCumulative)}
             className={cn(
-              "px-3 py-1.5 rounded-md text-xs font-bold transition-colors border cursor-pointer text-center",
+              "px-3 py-1.5 rounded-md text-caption transition-colors border text-center",
               isCumulative
                 ? "bg-primary border-primary text-primary-foreground shadow-sm"
                 : "bg-transparent border-primary/20 text-muted-foreground hover:text-foreground hover:bg-primary/5",
@@ -123,7 +123,7 @@ export function ProfitChart({
                 type="button"
                 onClick={() => setMode(m)}
                 className={cn(
-                  "flex-1 px-4 py-1.5 whitespace-nowrap rounded-md text-xs font-bold transition-colors cursor-pointer",
+                  "flex-1 px-4 py-1.5 whitespace-nowrap rounded-md text-caption transition-colors",
                   mode === m
                     ? "bg-primary text-background shadow-sm"
                     : "text-muted-foreground hover:text-foreground",
@@ -173,10 +173,10 @@ export function ProfitChart({
                   const value = Number(first.value ?? 0);
                   return (
                     <div className="bg-background border border-border p-3 rounded-xl shadow-xl">
-                      <p className="text-sm font-bold text-foreground">
+                      <p className="text-body-sm-strong text-foreground">
                         {name}
                       </p>
-                      <p className="text-sm text-primary font-bold">
+                      <p className="text-body-sm-strong text-primary">
                         {formatter.format(value)}
                       </p>
                     </div>

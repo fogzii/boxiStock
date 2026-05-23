@@ -16,8 +16,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 sm:px-8 pt-6 sm:pt-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">
+      <div className="mb-8 flex items-center justify-between">
+        <h1 className="font-display text-display-md text-foreground">
           Dashboard Overview
         </h1>
       </div>

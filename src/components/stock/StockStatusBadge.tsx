@@ -1,4 +1,4 @@
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@box-ds";
 
 interface StockStatusBadgeProps {
   isStocked: boolean;
@@ -6,14 +6,7 @@ interface StockStatusBadgeProps {
 
 export function StockStatusBadge({ isStocked }: StockStatusBadgeProps) {
   return (
-    <Badge
-      variant={isStocked ? "default" : "secondary"}
-      className={
-        isStocked
-          ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20 px-1.5 py-0 text-[10px]"
-          : "bg-amber-500/15 text-amber-400 border-amber-500/20 px-1.5 py-0 text-[10px]"
-      }
-    >
+    <Badge variant={isStocked ? "positive" : "warning"}>
       {isStocked ? "In Stock" : "Pending"}
     </Badge>
   );

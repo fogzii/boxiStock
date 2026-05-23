@@ -1,5 +1,6 @@
 "use client";
 
+import { Button } from "@box-ds";
 import {
   AlertTriangle,
   BadgeDollarSign,
@@ -22,7 +23,8 @@ import {
 } from "@/actions/settings";
 
 export function DataManagement() {
-  const [isExporting, setIsExporting] = useState(false);
+  const [isExportingInv, setIsExportingInv] = useState(false);
+  const [isExportingSales, setIsExportingSales] = useState(false);
   const [isImportingInv, setIsImportingInv] = useState(false);
   const [isImportingSales, setIsImportingSales] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -50,47 +52,67 @@ export function DataManagement() {
     return true;
   };
 
-  const handleExport = async () => {
+  const handleExportInventory = async () => {
     try {
-      setIsExporting(true);
+      setIsExportingInv(true);
       setMessage(null);
-
-      const invData = await exportInventoryData();
-      const salesData = await exportSalesData();
-
+      const data = await exportInventoryData();
       const dateStr = new Date().toISOString().split("T")[0];
-      const invSuccess = downloadCSV(
-        invData,
-        `inventory_export_${dateStr}.csv`,
-      );
-      const salesSuccess = downloadCSV(
-        salesData,
-        `sales_export_${dateStr}.csv`,
-      );
-
-      if (!invSuccess && !salesSuccess) {
+      const success = downloadCSV(data, `inventory_export_${dateStr}.csv`);
+      if (!success) {
         setMessage({
           type: "error",
-          text: "No data found to export in either Inventory or Sales.",
+          text: "No inventory data found to export.",
         });
       } else {
         posthog.capture("data_exported", {
-          inventory_rows: invData.length,
-          sales_rows: salesData.length,
+          inventory_rows: data.length,
+          sales_rows: 0,
         });
         setMessage({
           type: "success",
-          text: "Export completed successfully. (Check your downloads for multiple files if both contained data)",
+          text: "Inventory exported successfully.",
         });
       }
     } catch (error) {
       console.error(error);
       setMessage({
         type: "error",
-        text: error instanceof Error ? error.message : "Failed to export data.",
+        text:
+          error instanceof Error
+            ? error.message
+            : "Failed to export inventory.",
       });
     } finally {
-      setIsExporting(false);
+      setIsExportingInv(false);
+    }
+  };
+
+  const handleExportSales = async () => {
+    try {
+      setIsExportingSales(true);
+      setMessage(null);
+      const data = await exportSalesData();
+      const dateStr = new Date().toISOString().split("T")[0];
+      const success = downloadCSV(data, `sales_export_${dateStr}.csv`);
+      if (!success) {
+        setMessage({ type: "error", text: "No sales data found to export." });
+      } else {
+        posthog.capture("data_exported", {
+          inventory_rows: 0,
+          sales_rows: data.length,
+        });
+        setMessage({ type: "success", text: "Sales exported successfully." });
+      }
+    } catch (error) {
+      console.error(error);
+      setMessage({
+        type: "error",
+        text:
+          error instanceof Error ? error.message : "Failed to export sales.",
+      });
+    } finally {
+      setIsExportingSales(false);
     }
   };
 
@@ -236,7 +258,11 @@ export function DataManagement() {
   };
 
   const isAnyLoading =
-    isExporting || isImportingInv || isImportingSales || isDeleting;
+    isExportingInv ||
+    isExportingSales ||
+    isImportingInv ||
+    isImportingSales ||
+    isDeleting;
 
   return (
     <>
@@ -246,90 +272,121 @@ export function DataManagement() {
         <div className="relative z-10 flex flex-col h-full gap-5">
           <div className="flex items-start justify-between gap-4 w-full">
             <div>
-              <h2 className="text-xl font-bold">Data Management</h2>
-              <p className="text-muted-foreground text-sm mt-1">
+              <h2 className="font-display text-display-xs">Data Management</h2>
+              <p className="text-muted-foreground text-body-sm mt-1">
                 Export your database to retain backups. Upload edited CSV files
                 to patch your database.
               </p>
             </div>
             {/* Delete All Data Button Next to Title */}
-            <button
+            <Button
               type="button"
+              variant="destructive-outline"
               onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 bg-destructive/10 hover:bg-destructive/20 text-destructive text-sm font-semibold rounded-xl flex items-center gap-2 transition-colors shrink-0 cursor-pointer"
+              className="shrink-0"
             >
               <Trash2 className="w-4 h-4" />
               Delete All Data
-            </button>
+            </Button>
           </div>
 
           {message && (
             <div
-              className={`p-4 rounded-xl text-sm ${message.type === "error" ? "bg-red-500/10 text-red-500 border border-red-500/20" : "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"}`}
+              className={`p-4 rounded-xl text-body-sm ${message.type === "error" ? "bg-negative-surface text-negative border border-negative/20" : "bg-positive-surface text-positive border border-positive/20"}`}
             >
               {message.text}
             </div>
           )}
 
-          <div className="flex flex-col gap-4 mt-auto pt-2">
-            {/* Main Export */}
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={isAnyLoading}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 rounded-xl font-bold flex items-center justify-center gap-2 cursor-pointer transition-all shadow-[0_0_20px_-5px_rgba(145,128,168,0.4)] hover:shadow-[0_10px_40px_-10px_rgba(145,128,168,0.6)] disabled:opacity-50"
-            >
-              {isExporting ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <FileDown className="w-5 h-5" />
-              )}
-              Export All Data
-            </button>
+          {/* Hidden file inputs */}
+          <input
+            type="file"
+            accept=".csv"
+            ref={invInputRef}
+            onChange={handleImportInventory}
+            className="hidden"
+            id="import-inv-csv"
+          />
+          <input
+            type="file"
+            accept=".csv"
+            ref={salesInputRef}
+            onChange={handleImportSales}
+            className="hidden"
+            id="import-sales-csv"
+          />
 
-            {/* Inputs */}
-            <input
-              type="file"
-              accept=".csv"
-              ref={invInputRef}
-              onChange={handleImportInventory}
-              className="hidden"
-              id="import-inv-csv"
-            />
-            <input
-              type="file"
-              accept=".csv"
-              ref={salesInputRef}
-              onChange={handleImportSales}
-              className="hidden"
-              id="import-sales-csv"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-auto pt-2">
+            {/* Export section */}
+            <div className="flex flex-col gap-3 p-4 rounded-xl bg-muted/40 border border-border/50">
+              <div>
+                <p className="text-body-sm-strong text-foreground">Export</p>
+                <p className="text-body-xs text-muted-foreground mt-0.5">
+                  Download your data as CSV files for backup or editing.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 mt-auto">
+                <button
+                  type="button"
+                  onClick={handleExportInventory}
+                  disabled={isAnyLoading}
+                  className="w-full bg-primary hover:bg-primary-active text-primary-foreground h-10 rounded-xl text-button-sm flex items-center justify-center gap-2 transition-all shadow-glow-primary disabled:opacity-50 cursor-pointer"
+                >
+                  {isExportingInv ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <FileDown className="w-4 h-4" />
+                  )}
+                  Export Inventory
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportSales}
+                  disabled={isAnyLoading}
+                  className="w-full bg-primary hover:bg-primary-active text-primary-foreground h-10 rounded-xl text-button-sm flex items-center justify-center gap-2 transition-all shadow-glow-primary disabled:opacity-50 cursor-pointer"
+                >
+                  {isExportingSales ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <BadgeDollarSign className="w-4 h-4" />
+                  )}
+                  Export Sales
+                </button>
+              </div>
+            </div>
 
-            {/* Import Controls */}
-            <div className="flex flex-col sm:flex-row gap-4 mt-2">
-              <label
-                htmlFor="import-inv-csv"
-                className={`flex-1 bg-muted hover:bg-muted/80 text-foreground border border-border/50 h-11 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${isAnyLoading ? "opacity-50 pointer-events-none" : ""}`}
-              >
-                {isImportingInv ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <PackagePlus className="w-4 h-4" />
-                )}
-                Import Inventory
-              </label>
-
-              <label
-                htmlFor="import-sales-csv"
-                className={`flex-1 bg-muted hover:bg-muted/80 text-foreground border border-border/50 h-11 rounded-xl font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer ${isAnyLoading ? "opacity-50 pointer-events-none" : ""}`}
-              >
-                {isImportingSales ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <BadgeDollarSign className="w-4 h-4" />
-                )}
-                Import Sales
-              </label>
+            {/* Import section */}
+            <div className="flex flex-col gap-3 p-4 rounded-xl bg-muted/40 border border-border/50">
+              <div>
+                <p className="text-body-sm-strong text-foreground">Import</p>
+                <p className="text-body-xs text-muted-foreground mt-0.5">
+                  Upload a CSV file to patch your existing database records.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 mt-auto">
+                <label
+                  htmlFor="import-inv-csv"
+                  className={`w-full bg-muted hover:bg-muted/80 text-foreground border border-border/50 h-10 rounded-xl text-body-sm-strong flex items-center justify-center gap-2 transition-all cursor-pointer ${isAnyLoading ? "opacity-50 pointer-events-none" : ""}`}
+                >
+                  {isImportingInv ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <PackagePlus className="w-4 h-4" />
+                  )}
+                  Import Inventory
+                </label>
+                <label
+                  htmlFor="import-sales-csv"
+                  className={`w-full bg-muted hover:bg-muted/80 text-foreground border border-border/50 h-10 rounded-xl text-body-sm-strong flex items-center justify-center gap-2 transition-all cursor-pointer ${isAnyLoading ? "opacity-50 pointer-events-none" : ""}`}
+                >
+                  {isImportingSales ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <BadgeDollarSign className="w-4 h-4" />
+                  )}
+                  Import Sales
+                </label>
+              </div>
             </div>
           </div>
         </div>
@@ -341,7 +398,7 @@ export function DataManagement() {
           <div className="bg-card w-full max-w-md p-6 rounded-2xl border border-border shadow-xl">
             <div className="flex items-center gap-3 text-destructive mb-4">
               <AlertTriangle className="w-6 h-6" />
-              <h2 className="text-xl font-bold">Wipe Database?</h2>
+              <h2 className="font-display text-display-xs">Wipe Database?</h2>
             </div>
 
             <p className="text-muted-foreground mb-6">
@@ -354,27 +411,29 @@ export function DataManagement() {
             </p>
 
             <div className="flex gap-4 w-full">
-              <button
+              <Button
                 type="button"
+                variant="secondary"
                 onClick={() => setIsModalOpen(false)}
                 disabled={isDeleting}
-                className="flex-1 px-4 py-2.5 rounded-xl font-semibold bg-muted hover:bg-muted/80 text-foreground transition-colors disabled:opacity-50 cursor-pointer"
+                className="flex-1"
               >
                 Cancel
-              </button>
+              </Button>
 
-              <button
+              <Button
                 type="button"
+                variant="destructive"
                 onClick={handleDeleteAll}
                 disabled={isDeleting}
-                className="flex-1 px-4 py-2.5 rounded-xl font-semibold bg-destructive hover:bg-destructive/90 text-destructive-foreground transition-all shadow-[0_0_20px_-5px_rgba(239,68,68,0.4)] disabled:opacity-50 flex items-center justify-center cursor-pointer"
+                className="flex-1 shadow-glow-subtle"
               >
                 {isDeleting ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
                 ) : (
                   "Yes, Delete It All"
                 )}
-              </button>
+              </Button>
             </div>
           </div>
         </div>

@@ -75,12 +75,10 @@ export function SidebarProfile({ isCollapsed }: SidebarProfileProps) {
           isCollapsed ? "md:hidden" : "",
         )}
       >
-        <span className="text-sm font-semibold text-foreground truncate leading-tight">
+        <span className="text-body-sm-strong text-foreground truncate">
           {displayName}
         </span>
-        <span className="text-xs text-muted-foreground truncate leading-tight">
-          {email}
-        </span>
+        <span className="text-caption text-body truncate">{email}</span>
       </div>
     </div>
   );

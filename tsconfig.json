@@ -18,7 +18,9 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@box-ds": ["./packages/box-ds/src"],
+      "@box-ds/*": ["./packages/box-ds/src/*"]
     },
     "target": "ES2017"
   },

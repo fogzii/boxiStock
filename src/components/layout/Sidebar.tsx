@@ -14,10 +14,10 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { NavListItem } from "@/components/layout/NavListItem";
-import { ShareStatsModal } from "@/components/layout/ShareStatsModal";
 import { SidebarProfile } from "@/components/layout/SidebarProfile";
-import { AIImportModal } from "@/components/stock/AIImportModal";
-import { AddProductModal } from "@/components/stock/addProductModal";
+import { AIImportModal } from "@/components/modals/AIImportModal";
+import { AddProductModal } from "@/components/modals/addProductModal";
+import { ShareStatsModal } from "@/components/modals/ShareStatsModal";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -51,7 +51,7 @@ function SidebarActionButton({
     <button
       type="button"
       className={cn(
-        "bg-primary hover:bg-primary/90 text-primary-foreground py-2.5 rounded-xl font-bold flex items-center justify-center transition-all shadow-[0_0_20px_-5px_rgba(145,128,168,0.4)] hover:shadow-[0_10px_40px_-10px_rgba(145,128,168,0.6)] group cursor-pointer",
+        "bg-primary hover:bg-primary-active text-primary-foreground py-2.5 rounded-xl text-button-md flex items-center justify-center transition-all shadow-glow-primary group",
         isCollapsed ? "md:px-0" : "px-4 gap-2",
       )}
       title={title}
@@ -112,7 +112,7 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
               </div>
               <h1
                 className={cn(
-                  "text-xl font-extrabold tracking-tight transition-opacity duration-300",
+                  "font-display text-display-xs transition-opacity duration-300",
                   isCollapsed
                     ? "md:opacity-0 md:w-0 overflow-hidden"
                     : "opacity-100",
@@ -156,7 +156,7 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
                 onClick={() => setShareOpen(true)}
                 title="Share Stats"
                 className={cn(
-                  "flex items-center justify-center gap-2 border border-primary/20 text-muted-foreground hover:text-foreground hover:bg-primary/10 hover:border-primary/40 rounded-xl py-2 text-sm font-medium transition-all cursor-pointer",
+                  "flex items-center justify-center gap-2 border border-primary/20 text-body hover:text-foreground hover:bg-primary/10 hover:border-primary/40 rounded-xl py-2 text-body-sm-strong transition-all",
                   isCollapsed ? "md:px-0 px-3" : "px-3",
                 )}
               >

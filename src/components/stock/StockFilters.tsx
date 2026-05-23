@@ -93,9 +93,9 @@ export function StockFilters({
     <div className="flex items-center gap-3 flex-wrap">
       {/* Total stock value */}
       {totalStockValue !== undefined && (
-        <div className="flex items-center gap-1.5 text-sm mr-auto">
+        <div className="flex items-center gap-1.5 text-body-sm mr-auto">
           <span className="text-muted-foreground">Total Stock Value:</span>
-          <span className="font-semibold text-foreground">
+          <span className="text-body-sm-strong text-foreground">
             $
             {totalStockValue.toLocaleString("en-US", {
               minimumFractionDigits: 2,
@@ -110,7 +110,7 @@ export function StockFilters({
         <button
           type="button"
           onClick={() => setSortOpen((o) => !o)}
-          className="cursor-pointer flex items-center gap-2 h-9 pl-3 pr-2.5 text-sm rounded-lg border border-primary/20 bg-background/50 text-foreground hover:bg-primary/5 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring/50 transition-colors min-w-[190px] justify-between"
+          className="flex items-center gap-2 h-9 pl-3 pr-2.5 text-body-sm rounded-lg border border-primary/20 bg-background/50 text-foreground hover:bg-primary/5 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring/50 transition-colors min-w-[190px] justify-between"
         >
           <span className="flex items-center gap-2">
             <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
@@ -140,9 +140,9 @@ export function StockFilters({
                   }}
                   disabled={isPending}
                   className={cn(
-                    "cursor-pointer w-full flex items-center justify-between px-3 py-2 text-sm transition-colors",
+                    "w-full flex items-center justify-between px-3 py-2 text-body-sm transition-colors",
                     isSelected
-                      ? "bg-primary/10 text-primary font-medium"
+                      ? "bg-primary/10 text-primary text-body-sm-strong"
                       : "text-foreground hover:bg-primary/5 hover:text-primary",
                   )}
                 >
@@ -174,7 +174,7 @@ export function StockFilters({
               }
               disabled={isPending}
               className={cn(
-                "cursor-pointer px-3 h-9 text-sm font-medium transition-colors inline-flex items-center gap-1.5",
+                "px-3 h-9 text-body-sm-strong transition-colors inline-flex items-center gap-1.5",
                 isActive
                   ? opt.value === "stocked"
                     ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"

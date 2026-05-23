@@ -1,10 +1,10 @@
 "use client";
 
+import { colors } from "@box-ds";
 import posthog from "posthog-js";
 import * as React from "react";
 import { toast } from "sonner";
 import { sendContactEmail } from "@/actions/contact";
-import { Input } from "@/components/ui/input";
 
 export function ContactForm() {
   const [isPending, startTransition] = React.useTransition();
@@ -39,17 +39,19 @@ export function ContactForm() {
     });
   };
 
+  const labelClass = "text-body-sm-strong text-foreground";
   const inputClass =
-    "w-full bg-input border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-colors";
+    "h-11 w-full rounded-xl border bg-background px-4 py-2.5 text-body-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed";
+  const inputStyle = { borderColor: colors.body };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-        <div className="space-y-1.5">
-          <label htmlFor="name" className="text-sm font-medium text-foreground">
+        <div className="space-y-2">
+          <label htmlFor="name" className={labelClass}>
             Name
           </label>
-          <Input
+          <input
             id="name"
             name="name"
             placeholder="Your name"
@@ -58,16 +60,14 @@ export function ContactForm() {
             required
             disabled={isPending}
             className={inputClass}
+            style={inputStyle}
           />
         </div>
-        <div className="space-y-1.5">
-          <label
-            htmlFor="email"
-            className="text-sm font-medium text-foreground"
-          >
+        <div className="space-y-2">
+          <label htmlFor="email" className={labelClass}>
             Email
           </label>
-          <Input
+          <input
             id="email"
             name="email"
             type="email"
@@ -77,18 +77,16 @@ export function ContactForm() {
             required
             disabled={isPending}
             className={inputClass}
+            style={inputStyle}
           />
         </div>
       </div>
 
-      <div className="space-y-1.5">
-        <label
-          htmlFor="subject"
-          className="text-sm font-medium text-foreground"
-        >
+      <div className="space-y-2">
+        <label htmlFor="subject" className={labelClass}>
           Subject
         </label>
-        <Input
+        <input
           id="subject"
           name="subject"
           placeholder="What's this about?"
@@ -97,14 +95,12 @@ export function ContactForm() {
           required
           disabled={isPending}
           className={inputClass}
+          style={inputStyle}
         />
       </div>
 
-      <div className="space-y-1.5">
-        <label
-          htmlFor="message"
-          className="text-sm font-medium text-foreground"
-        >
+      <div className="space-y-2">
+        <label htmlFor="message" className={labelClass}>
           Message
         </label>
         <textarea
@@ -116,16 +112,17 @@ export function ContactForm() {
           onChange={handleChange}
           required
           disabled={isPending}
-          className={`${inputClass} resize-none`}
+          className={`${inputClass} h-auto resize-none`}
+          style={inputStyle}
         />
       </div>
 
       <button
         type="submit"
         disabled={isPending}
-        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold py-2.5 px-4 rounded-xl shadow-[0_0_20px_-5px_rgba(145,128,168,0.4)] hover:shadow-[0_10px_40px_-10px_rgba(145,128,168,0.6)] transition-all cursor-pointer disabled:opacity-50 disabled:pointer-events-none"
+        className="w-full bg-primary hover:bg-primary-active text-primary-foreground text-button-md h-12 rounded-xl transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
       >
-        {isPending ? "Sending…" : "Send Message"}
+        {isPending ? "Sending…" : "Send message"}
       </button>
     </form>
   );

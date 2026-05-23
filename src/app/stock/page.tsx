@@ -1,12 +1,12 @@
+import { Button } from "@box-ds";
 import { DatabaseZap } from "lucide-react";
 import {
   getInventoryPaginated,
   getInventoryValueByStatus,
   seedMockData,
 } from "@/actions/stock";
-import { BundleSaleButton } from "@/components/stock/bundleSaleModal";
+import { BundleSaleButton } from "@/components/modals/bundleSaleModal";
 import { StockPageControls } from "@/components/stock/StockPageControls";
-import { Button } from "@/components/ui/button";
 import { SearchInput } from "@/components/ui/SearchInput";
 
 export default async function StockPage({
@@ -43,7 +43,7 @@ export default async function StockPage({
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 sm:px-8 pt-6 sm:pt-8">
       {/* Header */}
-      <h1 className="mb-5 text-3xl font-bold tracking-tight text-foreground">
+      <h1 className="mb-5 font-display text-display-md text-foreground">
         Stock Inventory
       </h1>
       <div className="flex items-center gap-3 mb-3">

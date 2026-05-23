@@ -1,0 +1,27 @@
+/*
+ * Docs preview entry stylesheet.
+ *
+ * The docs site MUST use the same tokens the live app uses, otherwise the
+ * preview lies. So we import Tailwind, then the canonical box-ds token
+ * sheet (one source of truth for the entire design system).
+ */
+
+@import "tailwindcss";
+@import "../src/styles.css";
+
+/*
+ * Force Tailwind v4 to scan the box-ds source tree for class usage in
+ * addition to docs-src. Without this, utility classes referenced only by
+ * the library components would be tree-shaken out of the docs build.
+ */
+@source "../src/**/*.{ts,tsx}";
+@source "./**/*.{ts,tsx,html}";
+
+/*
+ * The canonical token sheet expects `--font-manrope` to be provided by the
+ * host app. Next.js wires it via `next/font/google`; in the Vite docs we
+ * declare it directly after loading Google Fonts in index.html.
+ */
+:root {
+  --font-manrope: "Manrope", "Manrope Variable", system-ui, sans-serif;
+}

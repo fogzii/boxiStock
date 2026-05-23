@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 
 const manrope = Manrope({
   subsets: ["latin"],
+  weight: ["400", "600", "800"],
   variable: "--font-manrope",
 });
 
@@ -36,10 +37,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={cn("dark", "font-sans", manrope.variable)}>
-      <body
-        className={`${manrope.variable} antialiased min-h-screen flex flex-col`}
-      >
+    <html lang="en" className={cn("dark", manrope.variable)}>
+      <body className="antialiased min-h-screen flex flex-col">
         <ClerkProvider appearance={clerkAppearance}>
           <AIImportProvider>
             {children}

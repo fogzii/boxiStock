@@ -33,7 +33,7 @@ export async function updateSharePassword(password: string | null) {
   if (!userId) throw new Error("Unauthorized");
 
   let passwordHash: string | null = null;
-  if (password && password.trim()) {
+  if (password?.trim()) {
     passwordHash = await bcrypt.hash(password.trim(), 10);
   }
 
@@ -69,7 +69,7 @@ export async function createShareLink({
   const token = crypto.randomUUID().replace(/-/g, "");
 
   let passwordHash: string | null = null;
-  if (password && password.trim()) {
+  if (password?.trim()) {
     passwordHash = await bcrypt.hash(password.trim(), 10);
   }
 

@@ -1,11 +1,9 @@
 "use client";
 
+import { Button, Input, Label } from "@box-ds";
 import { Eye, EyeOff, Lock } from "lucide-react";
 import * as React from "react";
 import { verifySharePassword } from "@/actions/share";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 export function SharePasswordGate({ token }: { token: string }) {
   const [password, setPassword] = React.useState("");
@@ -31,15 +29,15 @@ export function SharePasswordGate({ token }: { token: string }) {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] px-4">
-      <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-8 shadow-lg">
+      <div className="w-full max-w-sm bg-card border border-border rounded-xl p-8 shadow-level2">
         <div className="flex flex-col items-center gap-3 mb-8">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
             <Lock className="w-6 h-6 text-primary" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">
+          <h1 className="font-display text-display-xs text-foreground">
             Password required
           </h1>
-          <p className="text-sm text-muted-foreground text-center">
+          <p className="text-body-sm text-body text-center">
             This shared stats page is password-protected.
           </p>
         </div>
@@ -65,7 +63,7 @@ export function SharePasswordGate({ token }: { token: string }) {
               <button
                 type="button"
                 onClick={() => setShowText((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               >
                 {showText ? (
                   <EyeOff className="w-4 h-4" />
@@ -74,13 +72,13 @@ export function SharePasswordGate({ token }: { token: string }) {
                 )}
               </button>
             </div>
-            {error && <p className="text-xs text-destructive">{error}</p>}
+            {error && <p className="text-caption text-destructive">{error}</p>}
           </div>
 
           <Button
             type="submit"
             disabled={isPending || !password.trim()}
-            className="h-11 font-bold cursor-pointer"
+            className="h-11"
           >
             {isPending ? "Verifying…" : "Unlock"}
           </Button>

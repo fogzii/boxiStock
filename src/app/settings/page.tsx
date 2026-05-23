@@ -6,12 +6,9 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+          <h1 className="font-display text-display-md text-foreground">
             Settings
           </h1>
-          <p className="text-muted-foreground mt-2 font-medium">
-            Manage your application data
-          </p>
         </div>
       </div>
 

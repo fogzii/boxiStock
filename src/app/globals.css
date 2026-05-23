@@ -1,137 +1,15 @@
 @import "tailwindcss";
+@import "../../packages/box-ds/src/styles.css";
 
-@theme {
-  --color-background: #121212;
-  --color-foreground: #f8f8f8;
-  --color-card: #1a1a1a;
-  --color-card-foreground: #f8f8f8;
-  --color-popover: #1a1a1a;
-  --color-popover-foreground: #f8f8f8;
-  --color-primary: #9180a8;
-  --color-primary-foreground: #ffffff;
-  --color-secondary: #2d2636;
-  --color-secondary-foreground: #f8f8f8;
-  --color-muted: #27272a;
-  --color-muted-foreground: #a1a1aa;
-  --color-accent: #2d2636;
-  --color-accent-foreground: #f8f8f8;
-  --color-destructive: #7f1d1d;
-  --color-destructive-foreground: #f8f8f8;
-  --color-border: #27272a;
-  --color-input: #27272a;
-  --color-ring: #9180a8;
-  --color-sidebar: #1a1a1a;
-  --color-sidebar-foreground: #f8f8f8;
-  --color-sidebar-primary: #9180a8;
-  --color-sidebar-primary-foreground: #ffffff;
-  --color-sidebar-accent: #2d2636;
-  --color-sidebar-accent-foreground: #f8f8f8;
-  --color-sidebar-border: #27272a;
-  --color-sidebar-ring: #9180a8;
-
-  /* Custom Stitch Colors */
-  --color-background-light: #f7f7f7;
-  --color-background-dark: #19171b;
-  --color-neutral-dark: #19171b;
-  --color-border-dark: #2d2a30;
-
-  /* Custom Stitch Shadows */
-  --shadow-glow-subtle: 0 0 20px -5px rgba(145, 128, 168, 0.2);
-  --shadow-glow-primary: 0 10px 40px -10px rgba(145, 128, 168, 0.4);
-
-  --radius-lg: 0.5rem;
-  --radius-md: calc(0.5rem - 2px);
-  --radius-sm: calc(0.5rem - 4px);
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
-
-@layer base {
-  :root {
-    --background: #121212;
-    --foreground: #f8f8f8;
-    --card: #1a1a1a;
-    --card-foreground: #f8f8f8;
-    --popover: #1a1a1a;
-    --popover-foreground: #f8f8f8;
-    --primary: #9180a8;
-    --primary-foreground: #ffffff;
-    --secondary: #2d2636;
-    --secondary-foreground: #f8f8f8;
-    --muted: #27272a;
-    --muted-foreground: #a1a1aa;
-    --accent: #2d2636;
-    --accent-foreground: #f8f8f8;
-    --destructive: #7f1d1d;
-    --destructive-foreground: #f8f8f8;
-    --border: #27272a;
-    --input: #27272a;
-    --ring: #9180a8;
-    --radius: 0.5rem;
-    --sidebar: #1a1a1a;
-    --sidebar-foreground: #f8f8f8;
-    --sidebar-primary: #9180a8;
-    --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #2d2636;
-    --sidebar-accent-foreground: #f8f8f8;
-    --sidebar-border: #27272a;
-    --sidebar-ring: #9180a8;
-  }
-  .theme {
-    --font-sans: var(--font-geist-sans);
-  }
-  * {
-    border-color: var(--border);
-    outline-color: var(--ring);
-  }
-  body {
-    background-color: var(--background);
-    color: var(--foreground);
-  }
-  html {
-    font-family: var(--font-sans);
-  }
-  h1 {
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    font-size: 1.75rem;
-    line-height: 1.2;
-  }
-  @media (min-width: 640px) {
-    h1 {
-      font-size: 1.875rem;
-    }
-  }
-  @media (min-width: 1024px) {
-    h1 {
-      font-size: 2rem;
-    }
-  }
-  html,
-  body {
-    scrollbar-width: thin;
-    scrollbar-color: #27272a var(--background);
-  }
-  html::-webkit-scrollbar,
-  body::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
-  }
-  html::-webkit-scrollbar-track,
-  body::-webkit-scrollbar-track {
-    background: var(--background);
-  }
-  html::-webkit-scrollbar-thumb,
-  body::-webkit-scrollbar-thumb {
-    background-color: #3f3f46;
-    border-radius: 999px;
-    border: 2px solid var(--background);
-  }
-}
+/*
+ * The Next.js app pulls every design token (colors, typography, radius,
+ * shadows, base resets, scrollbar) from the box-ds package. That file is
+ * the single source of truth and is ALSO consumed by the box-ds docs
+ * preview, so the docs and the live app cannot drift apart.
+ *
+ * Anything below this import is app-specific only — Clerk overrides,
+ * vendor-CSS overrides for react-date-picker, and number-input chrome.
+ */
 
 /* Clerk UserButton popup — hide snap then fade in */
 @keyframes clerkPopoverFadeIn {
@@ -152,22 +30,22 @@
    the hashed class names change between Clerk versions. */
 [data-color="inherit"],
 [data-localization-key] {
-  color: #f8f8f8 !important;
+  color: #f8f8f8;
 }
 
 [data-color="secondary"] {
-  color: #a1a1aa !important;
+  color: #a1a1aa;
 }
 
 /* Hover state on accordion / menu items */
 .cl-accordionTriggerButton:hover,
 .cl-menuItem:hover {
-  background-color: #27272a !important;
+  background-color: #27272a;
 }
 
 /* Clerk logo — SVG uses currentColor so setting color on the link is enough */
 [aria-label="Clerk logo"] {
-  color: #f8f8f8 !important;
+  color: #f8f8f8;
   opacity: 0.5;
 }
 
@@ -208,8 +86,7 @@ input[type="number"] {
 .react-date-picker__wrapper {
   border: 0;
   width: 100%;
-  padding-left: 0.75rem;
-  padding-right: 0.5rem;
+  padding: 0.75rem 0.5rem 0.75rem 1rem;
 }
 
 .react-date-picker__inputGroup__input {

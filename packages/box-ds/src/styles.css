@@ -1,0 +1,251 @@
+/**
+ * box-ds canonical design-token sheet.
+ *
+ * This file is the single source of truth for every design token in the
+ * BoxiStock design system. It is consumed by:
+ *   1. The library's docs preview (packages/box-ds/docs-src/globals.css)
+ *   2. The Next.js app (src/app/globals.css)
+ *
+ * Consumer responsibility:
+ *   - Import Tailwind first (`@import "tailwindcss"`)
+ *   - Then import this file to extend the theme.
+ *   - Provide the font-face variable `--font-manrope` (Next.js does this via
+ *     `next/font/google`; the docs site declares it on `:root`).
+ *
+ * Do not hand-edit duplicates of these tokens elsewhere — this file IS the
+ * design system.
+ */
+
+@theme {
+  --font-sans: var(--font-manrope), Manrope, system-ui, sans-serif;
+  --font-display: var(--font-manrope), Manrope, system-ui, sans-serif;
+
+  /* Typography scale — mirrors DESIGN.md */
+  --text-display-mega: 126px;
+  --text-display-mega--line-height: 107px;
+  --text-display-mega--font-weight: 800;
+  --text-display-xxl: 96px;
+  --text-display-xxl--line-height: 82px;
+  --text-display-xxl--font-weight: 800;
+  --text-display-xl: 64px;
+  --text-display-xl--line-height: 55px;
+  --text-display-xl--font-weight: 800;
+  --text-display-lg: 47px;
+  --text-display-lg--line-height: 71px;
+  --text-display-lg--letter-spacing: -0.1px;
+  --text-display-lg--font-weight: 400;
+  --text-display-md: 40px;
+  --text-display-md--line-height: 34px;
+  --text-display-md--font-weight: 800;
+  --text-display-sm: 32px;
+  --text-display-sm--line-height: 38px;
+  --text-display-sm--letter-spacing: -0.96px;
+  --text-display-sm--font-weight: 600;
+  --text-display-xs: 24px;
+  --text-display-xs--line-height: 31px;
+  --text-display-xs--letter-spacing: -0.48px;
+  --text-display-xs--font-weight: 600;
+  --text-body-lg: 20px;
+  --text-body-lg--line-height: 30px;
+  --text-body-lg--font-weight: 400;
+  --text-body-md: 16px;
+  --text-body-md--line-height: 24px;
+  --text-body-md--font-weight: 400;
+  --text-body-md-strong: 16px;
+  --text-body-md-strong--line-height: 24px;
+  --text-body-md-strong--font-weight: 600;
+  --text-body-sm: 14px;
+  --text-body-sm--line-height: 20px;
+  --text-body-sm--font-weight: 400;
+  --text-body-sm-strong: 14px;
+  --text-body-sm-strong--line-height: 20px;
+  --text-body-sm-strong--font-weight: 600;
+  --text-caption: 12px;
+  --text-caption--line-height: 16px;
+  --text-caption--font-weight: 400;
+  --text-badge: 10px;
+  --text-badge--line-height: 16px;
+  --text-badge--font-weight: 500;
+  --text-button-md: 16px;
+  --text-button-md--line-height: 24px;
+  --text-button-md--font-weight: 600;
+
+  /* Color tokens — mirrors DESIGN.md */
+  --color-background: #121212;
+  --color-foreground: #f8f8f8;
+  --color-card: #1a1a1a;
+  --color-card-foreground: #f8f8f8;
+  --color-popover: #1a1a1a;
+  --color-popover-foreground: #f8f8f8;
+  --color-primary: #9180a8;
+  --color-primary-foreground: #ffffff;
+  --color-primary-active: #b0a3c4;
+  --color-primary-neutral: #8b7aa3;
+  --color-primary-pale: #2d2636;
+  --color-secondary: #2d2636;
+  --color-secondary-foreground: #f8f8f8;
+  --color-muted: #27272a;
+  --color-muted-foreground: #a1a1aa;
+  --color-accent: #2d2636;
+  --color-accent-foreground: #f8f8f8;
+  --color-destructive: #7f1d1d;
+  --color-destructive-foreground: #f8f8f8;
+  --color-border: #27272a;
+  --color-input: #27272a;
+  --color-ring: #9180a8;
+  --color-sidebar: #1a1a1a;
+  --color-sidebar-foreground: #f8f8f8;
+  --color-sidebar-primary: #9180a8;
+  --color-sidebar-primary-foreground: #ffffff;
+  --color-sidebar-accent: #2d2636;
+  --color-sidebar-accent-foreground: #f8f8f8;
+  --color-sidebar-border: #27272a;
+  --color-sidebar-ring: #9180a8;
+
+  --color-canvas: #1a1a1a;
+  --color-canvas-soft: #121212;
+  --color-ink: #f8f8f8;
+  --color-ink-deep: #ffffff;
+  --color-body: #a1a1aa;
+  --color-mute: #52525b;
+
+  /* Semantic state tokens */
+  --color-positive: #4ade80;
+  --color-positive-deep: #166534;
+  --color-positive-surface: #052e16;
+  --color-warning: #fbbf24;
+  --color-warning-deep: #b45309;
+  --color-warning-content: #fef3c7;
+  --color-warning-surface: #431407;
+  --color-negative: #f87171;
+  --color-negative-deep: #b91c1c;
+  --color-negative-darkest: #991b1b;
+  --color-negative-bg: #320707;
+  --color-negative-surface: #320707;
+  --color-accent-orange: #ffc091;
+  --color-accent-cyan: #38c8ff;
+
+  /* Stitch palette (legacy aliases used in marketing/auth surfaces) */
+  --color-background-light: #f7f7f7;
+  --color-background-dark: #19171b;
+  --color-neutral-dark: #19171b;
+  --color-border-dark: #2d2a30;
+
+  /* Purple-glow elevation system */
+  --shadow-glow-subtle: 0 0 20px -5px rgba(145, 128, 168, 0.2);
+  --shadow-glow-primary: 0 10px 40px -10px rgba(145, 128, 168, 0.4);
+  --shadow-level0: none;
+  --shadow-level1: 0 0 0 1px rgba(145, 128, 168, 0.15);
+  --shadow-level2:
+    0 0 0 1px rgba(145, 128, 168, 0.12), 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-level3:
+    0 4px 16px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(145, 128, 168, 0.1);
+  --shadow-level4:
+    0 10px 40px -10px rgba(145, 128, 168, 0.4),
+    0 25px 50px -12px rgba(0, 0, 0, 0.4);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+}
+
+@layer base {
+  :root {
+    --background: #121212;
+    --foreground: #f8f8f8;
+    --card: #1a1a1a;
+    --card-foreground: #f8f8f8;
+    --popover: #1a1a1a;
+    --popover-foreground: #f8f8f8;
+    --primary: #9180a8;
+    --primary-foreground: #ffffff;
+    --secondary: #2d2636;
+    --secondary-foreground: #f8f8f8;
+    --muted: #27272a;
+    --muted-foreground: #a1a1aa;
+    --accent: #2d2636;
+    --accent-foreground: #f8f8f8;
+    --destructive: #7f1d1d;
+    --destructive-foreground: #f8f8f8;
+    --border: #27272a;
+    --input: #27272a;
+    --ring: #9180a8;
+    --radius: 16px;
+    --positive: #4ade80;
+    --positive-surface: #052e16;
+    --warning: #fbbf24;
+    --warning-surface: #431407;
+    --negative: #f87171;
+    --negative-surface: #320707;
+    --sidebar: #1a1a1a;
+    --sidebar-foreground: #f8f8f8;
+    --sidebar-primary: #9180a8;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #2d2636;
+    --sidebar-accent-foreground: #f8f8f8;
+    --sidebar-border: #27272a;
+    --sidebar-ring: #9180a8;
+  }
+
+  * {
+    border-color: var(--border);
+    outline-color: var(--ring);
+  }
+
+  html {
+    font-family: var(--font-sans);
+  }
+
+  body {
+    background-color: var(--color-canvas-soft);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: var(--text-body-md);
+    line-height: var(--text-body-md--line-height);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 800;
+  }
+
+  /* Brand-tinted scrollbar */
+  html,
+  body {
+    scrollbar-width: thin;
+    scrollbar-color: #27272a var(--background);
+  }
+
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  html::-webkit-scrollbar-track,
+  body::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+
+  html::-webkit-scrollbar-thumb,
+  body::-webkit-scrollbar-thumb {
+    background-color: #3f3f46;
+    border-radius: 999px;
+    border: 2px solid var(--background);
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

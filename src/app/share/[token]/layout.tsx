@@ -45,14 +45,12 @@ export default async function ShareLayout({
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
               <Package className="w-5 h-5" />
             </div>
-            <span className="font-extrabold text-lg tracking-tight">
-              BoxiStock
-            </span>
+            <span className="font-display text-body-lg">BoxiStock</span>
           </Link>
           {username && (
             <>
-              <span className="text-border text-lg select-none">|</span>
-              <span className="text-muted-foreground text-sm font-medium">
+              <span className="text-border text-body-lg select-none">|</span>
+              <span className="text-body text-body-sm-strong">
                 {possessive(username)}
               </span>
             </>
@@ -62,11 +60,11 @@ export default async function ShareLayout({
 
       <main className="flex-1 overflow-y-auto">{children}</main>
 
-      <footer className="border-t border-border px-6 py-4 text-xs text-muted-foreground text-center shrink-0">
+      <footer className="border-t border-border px-6 py-4 text-caption text-body text-center shrink-0">
         Powered by{" "}
         <Link
           href="/"
-          className="hover:text-foreground transition-colors font-medium"
+          className="hover:text-foreground transition-colors text-body-sm-strong"
         >
           BoxiStock
         </Link>

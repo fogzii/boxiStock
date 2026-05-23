@@ -29,10 +29,10 @@ export function StatCard({
           <Icon className="w-6 h-6" />
         </span>
       </div>
-      <p className="text-muted-foreground text-sm font-medium mb-1 uppercase tracking-wider">
+      <p className="text-muted-foreground text-caption mb-1 uppercase tracking-wider">
         {title}
       </p>
-      <h3 className="text-3xl font-extrabold text-foreground">{value}</h3>
+      <h3 className="font-display text-display-md text-foreground">{value}</h3>
     </div>
   );
 }

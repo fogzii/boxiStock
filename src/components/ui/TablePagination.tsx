@@ -33,17 +33,22 @@ export function TablePagination({
     <div
       className={cn("flex flex-row items-center justify-between", className)}
     >
-      <div className="text-sm text-muted-foreground">
+      <div className="text-body-sm text-muted-foreground">
         <span className="sm:hidden">
-          <span className="font-medium text-foreground">{from}</span>-
-          <span className="font-medium text-foreground">{to}</span> of{" "}
-          <span className="font-medium text-foreground">{totalCount}</span>{" "}
+          <span className="text-body-sm-strong text-foreground">{from}</span>-
+          <span className="text-body-sm-strong text-foreground">{to}</span> of{" "}
+          <span className="text-body-sm-strong text-foreground">
+            {totalCount}
+          </span>{" "}
           {unitLabel}
         </span>
         <span className="hidden sm:inline">
-          Showing <span className="font-medium text-foreground">{from}</span> to{" "}
-          <span className="font-medium text-foreground">{to}</span> of{" "}
-          <span className="font-medium text-foreground">{totalCount}</span>{" "}
+          Showing{" "}
+          <span className="text-body-sm-strong text-foreground">{from}</span> to{" "}
+          <span className="text-body-sm-strong text-foreground">{to}</span> of{" "}
+          <span className="text-body-sm-strong text-foreground">
+            {totalCount}
+          </span>{" "}
           {unitLabel}
         </span>
       </div>
@@ -52,7 +57,7 @@ export function TablePagination({
           type="button"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1 || isPending}
-          className="inline-flex items-center justify-center h-8 px-3 text-sm font-medium rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+          className="inline-flex items-center justify-center h-8 px-3 text-body-sm-strong rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors disabled:opacity-50 disabled:pointer-events-none"
         >
           <ChevronLeft className="w-4 h-4 mr-1" /> Previous
         </button>
@@ -60,7 +65,7 @@ export function TablePagination({
           type="button"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages || isPending}
-          className="inline-flex items-center justify-center h-8 px-3 text-sm font-medium rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+          className="inline-flex items-center justify-center h-8 px-3 text-body-sm-strong rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors disabled:opacity-50 disabled:pointer-events-none"
         >
           Next <ChevronRight className="w-4 h-4 ml-1" />
         </button>
