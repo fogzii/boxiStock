@@ -14,7 +14,7 @@ interface SellUnitsModalProps {
     id: string;
     remainingQuantity: number;
     buyPrice: number;
-    lotIdentity: string | null;
+    lotIdentity?: string | null;
   };
   productName: string;
 }
