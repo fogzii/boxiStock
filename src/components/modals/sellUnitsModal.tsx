@@ -8,6 +8,17 @@ import { toast } from "sonner";
 import { sellLotUnits } from "@/actions/stock";
 import { round2 } from "@/lib/formatting";
 
+interface SellUnitsModalProps {
+  children: (open: () => void) => React.ReactNode;
+  lot: {
+    id: string;
+    remainingQuantity: number;
+    buyPrice: number;
+    lotIdentity: string | null;
+  };
+  productName: string;
+}
+
 export function SellUnitsModal({
   children,
   lot,
