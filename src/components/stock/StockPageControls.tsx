@@ -40,7 +40,7 @@ export function StockPageControls({
 
   return (
     <>
-      <div className="mb-4">
+      <div className="mb-4 mt-6">
         <StockFilters
           currentSort={currentSort}
           currentStatus={currentStatus}

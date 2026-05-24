@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: "Privacy Policy",
 };
 
-const EFFECTIVE_DATE = "May 3, 2026";
+const EFFECTIVE_DATE = "May 24, 2026";
 
 export default function PrivacyPage() {
   return (
@@ -44,9 +44,9 @@ export default function PrivacyPage() {
             <strong className="text-foreground">
               Inventory and sales data:
             </strong>{" "}
-            All stock lots, product names, quantities, prices, sale records, and
-            related data you enter are stored in our database (Supabase) and are
-            associated with your user account.
+            All stock lots, product names, quantities, prices, individual and
+            bundle sale records, and related data you enter are stored in our
+            database (Supabase) and are associated with your user account.
           </p>
           <p>
             <strong className="text-foreground">Usage data:</strong> We collect
@@ -174,10 +174,10 @@ export default function PrivacyPage() {
             </li>
             <li>
               <strong className="text-foreground">Anthropic</strong> — AI model
-              provider used to power AI-assisted import features. When you use
-              AI features, the text you submit is sent to Anthropic's API for
-              processing. Do not include sensitive personal data in AI import
-              prompts.
+              provider (Claude) used to power AI-assisted import features. When
+              you use AI features, the text you submit is sent to Anthropic's
+              API for processing. Do not include sensitive personal data in AI
+              import prompts.
             </li>
             <li>
               <strong className="text-foreground">Upstash</strong> — Rate

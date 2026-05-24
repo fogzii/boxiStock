@@ -14,13 +14,13 @@ import { cn } from "@/lib/utils";
 
 const SECTIONS = [
   { key: "dashboard", label: "Dashboard" },
-  { key: "stock", label: "Stock Manager" },
+  { key: "stock", label: "Stock Inventory" },
   { key: "sales", label: "Sales History" },
 ] as const;
 
 const SECTION_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
-  stock: "Stock Manager",
+  stock: "Stock Inventory",
   sales: "Sales History",
 };
 

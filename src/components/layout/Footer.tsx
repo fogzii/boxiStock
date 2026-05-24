@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border mt-8 py-6 text-body-sm text-body flex flex-col sm:flex-row items-center justify-between gap-3">
+    <footer className="border-t border-border mt-8 py-6 px-6 text-body-sm text-body flex flex-col sm:flex-row items-center justify-between gap-3">
       <span>© {new Date().getFullYear()} BoxiStock. All rights reserved.</span>
       <nav className="flex items-center gap-4">
         <Link href="/terms" className="hover:text-foreground transition-colors">

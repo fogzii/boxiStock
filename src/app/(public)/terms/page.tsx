@@ -4,7 +4,7 @@ export const metadata: Metadata = {
   title: "Terms of Service",
 };
 
-const EFFECTIVE_DATE = "May 3, 2026";
+const EFFECTIVE_DATE = "May 24, 2026";
 
 export default function TermsPage() {
   return (
@@ -36,9 +36,10 @@ export default function TermsPage() {
           <p>
             BoxiStock is an inventory and profit-tracking application designed
             for resellers. It provides FIFO (first-in, first-out) cost tracking,
-            sales recording, and AI-assisted data import tools to help you
-            manage and understand your reselling business. The Service is
-            provided on an "as is" basis.
+            individual and bulk sales recording, bundle sale functionality,
+            inventory filtering and sorting, total stock value analytics, and
+            AI-assisted data import tools to help you manage and understand your
+            reselling business. The Service is provided on an "as is" basis.
           </p>
         </section>
 

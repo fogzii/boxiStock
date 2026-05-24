@@ -10,21 +10,13 @@ import {
   TableHeader,
   TableRow,
 } from "@box-ds";
-import { PageHeader, Section } from "../ComponentFrame";
-
-function GroupHeading({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="m-0 mb-6 mt-10 first:mt-0 font-display text-display-xs text-ink">
-      {children}
-    </h2>
-  );
-}
+import { GroupHeading, PageHeader, Section } from "../ComponentFrame";
 
 export function MiscPage() {
   return (
     <div>
       <PageHeader
-        title="Skeleton · Table · Tooltip"
+        title="Data & Feedback"
         description="Supporting components for loading states, data display, and contextual help."
       />
 

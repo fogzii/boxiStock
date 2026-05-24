@@ -59,6 +59,14 @@ function PreviewFrame({
   );
 }
 
+export function GroupHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="m-0 mb-6 mt-12 first:mt-0 font-display text-display-xs text-ink border-b border-mute/20 pb-3">
+      {children}
+    </h2>
+  );
+}
+
 export function PageHeader({
   title,
   description,

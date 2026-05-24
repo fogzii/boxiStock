@@ -435,6 +435,11 @@ The primary elevation cue is surface contrast: `canvas-soft` (`#121212`) → `ca
 **`text-input`** — standard text input.
 - Background `{colors.canvas}`, text `{colors.ink}`, 1px solid `{colors.body}` border, `{typography.body-md}`, padding `{spacing.md} {spacing.lg}`, shape `{rounded.md}`. Focus: ring `{colors.primary}`.
 
+**`search-input`** — search field with leading icon, used in page headers.
+- Built on `text-input`. Left-padded to accommodate the `Search` icon (`pl-9`), height `h-9`, `{typography.body-sm}`.
+- Width: `w-full max-w-[360px]` — fluid, caps at 360px, shrinks freely on small screens. Accepts `containerClassName` to override per-usage.
+- Pending state: icon pulses (`animate-pulse`) in `{colors.primary}` while a navigation transition is in flight.
+
 ### Navigation
 
 **`nav-bar`** — sidebar or top nav header.

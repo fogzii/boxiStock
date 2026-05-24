@@ -33,6 +33,7 @@ import {
 import { AddLotModal } from "@/components/modals/addLotModal";
 import { SellAllModal } from "@/components/modals/sellAllModal";
 import { LotCard, type StockLot } from "@/components/stock/lotCard";
+import { ScrollRestorer } from "@/components/ui/ScrollRestorer";
 import { TablePagination } from "@/components/ui/TablePagination";
 import { useReadOnly } from "@/lib/context/readOnly";
 import { cn } from "@/lib/utils";
@@ -409,6 +410,7 @@ export function StockTable({
         </TableBody>
       </Table>
 
+      <ScrollRestorer scrollKey="stock" />
       <TablePagination
         currentPage={currentPage}
         pageSize={pageSize}
@@ -417,6 +419,7 @@ export function StockTable({
         unitLabel="products"
         isPending={showSkeleton}
         onPageChange={handlePageChange}
+        scrollKey="stock"
         className="p-4 border-t border-primary/10"
       />
     </div>

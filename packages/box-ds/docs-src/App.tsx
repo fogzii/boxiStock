@@ -1,22 +1,16 @@
 import { useState } from "react";
-import { BadgePage } from "./pages/BadgePage";
-import { ButtonPage } from "./pages/ButtonPage";
-import { CardPage } from "./pages/CardPage";
-import { FormFieldPage } from "./pages/FormFieldPage";
-import { InputPage } from "./pages/InputPage";
+import { ActionsPage } from "./pages/ActionsPage";
+import { InputsPage } from "./pages/InputsPage";
 import { MiscPage } from "./pages/MiscPage";
-import { ModalPage } from "./pages/ModalPage";
+import { SurfacesPage } from "./pages/SurfacesPage";
 import { TokensPage } from "./pages/TokensPage";
 
 const PAGES = [
   { id: "tokens", label: "Design tokens", Page: TokensPage },
-  { id: "button", label: "Button", Page: ButtonPage },
-  { id: "input", label: "Input", Page: InputPage },
-  { id: "card", label: "Card", Page: CardPage },
-  { id: "badge", label: "Badge", Page: BadgePage },
-  { id: "form-field", label: "Form field", Page: FormFieldPage },
-  { id: "modal", label: "Modal", Page: ModalPage },
-  { id: "misc", label: "Skeleton · Table · Tooltip", Page: MiscPage },
+  { id: "actions", label: "Actions", Page: ActionsPage },
+  { id: "inputs", label: "Inputs & Fields", Page: InputsPage },
+  { id: "surfaces", label: "Surfaces", Page: SurfacesPage },
+  { id: "data", label: "Data & Feedback", Page: MiscPage },
 ] as const;
 
 type PageId = (typeof PAGES)[number]["id"];
@@ -32,7 +26,9 @@ export default function App() {
           <div className="font-display text-display-xs tracking-tight text-ink">
             box-ds
           </div>
-          <div className="mt-1 text-caption text-mute">Component library</div>
+          <div className="mt-1 text-caption text-muted-foreground">
+            Component library
+          </div>
         </div>
         <nav className="flex-1 overflow-y-auto p-2">
           {PAGES.map((p) => {
@@ -59,7 +55,9 @@ export default function App() {
       </aside>
 
       <main className="flex-1 overflow-auto px-12 py-10">
-        <Page />
+        <div className="mx-auto max-w-[1200px]">
+          <Page />
+        </div>
       </main>
     </div>
   );

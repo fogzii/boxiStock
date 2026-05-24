@@ -52,7 +52,7 @@ interface ShareContentProps {
 
 const TAB_CONFIG = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { key: "stock", label: "Stock Manager", icon: Package },
+  { key: "stock", label: "Stock Inventory", icon: Package },
   { key: "sales", label: "Sales History", icon: History },
 ] as const;
 
@@ -145,7 +145,7 @@ export function ShareContent({
           </div>
         )}
 
-        {/* Stock Manager section */}
+        {/* Stock Inventory section */}
         {activeTab === "stock" && (
           <StockTable
             products={inventoryProducts}

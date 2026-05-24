@@ -25,18 +25,16 @@ export default async function SalesPage({
   });
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 sm:px-8 pt-6 sm:pt-8">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pt-6 sm:pt-8">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="font-display text-display-md text-foreground">
           Sales History
         </h1>
-        <div className="w-full sm:w-auto">
-          <SearchInput placeholder="Search product or bundle names..." />
-        </div>
+        <SearchInput placeholder="Search product or bundle names..." />
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <StatCard
           title="Total Sales Today"
           value={formatter.format(metrics.totalSalesToday)}

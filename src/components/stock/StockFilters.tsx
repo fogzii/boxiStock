@@ -3,6 +3,7 @@
 import { ArrowUpDown, Check, ChevronDown, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
+import { BundleSaleButton } from "@/components/modals/bundleSaleModal";
 import { cn } from "@/lib/utils";
 
 const SORT_OPTIONS = [
@@ -91,17 +92,20 @@ export function StockFilters({
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      {/* Total stock value */}
+      {/* Total stock value + bundle sale */}
       {totalStockValue !== undefined && (
-        <div className="flex items-center gap-1.5 text-body-sm mr-auto">
-          <span className="text-muted-foreground">Total Stock Value:</span>
-          <span className="text-body-sm-strong text-foreground">
-            $
-            {totalStockValue.toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
+        <div className="flex items-center gap-3 mr-auto">
+          <div className="flex items-center gap-1.5 text-body-sm">
+            <span className="text-muted-foreground">Total Stock Value:</span>
+            <span className="text-body-sm-strong text-foreground">
+              $
+              {totalStockValue.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </span>
+          </div>
+          <BundleSaleButton />
         </div>
       )}
 

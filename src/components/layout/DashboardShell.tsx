@@ -29,8 +29,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
 
         {/* Scrollable Page Content */}
         <div className="flex-1 overflow-y-auto">
-          <div className="min-h-full flex flex-col px-4 sm:px-8 pb-8">
-            <div className="flex-1">{children}</div>
+          <div className="min-h-full flex flex-col">
+            <div className="flex-1 w-full max-w-[1200px] mx-auto px-4 sm:px-8 pb-8">
+              {children}
+            </div>
             <Footer />
           </div>
         </div>

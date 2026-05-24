@@ -5,7 +5,6 @@ import {
   getInventoryValueByStatus,
   seedMockData,
 } from "@/actions/stock";
-import { BundleSaleButton } from "@/components/modals/bundleSaleModal";
 import { StockPageControls } from "@/components/stock/StockPageControls";
 import { SearchInput } from "@/components/ui/SearchInput";
 
@@ -41,17 +40,13 @@ export default async function StockPage({
     ]);
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 px-4 sm:px-8 pt-6 sm:pt-8">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pt-6 sm:pt-8">
       {/* Header */}
-      <h1 className="mb-5 font-display text-display-md text-foreground">
-        Stock Inventory
-      </h1>
-      <div className="flex items-center gap-3 mb-3">
-        <SearchInput
-          placeholder="Search products or lots..."
-          className="flex-1 max-w-lg"
-        />
-        <BundleSaleButton />
+      <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <h1 className="font-display text-display-md text-foreground">
+          Stock Inventory
+        </h1>
+        <SearchInput placeholder="Search products or lots..." />
       </div>
       <div className="mb-4">
         {!isProduction && totalCount === 0 && !searchParamStr && (

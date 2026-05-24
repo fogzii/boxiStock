@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, CustomTooltip, Modal, Skeleton } from "@box-ds";
+import { ActionMenu, Button, Modal, Skeleton } from "@box-ds";
 import {
   ArrowDown,
   ArrowUp,
@@ -20,6 +20,7 @@ import { deleteBundle, deleteProductSales, deleteSale } from "@/actions/stock";
 import { EditBundleModal } from "@/components/modals/editBundleModal";
 import { EditSaleModal } from "@/components/modals/editSaleModal";
 import { MergeSaleModal } from "@/components/modals/mergeSaleModal";
+import { ScrollRestorer } from "@/components/ui/ScrollRestorer";
 import { TablePagination } from "@/components/ui/TablePagination";
 import { useReadOnly } from "@/lib/context/readOnly";
 import { formatCurrency } from "@/lib/formatting";
@@ -93,22 +94,22 @@ function formatDate(dateStr: string | null | undefined): string {
   });
 }
 
-function ProductGroupRow({ group }: { group: ProductSaleGroup }) {
+function SaleSubRow({
+  sale,
+  groupProductName,
+}: {
+  sale: SaleItem;
+  groupProductName: string;
+}) {
   const isReadOnly = useReadOnly();
-  const [isOpen, setIsOpen] = React.useState(false);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
-  const [confirmOpen, setConfirmOpen] = React.useState(false);
-  const [isDeletingGroup, setIsDeletingGroup] = React.useState(false);
-  const [mergeOpen, setMergeOpen] = React.useState(false);
+  const editOpenRef = React.useRef<() => void>(() => {});
+  const saleBuy = sale.totalSalePrice - sale.totalProfit;
 
-  const totalBuy = group.totalSalePrice - group.totalProfit;
-  const saleCount = group.sales.length;
-
-  const handleDeleteSale = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setDeletingId(id);
+  const handleDelete = async () => {
+    setDeletingId(sale.id);
     try {
-      await deleteSale(id);
+      await deleteSale(sale.id);
       toast.success("Sale deleted.");
     } catch {
       toast.error("Failed to delete sale.");
@@ -116,6 +117,91 @@ function ProductGroupRow({ group }: { group: ProductSaleGroup }) {
       setDeletingId(null);
     }
   };
+
+  return (
+    <tr className="bg-muted/30 hover:bg-muted/50 transition-colors animate-in fade-in slide-in-from-top-1 duration-150">
+      <td className="px-6 py-3 whitespace-nowrap text-body-sm text-muted-foreground border-l-2 border-primary/50">
+        {formatDate(sale.dateSold ?? sale.createdAt)}
+      </td>
+      <td className="px-6 py-3">
+        <div className="flex items-center gap-2">
+          <Package className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+          <span className="text-body-sm text-foreground">
+            {groupProductName}
+          </span>
+        </div>
+        {sale.notes && (
+          <p className="text-caption text-muted-foreground/70 mt-0.5 truncate max-w-[200px] pl-[22px]">
+            {sale.notes}
+          </p>
+        )}
+      </td>
+      <td className="px-6 py-3 text-body-sm">{sale.quantitySold}</td>
+      <td className="px-6 py-3 text-body-sm text-muted-foreground">
+        {formatCurrency(saleBuy)}
+      </td>
+      <td className="px-6 py-3 text-body-sm-strong text-primary">
+        {formatCurrency(sale.totalSalePrice)}
+      </td>
+      <td
+        className={`px-6 py-3 text-body-sm-strong ${
+          sale.totalProfit >= 0 ? "text-positive" : "text-destructive"
+        }`}
+      >
+        {sale.totalProfit >= 0 ? "+" : ""}
+        {formatCurrency(sale.totalProfit)}
+      </td>
+      <td
+        className="pl-4 pr-6 py-3 w-px"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={(e) => e.stopPropagation()}
+      >
+        {!isReadOnly && (
+          <>
+            <EditSaleModal sale={sale}>
+              {(open) => {
+                editOpenRef.current = open;
+                return null;
+              }}
+            </EditSaleModal>
+            <ActionMenu
+              items={[
+                {
+                  label: "Edit sale",
+                  icon: <Edit2 />,
+                  onClick: () => editOpenRef.current(),
+                  disabled: deletingId === sale.id,
+                },
+                {
+                  label: "Delete sale",
+                  icon:
+                    deletingId === sale.id ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <Trash2 />
+                    ),
+                  variant: "destructive",
+                  onClick: handleDelete,
+                  disabled: deletingId === sale.id,
+                },
+              ]}
+            />
+          </>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+function ProductGroupRow({ group }: { group: ProductSaleGroup }) {
+  const isReadOnly = useReadOnly();
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [isDeletingGroup, setIsDeletingGroup] = React.useState(false);
+  const [mergeOpen, setMergeOpen] = React.useState(false);
+
+  const totalBuy = group.totalSalePrice - group.totalProfit;
+  const saleCount = group.sales.length;
 
   const handleDeleteGroup = async () => {
     setIsDeletingGroup(true);
@@ -169,127 +255,45 @@ function ProductGroupRow({ group }: { group: ProductSaleGroup }) {
           {group.totalProfit >= 0 ? "+" : ""}
           {formatCurrency(group.totalProfit)}
         </td>
-        <td className="pl-4 pr-6 py-4 w-px">
+        <td
+          className="pl-4 pr-6 py-4 w-px"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
           {!isReadOnly && (
-            <div className="flex items-center gap-3">
-              <CustomTooltip content="Merge this sale into another sale">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMergeOpen(true);
-                  }}
-                  className="text-muted-foreground hover:text-primary transition-colors"
-                  aria-label={`Merge sales for ${group.productName}`}
-                >
-                  <Merge className="w-4 h-4" />
-                </button>
-              </CustomTooltip>
-              <CustomTooltip content="Delete all sales for this product">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfirmOpen(true);
-                  }}
-                  disabled={isDeletingGroup}
-                  className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
-                  aria-label={`Delete all sales for ${group.productName}`}
-                >
-                  {isDeletingGroup ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+            <ActionMenu
+              items={[
+                {
+                  label: "Merge sales",
+                  icon: <Merge />,
+                  onClick: () => setMergeOpen(true),
+                },
+                {
+                  label: "Delete all sales",
+                  icon: isDeletingGroup ? (
+                    <Loader2 className="animate-spin" />
                   ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
-                </button>
-              </CustomTooltip>
-            </div>
+                    <Trash2 />
+                  ),
+                  variant: "destructive",
+                  onClick: () => setConfirmOpen(true),
+                  disabled: isDeletingGroup,
+                },
+              ]}
+            />
           )}
         </td>
       </tr>
 
       {/* Individual sale sub-rows */}
       {isOpen &&
-        group.sales.map((sale) => {
-          const saleBuy = sale.totalSalePrice - sale.totalProfit;
-          return (
-            <tr
-              key={sale.id}
-              className="bg-muted/30 hover:bg-muted/50 transition-colors animate-in fade-in slide-in-from-top-1 duration-150"
-            >
-              <td className="px-6 py-3 whitespace-nowrap text-body-sm text-muted-foreground border-l-2 border-primary/50">
-                {formatDate(sale.dateSold ?? sale.createdAt)}
-              </td>
-              <td className="px-6 py-3">
-                <div className="flex items-center gap-2">
-                  <Package className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-                  <span className="text-body-sm text-foreground">
-                    {group.productName}
-                  </span>
-                </div>
-                {sale.notes && (
-                  <p className="text-caption text-muted-foreground/70 mt-0.5 truncate max-w-[200px] pl-[22px]">
-                    {sale.notes}
-                  </p>
-                )}
-              </td>
-              <td className="px-6 py-3 text-body-sm">{sale.quantitySold}</td>
-              <td className="px-6 py-3 text-body-sm text-muted-foreground">
-                {formatCurrency(saleBuy)}
-              </td>
-              <td className="px-6 py-3 text-body-sm-strong text-primary">
-                {formatCurrency(sale.totalSalePrice)}
-              </td>
-              <td
-                className={`px-6 py-3 text-body-sm-strong ${
-                  sale.totalProfit >= 0 ? "text-positive" : "text-destructive"
-                }`}
-              >
-                {sale.totalProfit >= 0 ? "+" : ""}
-                {formatCurrency(sale.totalProfit)}
-              </td>
-              <td className="pl-4 pr-6 py-3 w-px">
-                {!isReadOnly && (
-                  <div className="flex items-center gap-4">
-                    <EditSaleModal sale={sale}>
-                      {(open) => (
-                        <CustomTooltip content="Edit sale">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              open();
-                            }}
-                            disabled={deletingId === sale.id}
-                            className="text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
-                            aria-label="Edit sale"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                        </CustomTooltip>
-                      )}
-                    </EditSaleModal>
-                    <CustomTooltip content="Delete sale">
-                      <button
-                        type="button"
-                        onClick={(e) => handleDeleteSale(e, sale.id)}
-                        disabled={deletingId === sale.id}
-                        className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
-                        aria-label="Delete sale"
-                      >
-                        {deletingId === sale.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
-                      </button>
-                    </CustomTooltip>
-                  </div>
-                )}
-              </td>
-            </tr>
-          );
-        })}
+        group.sales.map((sale) => (
+          <SaleSubRow
+            key={sale.id}
+            sale={sale}
+            groupProductName={group.productName}
+          />
+        ))}
 
       {/* Group delete confirmation modal */}
       <Modal
@@ -344,6 +348,7 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const router = useRouter();
+  const editOpenRef = React.useRef<() => void>(() => {});
 
   const unrestorableNames = bundle.products
     .filter((p) => !p.hasRestorable)
@@ -404,45 +409,40 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
           {bundle.totalProfit >= 0 ? "+" : ""}
           {formatCurrency(bundle.totalProfit)}
         </td>
-        <td className="pl-4 pr-6 py-4 w-px">
+        <td
+          className="pl-4 pr-6 py-4 w-px"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
           {!isReadOnly && (
-            <div className="flex items-center gap-3">
+            <>
               <EditBundleModal bundle={bundle}>
-                {(open) => (
-                  <CustomTooltip content="Edit bundle">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        open();
-                      }}
-                      className="text-muted-foreground hover:text-primary transition-colors"
-                      aria-label="Edit bundle"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                  </CustomTooltip>
-                )}
+                {(open) => {
+                  editOpenRef.current = open;
+                  return null;
+                }}
               </EditBundleModal>
-              <CustomTooltip content="Delete bundle">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setConfirmOpen(true);
-                  }}
-                  disabled={isDeleting}
-                  className="text-muted-foreground hover:text-destructive transition-colors disabled:opacity-40"
-                  aria-label="Delete bundle"
-                >
-                  {isDeleting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Trash2 className="w-4 h-4" />
-                  )}
-                </button>
-              </CustomTooltip>
-            </div>
+              <ActionMenu
+                items={[
+                  {
+                    label: "Edit bundle",
+                    icon: <Edit2 />,
+                    onClick: () => editOpenRef.current(),
+                  },
+                  {
+                    label: "Delete bundle",
+                    icon: isDeleting ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <Trash2 />
+                    ),
+                    variant: "destructive",
+                    onClick: () => setConfirmOpen(true),
+                    disabled: isDeleting,
+                  },
+                ]}
+              />
+            </>
           )}
         </td>
       </tr>
@@ -794,6 +794,7 @@ export function SalesTable({
         </div>
       </div>
 
+      <ScrollRestorer scrollKey="sales" />
       <TablePagination
         currentPage={currentPage}
         pageSize={pageSize}
@@ -802,6 +803,7 @@ export function SalesTable({
         unitLabel="entries"
         isPending={isPending}
         onPageChange={handlePageChange}
+        scrollKey="sales"
         className="mt-6 px-1"
       />
     </>

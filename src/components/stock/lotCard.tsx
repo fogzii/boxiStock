@@ -1,6 +1,11 @@
 "use client";
 
-import { Button, CustomTooltip } from "@box-ds";
+import {
+  ActionMenu,
+  type ActionMenuItem,
+  Button,
+  CustomTooltip,
+} from "@box-ds";
 import { format } from "date-fns";
 import {
   Check,
@@ -59,6 +64,8 @@ export function LotCard({
   const [notesValue, setNotesValue] = React.useState(lot.notes ?? "");
   const [isSavingNotes, setIsSavingNotes] = React.useState(false);
   const notesInputRef = React.useRef<HTMLInputElement>(null);
+  const editOpenRef = React.useRef<() => void>(() => {});
+  const deleteOpenRef = React.useRef<() => void>(() => {});
 
   React.useEffect(() => {
     setNotesValue(lot.notes ?? "");
@@ -155,50 +162,57 @@ export function LotCard({
             </CustomTooltip>
           )}
 
-          {!isReadOnly && lot.isStocked && (
-            <SellUnitsModal lot={lot} productName={productName}>
-              {(open) => (
-                <Button
-                  size="sm"
-                  onClick={open}
-                  className="bg-primary/20 hover:bg-primary/30 text-primary border-none"
-                >
-                  <ShoppingCart className="w-3.5 h-3.5 mr-1" />
-                  Sell
-                </Button>
-              )}
-            </SellUnitsModal>
-          )}
-
           {!isReadOnly && (
-            <EditLotModal lot={lot} productName={productName}>
-              {(open) => (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={open}
-                  disabled={isProcessing}
-                  className="text-muted-foreground hover:text-primary"
-                >
-                  <Edit2 className="w-3.5 h-3.5" />
-                </Button>
+            <>
+              {lot.isStocked && (
+                <SellUnitsModal lot={lot} productName={productName}>
+                  {(open) => (
+                    <Button
+                      size="sm"
+                      onClick={open}
+                      className="bg-primary/20 hover:bg-primary/30 text-primary border-none"
+                    >
+                      <ShoppingCart className="w-3.5 h-3.5 mr-1" />
+                      Sell
+                    </Button>
+                  )}
+                </SellUnitsModal>
               )}
-            </EditLotModal>
-          )}
 
-          {!isReadOnly && (
-            <DeleteUnitsModal lot={lot} productName={productName}>
-              {(open) => (
-                <Button
-                  size="sm"
-                  variant="destructive-ghost"
-                  onClick={open}
-                  disabled={isProcessing}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-              )}
-            </DeleteUnitsModal>
+              {/* Hidden modal triggers — open functions captured via refs */}
+              <EditLotModal lot={lot} productName={productName}>
+                {(open) => {
+                  editOpenRef.current = open;
+                  return null;
+                }}
+              </EditLotModal>
+              <DeleteUnitsModal lot={lot} productName={productName}>
+                {(open) => {
+                  deleteOpenRef.current = open;
+                  return null;
+                }}
+              </DeleteUnitsModal>
+
+              <ActionMenu
+                items={
+                  [
+                    {
+                      label: "Edit lot",
+                      icon: <Edit2 />,
+                      onClick: () => editOpenRef.current(),
+                      disabled: isProcessing,
+                    },
+                    {
+                      label: "Delete lot",
+                      icon: <Trash2 />,
+                      variant: "destructive" as const,
+                      onClick: () => deleteOpenRef.current(),
+                      disabled: isProcessing,
+                    },
+                  ] satisfies ActionMenuItem[]
+                }
+              />
+            </>
           )}
         </div>
       </div>

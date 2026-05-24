@@ -149,7 +149,7 @@ export function AIImportModal({
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                Stock Manager
+                Stock Inventory
               </button>
               <button
                 type="button"
