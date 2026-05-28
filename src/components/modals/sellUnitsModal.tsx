@@ -1,6 +1,12 @@
 "use client";
 
-import { FormField, Input, Modal, ModalActions } from "@box-ds";
+import {
+  DatePickerInput,
+  FormField,
+  Input,
+  Modal,
+  ModalActions,
+} from "@box-ds";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import * as React from "react";
@@ -29,6 +35,7 @@ export function SellUnitsModal({
   const router = useRouter();
 
   const [quantity, setQuantity] = React.useState(lot.remainingQuantity);
+  const [dateSold, setDateSold] = React.useState<Date>(new Date());
   const [perUnit, setPerUnit] = React.useState(lot.buyPrice.toFixed(2));
   const [total, setTotal] = React.useState(
     (lot.remainingQuantity * lot.buyPrice).toFixed(2),
@@ -38,6 +45,7 @@ export function SellUnitsModal({
 
   function resetForm() {
     setQuantity(lot.remainingQuantity);
+    setDateSold(new Date());
     setPerUnit(lot.buyPrice.toFixed(2));
     setTotal((lot.remainingQuantity * lot.buyPrice).toFixed(2));
   }
@@ -106,7 +114,7 @@ export function SellUnitsModal({
     }
 
     try {
-      await sellLotUnits(lot.id, quantity, salePrice);
+      await sellLotUnits(lot.id, quantity, salePrice, dateSold);
       posthog.capture("units_sold", {
         product_name: productName,
         quantity_sold: quantity,
@@ -146,18 +154,32 @@ export function SellUnitsModal({
             </p>
           </div>
 
-          <FormField label="Quantity to Sell" htmlFor="quantity">
-            <Input
-              id="quantity"
-              name="quantity"
-              type="number"
-              min="1"
-              max={lot.remainingQuantity}
-              value={quantity}
-              onChange={handleQuantityChange}
-              required
-            />
-          </FormField>
+          <div className="flex gap-3">
+            <FormField
+              label="Quantity to Sell"
+              htmlFor="quantity"
+              className="flex-1"
+            >
+              <Input
+                id="quantity"
+                name="quantity"
+                type="number"
+                min="1"
+                max={lot.remainingQuantity}
+                value={quantity}
+                onChange={handleQuantityChange}
+                required
+              />
+            </FormField>
+            <FormField label="Date Sold" className="flex-1">
+              <div className="w-full flex">
+                <DatePickerInput
+                  onChange={(val) => setDateSold(val as Date)}
+                  value={dateSold}
+                />
+              </div>
+            </FormField>
+          </div>
 
           <div className="space-y-3">
             <div className="flex flex-row gap-3 items-end">

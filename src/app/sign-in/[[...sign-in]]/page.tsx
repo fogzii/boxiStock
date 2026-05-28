@@ -1,11 +1,17 @@
 "use client";
 
 import { Package } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { FullScreenLoading } from "@/components/ui/fullScreenLoading";
 import { createClient } from "@/lib/supabase/client";
 
 export default function SignInPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+
   const handleGoogleSignIn = async () => {
+    setLoading(true);
     const supabase = createClient();
     await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -15,55 +21,65 @@ export default function SignInPage() {
     });
   };
 
+  const handleGoToSignUp = () => {
+    setLoading(true);
+    router.push("/sign-up");
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="flex w-full max-w-sm flex-col items-center gap-8">
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Package className="h-6 w-6" />
-          </div>
-          <span className="font-display text-xl font-semibold text-foreground">
-            BoxiStock
-          </span>
-        </div>
-
-        <div
-          className="w-full rounded-xl bg-card p-8 flex flex-col gap-6"
-          style={{
-            boxShadow:
-              "0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(145,128,168,0.10)",
-          }}
-        >
-          <div className="flex flex-col gap-1.5">
-            <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
-              Welcome back
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Sign in to your BoxiStock account
-            </p>
+    <>
+      {loading && <FullScreenLoading />}
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="flex w-full max-w-sm flex-col items-center gap-8">
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <Package className="h-6 w-6" />
+            </div>
+            <span className="font-display text-xl font-semibold text-foreground">
+              BoxiStock
+            </span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            className="flex h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-border bg-background text-sm font-semibold text-foreground transition-colors hover:bg-muted/40"
+          <div
+            className="w-full rounded-xl bg-card p-8 flex flex-col gap-6"
+            style={{
+              boxShadow:
+                "0 4px 16px rgba(0,0,0,0.5), 0 0 0 1px rgba(145,128,168,0.10)",
+            }}
           >
-            <GoogleIcon />
-            Continue with Google
-          </button>
-        </div>
+            <div className="flex flex-col gap-1.5">
+              <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
+                Welcome back
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Sign in to your BoxiStock account
+              </p>
+            </div>
 
-        <p className="text-sm text-muted-foreground">
-          New to BoxiStock?{" "}
-          <Link
-            href="/sign-up"
-            className="font-semibold text-foreground hover:text-primary transition-colors"
-          >
-            Create an account
-          </Link>
-        </p>
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={loading}
+              className="flex h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-border bg-background text-sm font-semibold text-foreground transition-colors hover:bg-muted/40 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <GoogleIcon />
+              Continue with Google
+            </button>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            New to BoxiStock?{" "}
+            <button
+              type="button"
+              onClick={handleGoToSignUp}
+              className="font-semibold text-foreground hover:text-primary transition-colors cursor-pointer"
+            >
+              Create an account
+            </button>
+          </p>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

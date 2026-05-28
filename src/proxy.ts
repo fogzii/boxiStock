@@ -12,7 +12,7 @@ const PUBLIC_PREFIXES = [
   "/auth/callback",
 ];
 
-export async function proxy(request: NextRequest) {
+export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isPublic = PUBLIC_PREFIXES.some(
     (p) =>
@@ -20,7 +20,7 @@ export async function proxy(request: NextRequest) {
       (p.endsWith("/") ? pathname.startsWith(p) : pathname.startsWith(p + "/")),
   );
 
-  const response = NextResponse.next();
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -31,8 +31,12 @@ export async function proxy(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
+          for (const { name, value } of cookiesToSet) {
+            request.cookies.set(name, value);
+          }
+          supabaseResponse = NextResponse.next({ request });
           for (const { name, value, options } of cookiesToSet) {
-            response.cookies.set(name, value, options);
+            supabaseResponse.cookies.set(name, value, options);
           }
         },
       },
@@ -47,7 +51,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/sign-in", request.url));
   }
 
-  return response;
+  return supabaseResponse;
 }
 
 export const config = {

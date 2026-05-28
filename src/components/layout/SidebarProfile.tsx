@@ -33,16 +33,10 @@ export function SidebarProfile({ isCollapsed }: SidebarProfileProps) {
   return (
     <div
       className={cn(
-        "flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-muted/30",
+        "flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-muted/30",
         isCollapsed && "md:justify-center md:p-2",
       )}
     >
-      <div className="w-9 h-9 rounded-full ring-2 ring-primary/20 bg-primary/20 flex items-center justify-center shrink-0">
-        <span className="text-xs text-primary font-semibold">
-          {displayName.charAt(0).toUpperCase()}
-        </span>
-      </div>
-
       <div
         className={cn(
           "flex flex-col min-w-0 flex-1 transition-all duration-300",

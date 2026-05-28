@@ -472,6 +472,7 @@ export async function sellLotUnits(
   lotId: string,
   quantitySold: number,
   salePricePerUnit: number,
+  dateSold: Date,
 ) {
   const {
     data: { user },
@@ -512,6 +513,7 @@ export async function sellLotUnits(
       quantitySold,
       totalSalePrice,
       totalProfit,
+      dateSold: dateSold.toISOString(),
       createdAt: new Date().toISOString(),
     },
   ]);

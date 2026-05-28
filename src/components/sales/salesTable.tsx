@@ -454,20 +454,8 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
         title={`Delete bundle "${bundle.bundleName}"?`}
       >
         <div className="flex flex-col gap-6">
-          <div className="text-body-sm text-foreground/80 bg-negative-bg border border-negative/20 rounded-lg p-3 space-y-2">
+          <div className="text-body-sm text-foreground/80 bg-negative-bg border border-negative/20 rounded-lg p-3">
             <p>This will permanently delete this bundle sale record.</p>
-            {unrestorableNames.length > 0 ? (
-              <p className="text-warning/90">
-                <strong>⚠ Note:</strong> {unrestorableNames.join(", ")}{" "}
-                {unrestorableNames.length === 1 ? "was" : "were"} fully depleted
-                by this bundle and{" "}
-                {unrestorableNames.length === 1 ? "has" : "have"} been deleted.
-                {unrestorableNames.length === 1 ? " Its" : " Their"} stock
-                cannot be restored.
-              </p>
-            ) : (
-              <p>All stock quantities will be restored.</p>
-            )}
           </div>
           <div className="flex justify-end gap-3">
             <Button
