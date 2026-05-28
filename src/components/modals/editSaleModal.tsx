@@ -11,23 +11,15 @@ import {
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
-import { updateSale } from "@/actions/stock";
+import { updateSale } from "@/actions/stock/sales";
 import { NotesField } from "@/components/ui/NotesField";
 import { formatCurrency, parseIntQty } from "@/lib/formatting";
+import type { SaleWithProductName } from "@/lib/stock/types";
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
-interface SaleItem {
-  id: string;
-  dateSold: string | null;
-  createdAt: string;
-  quantitySold: number;
-  totalSalePrice: number;
-  totalProfit: number;
-  notes?: string | null;
-  Product?: { name: string } | null;
-}
+type SaleItem = SaleWithProductName;
 
 interface EditSaleModalProps {
   sale: SaleItem;

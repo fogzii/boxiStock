@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import * as React from "react";
 import { toast } from "sonner";
-import { deleteLotUnits } from "@/actions/stock";
+import { deleteLotUnits } from "@/actions/stock/inventory";
 import type { StockLot } from "@/components/stock/lotCard";
 
 interface DeleteUnitsModalProps {

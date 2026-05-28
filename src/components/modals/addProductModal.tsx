@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import * as React from "react";
 import { toast } from "sonner";
-import { addProduct, getRecentProducts } from "@/actions/stock";
+import { addProduct, getRecentProducts } from "@/actions/stock/inventory";
 import { NotesField } from "@/components/ui/NotesField";
 import { StatusToggle } from "@/components/ui/StatusToggle";
 import { parseCurrencyInput, parseIntQty } from "@/lib/formatting";

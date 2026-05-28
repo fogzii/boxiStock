@@ -24,17 +24,9 @@ import { EditLotModal } from "@/components/modals/editLotModal";
 import { SellUnitsModal } from "@/components/modals/sellUnitsModal";
 import { StockStatusBadge } from "@/components/stock/StockStatusBadge";
 import { useReadOnly } from "@/lib/context/readOnly";
+import type { InventoryLot } from "@/lib/stock/types";
 
-export type StockLot = {
-  id: string;
-  initialQuantity: number;
-  remainingQuantity: number;
-  buyPrice: number;
-  isStocked: boolean;
-  dateAcquired: Date;
-  lotIdentity?: string | null;
-  notes?: string | null;
-};
+export type StockLot = InventoryLot;
 
 const MAX_NOTES_LENGTH = 75;
 

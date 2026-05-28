@@ -5,7 +5,10 @@ import { ChevronLeft, ChevronRight, Search, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
-import { getProductGroupHeaders, mergeProductSales } from "@/actions/stock";
+import {
+  getProductGroupHeaders,
+  mergeProductSales,
+} from "@/actions/stock/sales";
 
 const MERGE_SKELETON_KEYS = ["msk-0", "msk-1", "msk-2", "msk-3", "msk-4"];
 

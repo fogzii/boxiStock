@@ -1,10 +1,8 @@
 import { Button } from "@box-ds";
 import { DatabaseZap } from "lucide-react";
-import {
-  getInventoryPaginated,
-  getInventoryValueByStatus,
-  seedMockData,
-} from "@/actions/stock";
+import { seedMockData } from "@/actions/stock/bulk";
+import { getInventoryPaginated } from "@/actions/stock/inventory";
+import { getInventoryValueByStatus } from "@/actions/stock/metrics";
 import { StockPageControls } from "@/components/stock/StockPageControls";
 import { SearchInput } from "@/components/ui/SearchInput";
 

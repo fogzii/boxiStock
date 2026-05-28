@@ -29,21 +29,18 @@ import {
   markAsStocked,
   updateLotNotes,
   updateProductName,
-} from "@/actions/stock";
+} from "@/actions/stock/inventory";
 import { AddLotModal } from "@/components/modals/addLotModal";
 import { SellAllModal } from "@/components/modals/sellAllModal";
-import { LotCard, type StockLot } from "@/components/stock/lotCard";
+import { LotCard } from "@/components/stock/lotCard";
 import { ScrollRestorer } from "@/components/ui/ScrollRestorer";
 import { TablePagination } from "@/components/ui/TablePagination";
 import { useReadOnly } from "@/lib/context/readOnly";
+import type { ProductWithLots } from "@/lib/stock/types";
 import { cn } from "@/lib/utils";
 import { StockStatusBadge } from "./StockStatusBadge";
 
-export type ProductWithLots = {
-  id: string;
-  name: string;
-  lots: StockLot[];
-};
+export type { ProductWithLots } from "@/lib/stock/types";
 
 interface StockTableProps {
   products: ProductWithLots[];

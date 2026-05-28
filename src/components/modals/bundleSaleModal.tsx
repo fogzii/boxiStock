@@ -21,25 +21,19 @@ import {
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
-import { createBundle, getInventoryPaginated } from "@/actions/stock";
+import { createBundle } from "@/actions/stock/bundles";
+import { getInventoryPaginated } from "@/actions/stock/inventory";
 import { formatCurrency, round2 } from "@/lib/formatting";
+import type {
+  BundleInventoryLot,
+  PaginatedInventoryProduct,
+} from "@/lib/stock/types";
 
 type ValuePiece = Date | null;
 type Value = ValuePiece | [ValuePiece, ValuePiece];
 
-interface PaginatedLot {
-  id: string;
-  remainingQuantity: number;
-  buyPrice: number;
-  dateAcquired: Date;
-  lotIdentity?: string | null;
-}
-
-interface PaginatedProduct {
-  id: string;
-  name: string;
-  lots: PaginatedLot[];
-}
+type PaginatedLot = BundleInventoryLot;
+type PaginatedProduct = PaginatedInventoryProduct;
 
 interface BundleItemEntry {
   productId: string;

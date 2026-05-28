@@ -11,7 +11,7 @@ import { Loader2, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
-import { sellAllLots } from "@/actions/stock";
+import { sellAllLots } from "@/actions/stock/inventory";
 import type { ProductWithLots } from "@/components/stock/stockTable";
 import { formatCurrency, round2 } from "@/lib/formatting";
 

@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { bulkAddLotsAndProducts, bulkAddSales } from "@/actions/stock";
+import { bulkAddLotsAndProducts, bulkAddSales } from "@/actions/stock/bulk";
 import { useAIImport } from "@/context/AIImportContext";
 import { round2 } from "@/lib/formatting";
 

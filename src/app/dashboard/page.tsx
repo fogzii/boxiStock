@@ -1,5 +1,8 @@
 import { Package, Percent, Wallet } from "lucide-react";
-import { getDashboardMetrics, getProfitChartData } from "@/actions/stock";
+import {
+  getDashboardMetrics,
+  getProfitChartData,
+} from "@/actions/stock/metrics";
 import { ProfitChart } from "@/components/ui/ProfitChart";
 import { StatCard } from "@/components/ui/StatCard";
 

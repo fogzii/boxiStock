@@ -4,7 +4,7 @@ import { Button, CurrencyInput, FormField, Input, Modal } from "@box-ds";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
-import { updateBundle } from "@/actions/stock";
+import { updateBundle } from "@/actions/stock/bundles";
 import { formatCurrency, round2 } from "@/lib/formatting";
 
 interface EditBundleModalProps {

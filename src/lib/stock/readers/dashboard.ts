@@ -1,0 +1,196 @@
+import "server-only";
+
+// Server-only read helpers for dashboard cards and profit chart data.
+import { unstable_cache } from "next/cache";
+import type { DashboardMetricsRow, SalesByMonth } from "@/lib/stock/types";
+import { createClient } from "@/lib/supabase/server";
+
+const _VALID_SORTS = new Set([
+  "name_asc",
+  "name_desc",
+  "stock_asc",
+  "stock_desc",
+  "value_asc",
+  "value_desc",
+]);
+const _VALID_STATUSES = new Set(["all", "stocked", "pending"]);
+
+export async function getSalesMetricsForUser(userId: string) {
+  return unstable_cache(
+    async (uid: string) => {
+      const supabase = await createClient();
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const sevenDaysAgo = new Date(today);
+      sevenDaysAgo.setDate(today.getDate() - 7);
+
+      const [
+        { data: recentSales, error },
+        { data: lifetimeSales, error: lifetimeError },
+      ] = await Promise.all([
+        supabase
+          .from("Sale")
+          .select("*, Product!inner(userId)")
+          .eq("Product.userId", uid)
+          .gte("createdAt", sevenDaysAgo.toISOString()),
+        supabase
+          .from("Sale")
+          .select("totalProfit, Product!inner(userId)")
+          .eq("Product.userId", uid),
+      ]);
+
+      if (error) throw new Error(error.message);
+      if (lifetimeError) throw new Error(lifetimeError.message);
+
+      let totalSalesToday = 0;
+      let totalUnitsSoldWeek = 0;
+      let netProfitWeek = 0;
+
+      for (const sale of recentSales || []) {
+        const saleDate = new Date(sale.createdAt);
+        totalUnitsSoldWeek += sale.quantitySold;
+        netProfitWeek += sale.totalProfit;
+        if (saleDate >= today) totalSalesToday += sale.totalSalePrice;
+      }
+
+      const netProfitLifetime = (lifetimeSales || []).reduce(
+        (sum, s) => sum + s.totalProfit,
+        0,
+      );
+
+      return {
+        totalSalesToday,
+        totalUnitsSoldWeek,
+        netProfitWeek,
+        netProfitLifetime,
+      };
+    },
+    [`sales-metrics-${userId}`],
+    { revalidate: 60 },
+  )(userId);
+}
+
+export async function getDashboardMetricsForUser(userId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_dashboard_metrics", {
+    p_user_id: userId,
+  });
+  if (error) throw new Error(error.message);
+
+  const metrics = data as DashboardMetricsRow;
+
+  const currentROI =
+    metrics.totalSoldCost > 0
+      ? (metrics.totalLifetimeProfit / metrics.totalSoldCost) * 100
+      : 0;
+
+  return {
+    totalLifetimeProfit: metrics.totalLifetimeProfit,
+    currentInventoryValue: metrics.currentInventoryValue,
+    currentROI,
+  };
+}
+
+export async function getProfitChartDataForUser(userId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("get_sales_by_month", {
+    p_user_id: userId,
+  });
+  if (error) throw new Error(error.message);
+
+  const rows: SalesByMonth[] = (data ?? []) as SalesByMonth[];
+  const now = new Date();
+
+  const profitByYearMonth = new Map<string, number>();
+  let firstYear = now.getFullYear();
+  let firstMonth = now.getMonth() + 1;
+  for (const r of rows) {
+    profitByYearMonth.set(`${r.year}-${r.month}`, Number(r.total_profit));
+    if (r.year < firstYear || (r.year === firstYear && r.month < firstMonth)) {
+      firstYear = r.year;
+      firstMonth = r.month;
+    }
+  }
+
+  const monthNames = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const eightWeeksAgo = new Date(now);
+  eightWeeksAgo.setDate(now.getDate() - 56);
+
+  const { data: recentSales, error: recentError } = await supabase
+    .from("Sale")
+    .select("totalProfit, createdAt, Product!inner(userId)")
+    .eq("Product.userId", userId)
+    .gte("createdAt", eightWeeksAgo.toISOString())
+    .order("createdAt", { ascending: true });
+
+  if (recentError) throw new Error(recentError.message);
+  const recentRows = recentSales || [];
+
+  const weeklyData: { name: string; total: number }[] = [];
+  for (let i = 7; i >= 0; i--) {
+    const weekEnd = new Date(now);
+    weekEnd.setDate(now.getDate() - i * 7);
+    weekEnd.setHours(23, 59, 59, 999);
+    const weekStart = new Date(weekEnd);
+    weekStart.setDate(weekEnd.getDate() - 6);
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekProfit = recentRows
+      .filter((s) => {
+        const d = new Date(s.createdAt);
+        return d >= weekStart && d <= weekEnd;
+      })
+      .reduce((acc, s) => acc + (s.totalProfit || 0), 0);
+
+    weeklyData.push({
+      name: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`,
+      total: parseFloat(weekProfit.toFixed(2)),
+    });
+  }
+
+  const monthlyData: { name: string; total: number }[] = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const year = d.getFullYear();
+    const month = d.getMonth() + 1;
+    const profit = profitByYearMonth.get(`${year}-${month}`) ?? 0;
+    monthlyData.push({
+      name: `${monthNames[month - 1]} ${year.toString().slice(-2)}`,
+      total: parseFloat(profit.toFixed(2)),
+    });
+  }
+
+  const nowYear = now.getFullYear();
+  const yearsDiff = rows.length > 0 ? nowYear - firstYear : 0;
+  const groupByYear = yearsDiff >= 3;
+
+  const allTimeMap = new Map<string, number>();
+  for (const r of rows) {
+    const key = groupByYear
+      ? String(r.year)
+      : `${monthNames[r.month - 1]} ${String(r.year).slice(-2)}`;
+    allTimeMap.set(key, (allTimeMap.get(key) ?? 0) + Number(r.total_profit));
+  }
+  const allTimeData = Array.from(allTimeMap.entries()).map(([name, total]) => ({
+    name,
+    total: parseFloat(total.toFixed(2)),
+  }));
+
+  return { weeklyData, monthlyData, allTimeData };
+}

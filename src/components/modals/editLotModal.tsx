@@ -12,7 +12,7 @@ import {
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
-import { updateLot } from "@/actions/stock";
+import { updateLot } from "@/actions/stock/inventory";
 import type { StockLot } from "@/components/stock/lotCard";
 import { NotesField } from "@/components/ui/NotesField";
 import { StatusToggle } from "@/components/ui/StatusToggle";

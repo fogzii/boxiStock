@@ -16,7 +16,8 @@ import {
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
-import { deleteBundle, deleteProductSales, deleteSale } from "@/actions/stock";
+import { deleteBundle } from "@/actions/stock/bundles";
+import { deleteProductSales, deleteSale } from "@/actions/stock/sales";
 import { EditBundleModal } from "@/components/modals/editBundleModal";
 import { EditSaleModal } from "@/components/modals/editSaleModal";
 import { MergeSaleModal } from "@/components/modals/mergeSaleModal";
@@ -24,52 +25,16 @@ import { ScrollRestorer } from "@/components/ui/ScrollRestorer";
 import { TablePagination } from "@/components/ui/TablePagination";
 import { useReadOnly } from "@/lib/context/readOnly";
 import { formatCurrency } from "@/lib/formatting";
+import type {
+  BundleGroup,
+  CombinedSalesRow,
+  ProductSaleGroup,
+  SaleWithProductName,
+} from "@/lib/stock/types";
 
-interface SaleItem {
-  id: string;
-  dateSold: string | null;
-  createdAt: string;
-  quantitySold: number;
-  totalSalePrice: number;
-  totalProfit: number;
-  notes?: string | null;
-  Product?: { name: string } | null;
-}
+type SaleItem = SaleWithProductName;
 
-interface ProductSaleGroup {
-  productId: string;
-  productName: string;
-  latestDate: string;
-  totalQuantity: number;
-  totalSalePrice: number;
-  totalProfit: number;
-  sales: SaleItem[];
-}
-
-interface BundleProductDisplay {
-  productId: string | null;
-  productName: string;
-  totalQuantity: number;
-  totalBuyCost: number;
-  weightedAvgBuyPrice: number;
-  allocatedProfit: number;
-  hasRestorable: boolean;
-}
-
-interface BundleGroup {
-  bundleId: string;
-  bundleName: string;
-  dateSold: string | null;
-  createdAt: string;
-  totalSellPrice: number;
-  totalBuyCost: number;
-  totalProfit: number;
-  products: BundleProductDisplay[];
-}
-
-export type CombinedRow =
-  | { kind: "product"; data: ProductSaleGroup }
-  | { kind: "bundle"; data: BundleGroup };
+export type CombinedRow = CombinedSalesRow;
 
 interface SalesTableProps {
   items: CombinedRow[];

@@ -3,6 +3,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import type { InventoryCsvRow, SalesCsvRow } from "@/lib/stock/types";
 import { createClient } from "@/lib/supabase/server";
 import {
   assertArrayWithLimit,
@@ -14,23 +15,9 @@ import {
   parseOptionalDate,
 } from "@/lib/validation";
 
-export interface CSVExportRow {
-  productName: string;
-  initialQuantity: number;
-  remainingQuantity: number;
-  buyPrice: number;
-  isStocked: boolean;
-  dateAcquired: string;
-  lotIdentity: string | null;
-}
+export type CSVExportRow = InventoryCsvRow;
 
-export interface CSVSalesExportRow {
-  productName: string;
-  quantitySold: number;
-  totalSalePrice: number;
-  totalProfit: number;
-  createdAt: string;
-}
+export type CSVSalesExportRow = SalesCsvRow;
 
 export async function exportInventoryData(): Promise<CSVExportRow[]> {
   const { userId } = await auth();

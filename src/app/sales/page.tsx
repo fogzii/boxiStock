@@ -1,5 +1,6 @@
 import { TrendingUp, Wallet } from "lucide-react";
-import { getCombinedSalesGrouped, getSalesMetrics } from "@/actions/stock";
+import { getSalesMetrics } from "@/actions/stock/metrics";
+import { getCombinedSalesGrouped } from "@/actions/stock/sales";
 import { SalesTable } from "@/components/sales/salesTable";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { StatCard } from "@/components/ui/StatCard";
