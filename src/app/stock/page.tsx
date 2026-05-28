@@ -32,7 +32,6 @@ export default async function StockPage({
         currentPage,
         pageSize,
         searchParamStr,
-        undefined,
         sortParam,
         statusParam,
       ),

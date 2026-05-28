@@ -2,12 +2,12 @@ import { LinkIcon } from "lucide-react";
 import { cookies } from "next/headers";
 import { getPublicShareLink } from "@/actions/share";
 import {
-  getCombinedSalesGrouped,
-  getDashboardMetrics,
-  getInventoryPaginated,
-  getProfitChartData,
-  getSalesMetrics,
-} from "@/actions/stock";
+  getCombinedSalesGroupedForUser,
+  getDashboardMetricsForUser,
+  getInventoryPaginatedForUser,
+  getProfitChartDataForUser,
+  getSalesMetricsForUser,
+} from "@/lib/stock/readers";
 import { ShareContent } from "./ShareContent";
 import { SharePasswordGate } from "./SharePasswordGate";
 
@@ -61,13 +61,11 @@ export default async function SharePage({
     salesMetrics,
     salesCombined,
   ] = await Promise.all([
-    has("dashboard") ? getDashboardMetrics(uid) : null,
-    has("dashboard") ? getProfitChartData(uid) : null,
-    has("stock") ? getInventoryPaginated(stockPage, 10, undefined, uid) : null,
-    has("sales") ? getSalesMetrics(uid) : null,
-    has("sales")
-      ? getCombinedSalesGrouped(salesPage, 10, undefined, uid)
-      : null,
+    has("dashboard") ? getDashboardMetricsForUser(uid) : null,
+    has("dashboard") ? getProfitChartDataForUser(uid) : null,
+    has("stock") ? getInventoryPaginatedForUser(uid, stockPage, 10) : null,
+    has("sales") ? getSalesMetricsForUser(uid) : null,
+    has("sales") ? getCombinedSalesGroupedForUser(uid, salesPage, 10) : null,
   ]);
 
   return (
