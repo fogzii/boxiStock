@@ -154,11 +154,11 @@ export function SellUnitsModal({
             </p>
           </div>
 
-          <div className="flex gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField
               label="Quantity to Sell"
               htmlFor="quantity"
-              className="flex-1"
+              className="min-w-0"
             >
               <Input
                 id="quantity"
@@ -171,22 +171,20 @@ export function SellUnitsModal({
                 required
               />
             </FormField>
-            <FormField label="Date Sold" className="flex-1">
-              <div className="w-full flex">
-                <DatePickerInput
-                  onChange={(val) => setDateSold(val as Date)}
-                  value={dateSold}
-                />
-              </div>
+            <FormField label="Date Sold" className="min-w-0">
+              <DatePickerInput
+                onChange={(val) => setDateSold(val as Date)}
+                value={dateSold}
+              />
             </FormField>
           </div>
 
           <div className="space-y-3">
-            <div className="flex flex-row gap-3 items-end">
+            <div className="relative grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 label="Sell Price (per unit)"
                 htmlFor="perUnit"
-                className="flex-1"
+                className="min-w-0"
               >
                 <Input
                   id="perUnit"
@@ -200,13 +198,13 @@ export function SellUnitsModal({
                   required
                 />
               </FormField>
-              <div className="text-foreground/40 text-body-sm-strong pb-2.5 select-none">
+              <div className="-translate-x-1/2 -translate-y-1/2 absolute left-1/2 top-[calc(50%+0.875rem)] hidden rounded-full bg-canvas px-1.5 text-body-sm-strong text-foreground/40 select-none sm:block">
                 or
               </div>
               <FormField
                 label="Sell Price (total)"
                 htmlFor="total"
-                className="flex-1"
+                className="min-w-0"
               >
                 <Input
                   id="total"

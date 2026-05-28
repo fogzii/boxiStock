@@ -315,10 +315,6 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
   const router = useRouter();
   const editOpenRef = React.useRef<() => void>(() => {});
 
-  const unrestorableNames = bundle.products
-    .filter((p) => !p.hasRestorable)
-    .map((p) => p.productName);
-
   async function handleDelete() {
     setIsDeleting(true);
     try {
@@ -565,7 +561,6 @@ export function SalesTable({
   pageSize,
   onPageChange,
 }: SalesTableProps) {
-  const _isReadOnly = useReadOnly();
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
   const [sortField, setSortField] = React.useState<SortField | null>("date");

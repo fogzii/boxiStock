@@ -104,6 +104,12 @@ input[type="number"] {
   color: var(--muted-foreground);
 }
 
+.box-date-picker-portal > .react-date-picker__calendar {
+  width: 100%;
+  max-width: 100%;
+  z-index: inherit;
+}
+
 .react-calendar {
   background-color: var(--card);
   border: 1px solid var(--border);
@@ -113,7 +119,7 @@ input[type="number"] {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   padding: 0.5rem;
   width: 100%;
-  max-width: 280px;
+  max-width: 17.5rem;
   font-size: 0.85rem;
 }
 
