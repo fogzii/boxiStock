@@ -19,7 +19,7 @@ const ContentSecurityPolicy = [
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.clerk.accounts.dev https://clerk.boxistock.au https://*.clerk.com https://challenges.cloudflare.com",
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.clerk.accounts.dev https://*.clerk.com https://clerk.boxistock.au https://clerk-telemetry.com https://challenges.cloudflare.com https://us.i.posthog.com https://us-assets.i.posthog.com",
   "worker-src 'self' blob:",
-  "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://challenges.cloudflare.com",
+  "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://clerk.boxistock.au https://challenges.cloudflare.com",
   "upgrade-insecure-requests",
 ].join("; ");
 
