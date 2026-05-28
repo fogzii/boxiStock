@@ -1,9 +1,9 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import type { InventoryCsvRow, SalesCsvRow } from "@/lib/stock/types";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   assertArrayWithLimit,
@@ -20,7 +20,10 @@ export type CSVExportRow = InventoryCsvRow;
 export type CSVSalesExportRow = SalesCsvRow;
 
 export async function exportInventoryData(): Promise<CSVExportRow[]> {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await enforceRateLimit(
     `settings:export:${userId}`,
@@ -51,7 +54,10 @@ export async function exportInventoryData(): Promise<CSVExportRow[]> {
 }
 
 export async function exportSalesData(): Promise<CSVSalesExportRow[]> {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await enforceRateLimit(
     `settings:export:${userId}`,
@@ -80,7 +86,10 @@ export async function exportSalesData(): Promise<CSVSalesExportRow[]> {
 }
 
 export async function importInventoryData(rows: CSVExportRow[]) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await enforceRateLimit(
     `settings:import:${userId}`,
@@ -207,7 +216,10 @@ export async function importInventoryData(rows: CSVExportRow[]) {
 }
 
 export async function importSalesData(rows: CSVSalesExportRow[]) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await enforceRateLimit(
     `settings:import:${userId}`,
@@ -312,7 +324,10 @@ export async function importSalesData(rows: CSVSalesExportRow[]) {
 }
 
 export async function deleteAllUserData() {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await enforceRateLimit(
     `settings:destructive:${userId}`,

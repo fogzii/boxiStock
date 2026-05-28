@@ -1,14 +1,14 @@
 "use server";
 
-// Server actions for bundle sales: create, list, edit, delete, and restore
-// stock consumed by bundles where possible.
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import type {
   BundleHeaderRow,
   BundleItemListRow,
   BundleItemRestoreRow,
 } from "@/lib/stock/types";
+// Server actions for bundle sales: create, list, edit, delete, and restore
+// stock consumed by bundles where possible.
+import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   assertNonNegativeNumber,
@@ -25,7 +25,10 @@ export async function createBundle(data: {
   dateSold?: Date;
   items: Array<{ productId: string; quantity: number }>;
 }) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -182,7 +185,10 @@ export async function getBundlesGrouped(
   pageSize: number = 10,
   search?: string,
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
 
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
@@ -323,7 +329,10 @@ export async function updateBundle(
   bundleId: string,
   data: { name: string; totalSellPrice: number; dateSold?: Date },
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -362,7 +371,10 @@ export async function updateBundle(
 }
 
 export async function deleteBundle(bundleId: string) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 

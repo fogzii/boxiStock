@@ -1,11 +1,11 @@
 "use server";
 
-// Server actions for product and lot inventory workflows: add/edit/delete stock,
-// mark lots as stocked, and record direct inventory sales.
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { getInventoryPaginatedForUser } from "@/lib/stock/readers";
 import type { RecentProductRow } from "@/lib/stock/types";
+// Server actions for product and lot inventory workflows: add/edit/delete stock,
+// mark lots as stocked, and record direct inventory sales.
+import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   assertBoolean,
@@ -21,7 +21,10 @@ import {
 import { gateStockMutation, syncProductSalesStats } from "./_helpers";
 
 export async function getRecentProducts(limit = 3) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
 
   const supabase = await createClient();
@@ -43,7 +46,10 @@ export async function getInventoryPaginated(
   sort?: string,
   status?: string,
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   return getInventoryPaginatedForUser(
     userId,
@@ -64,7 +70,10 @@ export async function addProduct(data: {
   lotIdentity?: string;
   notes?: string;
 }) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -152,7 +161,10 @@ export async function addStockLot(data: {
   lotIdentity?: string;
   notes?: string;
 }) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -221,7 +233,10 @@ export async function updateLot(
     notes?: string;
   },
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -281,7 +296,10 @@ export async function updateLot(
 }
 
 export async function markAsStocked(lotId: string) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -312,7 +330,10 @@ export async function markAsStocked(lotId: string) {
 }
 
 export async function updateLotNotes(lotId: string, notes: string | null) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -342,7 +363,10 @@ export async function updateLotNotes(lotId: string, notes: string | null) {
 }
 
 export async function updateProductName(productId: string, name: string) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -366,7 +390,10 @@ export async function updateProductName(productId: string, name: string) {
 }
 
 export async function deleteLot(lotId: string) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -398,7 +425,10 @@ export async function deleteLot(lotId: string) {
 }
 
 export async function deleteLotUnits(lotId: string, quantity: number) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -443,7 +473,10 @@ export async function sellLotUnits(
   quantitySold: number,
   salePricePerUnit: number,
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -495,7 +528,10 @@ export async function sellAllLots(
   totalSellPrice: number,
   dateSold: Date,
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 

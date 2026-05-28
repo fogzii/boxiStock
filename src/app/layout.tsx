@@ -4,10 +4,8 @@ import type { Metadata } from "next";
 import "react-date-picker/dist/DatePicker.css";
 import "react-calendar/dist/Calendar.css";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Manrope } from "next/font/google";
 import { AIImportProvider } from "@/context/AIImportContext";
-import { clerkAppearance } from "@/lib/clerk-appearance";
 import { cn } from "@/lib/utils";
 
 const manrope = Manrope({
@@ -39,12 +37,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={cn("dark", manrope.variable)}>
       <body className="antialiased min-h-screen flex flex-col">
-        <ClerkProvider appearance={clerkAppearance}>
-          <AIImportProvider>
-            {children}
-            <Toaster position="bottom-right" theme="dark" richColors />
-          </AIImportProvider>
-        </ClerkProvider>
+        <AIImportProvider>
+          {children}
+          <Toaster position="bottom-right" theme="dark" richColors />
+        </AIImportProvider>
       </body>
     </html>
   );

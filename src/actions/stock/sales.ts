@@ -1,8 +1,5 @@
 "use server";
 
-// Server actions for sales history workflows: list grouped sales, edit/delete
-// sale records, and merge one product's sales into another product.
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import { getCombinedSalesGroupedForUser } from "@/lib/stock/readers";
 import type {
@@ -10,6 +7,9 @@ import type {
   ProductHeaderRow,
   SaleListRow,
 } from "@/lib/stock/types";
+// Server actions for sales history workflows: list grouped sales, edit/delete
+// sale records, and merge one product's sales into another product.
+import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   assertNonNegativeNumber,
@@ -27,7 +27,10 @@ export async function getSalesHistory(
   pageSize: number = 10,
   search?: string,
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
 
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
@@ -89,7 +92,10 @@ export async function getSalesHistoryGrouped(
   pageSize: number = 10,
   search?: string,
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
 
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
@@ -197,7 +203,10 @@ export async function updateSale(
     notes?: string;
   },
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -254,7 +263,10 @@ export async function updateSale(
 }
 
 export async function deleteSale(saleId: string) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
 
   if (typeof saleId !== "string" || !saleId.trim())
@@ -281,7 +293,10 @@ export async function deleteSale(saleId: string) {
 }
 
 export async function deleteProductSales(productId: string) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -317,7 +332,10 @@ export async function getProductGroupHeaders(
   search?: string,
   excludeProductId?: string,
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
 
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
@@ -375,7 +393,10 @@ export async function mergeProductSales(
   sourceProductId: string,
   targetProductId: string,
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockMutation(userId);
 
@@ -417,7 +438,10 @@ export async function getCombinedSalesGrouped(
   pageSize: number = 10,
   search?: string,
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   return getCombinedSalesGroupedForUser(userId, page, pageSize, search);
 }

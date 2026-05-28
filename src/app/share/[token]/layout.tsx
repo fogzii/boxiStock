@@ -1,8 +1,8 @@
-import { clerkClient } from "@clerk/nextjs/server";
 import { Package } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getPublicShareLink } from "@/actions/share";
+import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Shared Stats | BoxiStock",
@@ -26,12 +26,15 @@ export default async function ShareLayout({
   try {
     const link = await getPublicShareLink(token);
     if (link?.userId) {
-      const client = await clerkClient();
-      const user = await client.users.getUser(link.userId);
-      username = user.username ?? null;
+      const supabase = await createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.admin.getUserById(link.userId);
+      const fullName = user?.user_metadata?.full_name as string | undefined;
+      username = fullName?.split(" ")[0] ?? null;
     }
   } catch {
-    // silently skip — username is optional decoration
+    // username is optional decoration
   }
 
   return (

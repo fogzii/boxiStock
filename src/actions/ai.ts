@@ -2,8 +2,8 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
-import { auth } from "@clerk/nextjs/server";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { cleanRequiredString, MAX_AI_PROMPT_LENGTH } from "@/lib/validation";
 
 const anthropic = new Anthropic({
@@ -160,7 +160,11 @@ export async function parseInventoryWithAI(
   prompt: string,
 ): Promise<AIResult<unknown[]>> {
   try {
-    const { userId } = await auth();
+    const {
+      data: { user },
+    } = await getAuthUser();
+    const userId = user?.id;
+    if (!userId) throw new Error("Unauthorized");
     if (!userId) return { ok: false, error: "Unauthorized." };
 
     if (!process.env.ANTHROPIC_API_KEY?.trim()) {
@@ -213,7 +217,11 @@ export async function parseSalesWithAI(
   prompt: string,
 ): Promise<AIResult<unknown[]>> {
   try {
-    const { userId } = await auth();
+    const {
+      data: { user },
+    } = await getAuthUser();
+    const userId = user?.id;
+    if (!userId) throw new Error("Unauthorized");
     if (!userId) return { ok: false, error: "Unauthorized." };
 
     if (!process.env.ANTHROPIC_API_KEY?.trim()) {

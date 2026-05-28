@@ -1,7 +1,9 @@
 "use client";
 
-import { UserButton, useUser } from "@clerk/nextjs";
-import { useRef } from "react";
+import type { User } from "@supabase/supabase-js";
+import { LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 interface SidebarProfileProps {
@@ -9,66 +11,38 @@ interface SidebarProfileProps {
 }
 
 export function SidebarProfile({ isCollapsed }: SidebarProfileProps) {
-  const { user } = useUser();
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [user, setUser] = useState<User | null>(null);
 
-  const email = user?.primaryEmailAddress?.emailAddress ?? "";
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
+  }, []);
+
+  const email = user?.email ?? "";
   const displayName =
-    user?.username ??
-    user?.fullName ??
-    user?.firstName ??
-    email.split("@")[0] ??
-    "User";
+    (user?.user_metadata?.full_name as string | undefined) ??
+    (user?.user_metadata?.name as string | undefined) ??
+    (email.split("@")[0] || "?");
 
-  const triggerClerkButton = () => {
-    const clerkTrigger = containerRef.current?.querySelector("button");
-    clerkTrigger?.click();
-  };
-
-  const handleContainerClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    const isClerkButton =
-      target.closest(".cl-userButtonBox") ||
-      target.closest(".cl-userButtonTrigger");
-    if (!isClerkButton) triggerClerkButton();
-  };
-
-  const handleContainerKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" || e.key === " ") {
-      const target = e.target as HTMLElement;
-      if (target.closest(".cl-userButtonBox")) return;
-      e.preventDefault();
-      triggerClerkButton();
-    }
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    window.location.href = "/sign-in";
   };
 
   return (
-    // biome-ignore lint/a11y/useSemanticElements: cannot use <button> because Clerk's <UserButton/> already renders a nested <button>, which would be invalid HTML
     <div
-      ref={containerRef}
-      role="button"
-      tabIndex={0}
-      aria-label={`Account menu for ${displayName}`}
-      onClick={handleContainerClick}
-      onKeyDown={handleContainerKeyDown}
       className={cn(
-        "flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer",
+        "flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-muted/30",
         isCollapsed && "md:justify-center md:p-2",
       )}
     >
-      {/* Clerk UserButton (avatar + dropdown with sign-out, account management) */}
-      <UserButton
-        appearance={{
-          elements: {
-            avatarBox: "w-9 h-9 ring-2 ring-primary/20",
-            userButtonPopoverCard: {
-              transform: "translate(-14px, -16px)",
-            },
-          },
-        }}
-      />
+      <div className="w-9 h-9 rounded-full ring-2 ring-primary/20 bg-primary/20 flex items-center justify-center shrink-0">
+        <span className="text-xs text-primary font-semibold">
+          {displayName.charAt(0).toUpperCase()}
+        </span>
+      </div>
 
-      {/* Name & email */}
       <div
         className={cn(
           "flex flex-col min-w-0 flex-1 transition-all duration-300",
@@ -80,6 +54,17 @@ export function SidebarProfile({ isCollapsed }: SidebarProfileProps) {
         </span>
         <span className="text-caption text-body truncate">{email}</span>
       </div>
+
+      {!isCollapsed && (
+        <button
+          type="button"
+          onClick={handleSignOut}
+          aria-label="Sign out"
+          className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 }

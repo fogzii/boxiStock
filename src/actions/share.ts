@@ -1,17 +1,20 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import bcrypt from "bcryptjs";
 import { unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
 const ALLOWED_SECTIONS = ["dashboard", "stock", "sales"] as const;
 
 export async function getMyShareLink() {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
 
   const supabase = await createClient();
@@ -29,7 +32,10 @@ export async function getMyShareLink() {
 }
 
 export async function updateSharePassword(password: string | null) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
 
   let passwordHash: string | null = null;
@@ -55,7 +61,10 @@ export async function createShareLink({
   password?: string;
   expiresAt?: Date | null;
 }) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
 
   if (!Array.isArray(sections) || sections.length === 0)
@@ -92,7 +101,10 @@ export async function createShareLink({
 }
 
 export async function disableShareLink() {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
 
   const supabase = await createClient();

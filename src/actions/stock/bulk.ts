@@ -1,10 +1,10 @@
 "use server";
 
-// Server actions for high-volume stock changes: mock seed data and AI-assisted
-// bulk imports for lots and sales.
-import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 import type { ProductSaleMatch } from "@/lib/stock/types";
+// Server actions for high-volume stock changes: mock seed data and AI-assisted
+// bulk imports for lots and sales.
+import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   assertArrayWithLimit,
@@ -20,7 +20,10 @@ import {
 import { gateStockBulk, syncProductSalesStats } from "./_helpers";
 
 export async function seedMockData() {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockBulk(userId);
 
@@ -110,7 +113,10 @@ export async function bulkAddLotsAndProducts(
     dateAcquired?: string;
   }[],
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockBulk(userId);
 
@@ -198,7 +204,10 @@ export async function bulkAddSales(
     notes?: string;
   }[],
 ) {
-  const { userId } = await auth();
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
   await gateStockBulk(userId);
 
