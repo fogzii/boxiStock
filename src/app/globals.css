@@ -7,51 +7,9 @@
  * the single source of truth and is ALSO consumed by the box-ds docs
  * preview, so the docs and the live app cannot drift apart.
  *
- * Anything below this import is app-specific only — Clerk overrides,
- * vendor-CSS overrides for react-date-picker, and number-input chrome.
+ * Anything below this import is app-specific only — vendor-CSS overrides
+ * for react-date-picker and number-input chrome.
  */
-
-/* Clerk UserButton popup — hide snap then fade in */
-@keyframes clerkPopoverFadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.cl-userButtonPopoverCard {
-  animation: clerkPopoverFadeIn 120ms ease 60ms both;
-}
-
-/* Clerk profile page — Clerk renders text via internal hashed classes controlled
-   by data-color/data-variant attributes. Target those attributes directly since
-   the hashed class names change between Clerk versions. */
-[data-color="inherit"],
-[data-localization-key] {
-  color: #f8f8f8;
-}
-
-[data-color="secondary"] {
-  color: #a1a1aa;
-}
-
-/* Hover state on accordion / menu items */
-.cl-accordionTriggerButton:hover,
-.cl-menuItem:hover {
-  background-color: #27272a;
-}
-
-/* Clerk logo — SVG uses currentColor so setting color on the link is enough */
-[aria-label="Clerk logo"] {
-  color: #f8f8f8;
-  opacity: 0.5;
-}
-
-[aria-label="Clerk logo"]:hover {
-  opacity: 0.8;
-}
 
 input[type="date"] {
   color-scheme: dark;

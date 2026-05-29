@@ -37,8 +37,8 @@ export default function PrivacyPage() {
           <p>
             <strong className="text-foreground">Account information:</strong>{" "}
             When you sign up, we collect your name, email address, and
-            authentication credentials via our identity provider, Clerk. We do
-            not store passwords directly.
+            authentication credentials via Google OAuth. We do not store
+            passwords directly.
           </p>
           <p>
             <strong className="text-foreground">
@@ -123,23 +123,9 @@ export default function PrivacyPage() {
           <p>BoxiStock uses the following third-party services to operate:</p>
           <ul className="list-disc list-inside space-y-1 text-foreground/80 ml-2">
             <li>
-              <strong className="text-foreground">Clerk</strong> —
-              Authentication and user account management. Your login credentials
-              and profile data are processed by Clerk in accordance with their{" "}
-              <a
-                href="https://clerk.com/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline"
-              >
-                Privacy Policy
-              </a>
-              .
-            </li>
-            <li>
-              <strong className="text-foreground">Supabase</strong> — Database
-              storage for your inventory and sales data, hosted on secure cloud
-              infrastructure.
+              <strong className="text-foreground">Supabase</strong> —
+              Authentication, database storage for your inventory and sales
+              data, hosted on secure cloud infrastructure.
             </li>
             <li>
               <strong className="text-foreground">Vercel</strong> — Hosting and

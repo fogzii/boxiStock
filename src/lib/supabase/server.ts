@@ -6,7 +6,7 @@ import type { Database } from "./database.types";
  *
  * Uses a Supabase Secret API key (prefixed `sb_secret_`), which bypasses
  * Row Level Security. This is safe because every server action
- * authenticates the caller with Clerk (`auth()`) and scopes queries by
+ * authenticates the caller via Supabase Auth and scopes queries by
  * `userId` before hitting the DB.
  *
  * Never import this file from client components. The secret key is

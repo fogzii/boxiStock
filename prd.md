@@ -4,9 +4,9 @@
 Tech Stack
 Framework: Next.js 15 (App Router) + TypeScript
 
-Auth: Clerk
+Auth: Supabase Auth (Google OAuth)
 
-Database: Supabase (PostgreSQL) + Prisma ORM
+Database: Supabase (PostgreSQL)
 
 Styling: Tailwind CSS + Shadcn/UI
 
