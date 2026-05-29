@@ -9,6 +9,7 @@ import {
   Modal,
   Skeleton,
 } from "@box-ds";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ChevronLeft,
   ChevronRight,
@@ -20,17 +21,18 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 import { createBundle } from "@/actions/stock/bundles";
 import { getInventoryPaginated } from "@/actions/stock/inventory";
 import { formatCurrency, round2 } from "@/lib/formatting";
+import { optionalDateSchema, sellPriceSchema } from "@/lib/schemas";
 import type {
   BundleInventoryLot,
   PaginatedInventoryProduct,
 } from "@/lib/stock/types";
-
-type ValuePiece = Date | null;
-type Value = ValuePiece | [ValuePiece, ValuePiece];
+import type { DatePickerValue } from "@/lib/types";
 
 type PaginatedLot = BundleInventoryLot;
 type PaginatedProduct = PaginatedInventoryProduct;
@@ -84,7 +86,13 @@ function totalAvailable(lots: PaginatedLot[]) {
   return lots.reduce((s, l) => s + l.remainingQuantity, 0);
 }
 
-// ─── BundleSaleModal ──────────────────────────────────────────────────────────
+const schema = z.object({
+  bundleName: z.string().min(1, "Bundle name is required"),
+  sellPrice: sellPriceSchema,
+  dateSold: optionalDateSchema,
+});
+
+type FormData = z.infer<typeof schema>;
 
 interface BundleSaleModalProps {
   isOpen: boolean;
@@ -100,22 +108,11 @@ const SKELETON_ROW_KEYS = Array.from(
 function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
   const router = useRouter();
 
-  const [bundleName, setBundleName] = React.useState("");
-  const [sellPriceStr, setSellPriceStr] = React.useState("");
-  const [dateSold, setDateSold] = React.useState<Value>(new Date());
   const [bundleItems, setBundleItems] = React.useState<BundleItemEntry[]>([]);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const sellPriceMeasureRef = React.useRef<HTMLSpanElement>(null);
   const [sellPriceInputWidth, setSellPriceInputWidth] = React.useState(58);
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: sellPriceStr triggers DOM remeasure of the hidden span
-  React.useEffect(() => {
-    if (!sellPriceMeasureRef.current) return;
-    const w = sellPriceMeasureRef.current.offsetWidth;
-    // pl-5 (20px) + pr-2 (8px) + 4px buffer
-    setSellPriceInputWidth(Math.max(58, Math.min(w + 32, 144)));
-  }, [sellPriceStr]);
 
   const [productSearch, setProductSearch] = React.useState("");
   const [productPage, setProductPage] = React.useState(1);
@@ -125,7 +122,34 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
   const [searchTotalPages, setSearchTotalPages] = React.useState(1);
   const [searchLoading, setSearchLoading] = React.useState(false);
 
-  // Debounced product fetch
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+    shouldFocusError: true,
+    defaultValues: {
+      bundleName: "",
+      sellPrice: undefined,
+      dateSold: new Date(),
+    },
+  });
+
+  const watchedSellPrice = watch("sellPrice");
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: sellPrice triggers DOM remeasure of the hidden span
+  React.useEffect(() => {
+    if (!sellPriceMeasureRef.current) return;
+    const w = sellPriceMeasureRef.current.offsetWidth;
+    setSellPriceInputWidth(Math.max(58, Math.min(w + 32, 144)));
+  }, [watchedSellPrice]);
+
   React.useEffect(() => {
     if (!isOpen) return;
     const timer = setTimeout(async () => {
@@ -148,9 +172,11 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
   }, [isOpen, productSearch, productPage]);
 
   function resetForm() {
-    setBundleName("");
-    setSellPriceStr("");
-    setDateSold(new Date());
+    reset({
+      bundleName: "",
+      sellPrice: undefined,
+      dateSold: new Date(),
+    });
     setBundleItems([]);
     setProductSearch("");
     setProductPage(1);
@@ -202,34 +228,34 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
   const totalBuyCost = round2(
     itemsWithFifo.reduce((s, i) => s + i.fifo.totalBuy, 0),
   );
-  const sellPrice = parseFloat(sellPriceStr) || 0;
+  const sellPrice = Number(watchedSellPrice) || 0;
   const totalProfit = round2(sellPrice - totalBuyCost);
   const perProductProfit =
     bundleItems.length > 0 ? round2(totalProfit / bundleItems.length) : 0;
 
   const hasInvalidFifo = itemsWithFifo.some((i) => !i.fifo.hasEnough);
-  const canSubmit =
-    bundleName.trim().length > 0 &&
-    sellPriceStr !== "" &&
-    bundleItems.length >= 1 &&
-    !hasInvalidFifo &&
-    !isSubmitting;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!canSubmit) return;
+  const onSubmit = handleSubmit(async (data) => {
+    if (bundleItems.length < 1 || hasInvalidFifo) {
+      toast.error(
+        hasInvalidFifo
+          ? "Insufficient stock for one or more items."
+          : "Add at least one product to the bundle.",
+      );
+      return;
+    }
     setIsSubmitting(true);
     try {
       await createBundle({
-        name: bundleName.trim(),
-        totalSellPrice: round2(sellPrice),
-        dateSold: dateSold instanceof Date ? dateSold : new Date(),
+        name: data.bundleName.trim(),
+        totalSellPrice: round2(Number(data.sellPrice) || 0),
+        dateSold: data.dateSold instanceof Date ? data.dateSold : new Date(),
         items: bundleItems.map((i) => ({
           productId: i.productId,
           quantity: i.quantity,
         })),
       });
-      toast.success(`Bundle "${bundleName.trim()}" recorded.`);
+      toast.success(`Bundle "${data.bundleName.trim()}" recorded.`);
       handleClose();
       router.refresh();
     } catch (err) {
@@ -239,7 +265,7 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
     } finally {
       setIsSubmitting(false);
     }
-  }
+  });
 
   const addedIds = new Set(bundleItems.map((i) => i.productId));
 
@@ -250,17 +276,21 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
       title="Bundle Sale"
       className="sm:max-w-2xl"
     >
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
         <div className="space-y-5">
-          <Input
-            id="bundle-name"
-            value={bundleName}
-            onChange={(e) => setBundleName(e.target.value)}
-            placeholder="Bundle Name"
-            required
-          />
+          <FormField
+            label="Bundle Name"
+            htmlFor="bundle-name"
+            error={undefined}
+          >
+            <Input
+              id="bundle-name"
+              placeholder="Bundle Name"
+              error={!!errors.bundleName}
+              {...register("bundleName")}
+            />
+          </FormField>
 
-          {/* Product search */}
           <div className="space-y-2">
             <div className="relative">
               <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
@@ -280,7 +310,6 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
                 className="pl-9"
               />
             </div>
-            {/* Fixed-height list container prevents modal height jumps */}
             <div className="border border-primary/20 rounded-lg overflow-hidden bg-background/50">
               <ul className="divide-y divide-primary/10">
                 {searchLoading
@@ -333,7 +362,7 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
                               type="button"
                               disabled={isAdded || !hasStock}
                               onClick={() => addProduct(product)}
-                              className={`text-caption px-2.5 py-1 rounded-md transition-colors shrink-0 ml-2 ${
+                              className={`text-caption px-2.5 py-1 rounded-md transition-colors shrink-0 ml-2 cursor-pointer ${
                                 isAdded
                                   ? "bg-primary/10 text-primary cursor-default"
                                   : hasStock
@@ -347,7 +376,6 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
                         );
                       })}
               </ul>
-              {/* Pagination row — always rendered to keep height stable */}
               <div className="flex items-center justify-center gap-2 py-2 border-t border-primary/10 h-[36px]">
                 {searchTotalPages > 1 && (
                   <>
@@ -355,7 +383,7 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
                       type="button"
                       disabled={productPage === 1}
                       onClick={() => setProductPage((p) => p - 1)}
-                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-default"
+                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-default cursor-pointer"
                     >
                       <ChevronLeft className="w-4 h-4" />
                     </button>
@@ -366,7 +394,7 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
                       type="button"
                       disabled={productPage === searchTotalPages}
                       onClick={() => setProductPage((p) => p + 1)}
-                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-default"
+                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-default cursor-pointer"
                     >
                       <ChevronRight className="w-4 h-4" />
                     </button>
@@ -376,7 +404,6 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
             </div>
           </div>
 
-          {/* Bundle items */}
           {bundleItems.length > 0 && (
             <div className="space-y-2">
               <Label>Bundle Items</Label>
@@ -414,14 +441,13 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
                         <button
                           type="button"
                           onClick={() => removeProduct(item.productId)}
-                          className="text-muted-foreground hover:text-destructive transition-colors"
+                          className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
                           aria-label={`Remove ${item.productName}`}
                         >
                           <X className="w-4 h-4" />
                         </button>
                       </div>
 
-                      {/* FIFO breakdown */}
                       <div className="pl-7 space-y-0.5">
                         {item.fifo.breakdown.map((b) => (
                           <div
@@ -457,100 +483,117 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
             </div>
           )}
 
-          {/* Pricing */}
           <div className="space-y-2">
-            <Label>Pricing</Label>
-            <div className="border border-primary/20 rounded-lg bg-background/50 divide-y divide-primary/10">
-              {/* Total buy cost row */}
-              <div className="flex items-center justify-between pl-4 pr-5 h-11">
-                <span className="text-body-sm text-muted-foreground">
-                  Total buy cost
-                </span>
-                <span className="text-body-sm-strong text-foreground">
-                  {formatCurrency(totalBuyCost)}
-                </span>
-              </div>
+            <FormField
+              label="Pricing"
+              htmlFor="sell-price"
+              error={errors.sellPrice?.message}
+            >
+              <div className="border border-primary/20 rounded-lg bg-background/50 divide-y divide-primary/10">
+                <div className="flex items-center justify-between pl-4 pr-5 h-11">
+                  <span className="text-body-sm text-muted-foreground">
+                    Total buy cost
+                  </span>
+                  <span className="text-body-sm-strong text-foreground">
+                    {formatCurrency(totalBuyCost)}
+                  </span>
+                </div>
 
-              {/* Sell price row — input right-aligned */}
-              <div className="flex items-center justify-between pl-4 pr-3 h-11 gap-4">
-                <span className="text-body-sm text-muted-foreground shrink-0">
-                  Sell price
-                </span>
-                <div
-                  className="relative transition-[width] duration-100"
-                  style={{ width: sellPriceInputWidth }}
-                >
-                  <span
-                    ref={sellPriceMeasureRef}
-                    aria-hidden
-                    className="absolute invisible whitespace-nowrap text-body-sm pointer-events-none"
-                  >
-                    {sellPriceStr || "0.00"}
+                <div className="flex items-center justify-between pl-4 pr-3 h-11 gap-4">
+                  <span className="text-body-sm text-muted-foreground shrink-0">
+                    Sell price
                   </span>
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-body-sm text-muted-foreground pointer-events-none">
-                    $
-                  </span>
-                  <Input
-                    id="sell-price"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={sellPriceStr}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
-                        setSellPriceStr(val);
-                      }
-                    }}
-                    className="w-full pl-4 h-8 text-body-sm bg-background text-right pr-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    placeholder="0.00"
-                    required
+                  <Controller
+                    name="sellPrice"
+                    control={control}
+                    render={({ field }) => (
+                      <div
+                        className="relative transition-[width] duration-100"
+                        style={{ width: sellPriceInputWidth }}
+                      >
+                        <span
+                          ref={sellPriceMeasureRef}
+                          aria-hidden
+                          className="absolute invisible whitespace-nowrap text-body-sm pointer-events-none"
+                        >
+                          {String(field.value || "0.00")}
+                        </span>
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-body-sm text-muted-foreground pointer-events-none">
+                          $
+                        </span>
+                        <Input
+                          id="sell-price"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          className="w-full pl-4 h-8 text-body-sm bg-background text-right pr-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                          placeholder="0.00"
+                          error={!!errors.sellPrice}
+                          {...field}
+                          value={field.value ?? ""}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                              const n = parseFloat(val);
+                              field.onChange(Number.isNaN(n) ? undefined : n);
+                            }
+                          }}
+                        />
+                      </div>
+                    )}
                   />
                 </div>
-              </div>
 
-              {/* Total profit row */}
-              <div className="flex items-center justify-between pl-4 pr-5 h-11">
-                <span className="text-body-sm text-muted-foreground">
-                  Total profit
-                </span>
-                <span
-                  className={`text-body-sm-strong ${totalProfit >= 0 ? "text-positive" : "text-destructive"}`}
-                >
-                  {totalProfit >= 0 ? "+" : ""}
-                  {formatCurrency(totalProfit)}
-                </span>
-              </div>
-
-              {/* Per-product split hint */}
-              {bundleItems.length > 0 && sellPriceStr !== "" && (
-                <div className="flex items-center justify-between pl-4 pr-5 h-9">
-                  <span className="text-caption text-muted-foreground/50">
-                    Profit will be split equally across {bundleItems.length}{" "}
-                    product
-                    {bundleItems.length !== 1 ? "s" : ""}
+                <div className="flex items-center justify-between pl-4 pr-5 h-11">
+                  <span className="text-body-sm text-muted-foreground">
+                    Total profit
                   </span>
-                  <span className="text-caption text-muted-foreground/50">
-                    {formatCurrency(perProductProfit)} each
+                  <span
+                    className={`text-body-sm-strong ${totalProfit >= 0 ? "text-positive" : "text-destructive"}`}
+                  >
+                    {totalProfit >= 0 ? "+" : ""}
+                    {formatCurrency(totalProfit)}
                   </span>
                 </div>
-              )}
-            </div>
+
+                {bundleItems.length > 0 &&
+                  typeof watchedSellPrice === "number" && (
+                    <div className="flex items-center justify-between pl-4 pr-5 h-9">
+                      <span className="text-caption text-muted-foreground/50">
+                        Profit will be split equally across {bundleItems.length}{" "}
+                        product
+                        {bundleItems.length !== 1 ? "s" : ""}
+                      </span>
+                      <span className="text-caption text-muted-foreground/50">
+                        {formatCurrency(perProductProfit)} each
+                      </span>
+                    </div>
+                  )}
+              </div>
+            </FormField>
           </div>
 
-          {/* Date sold */}
-          <FormField label="Date Sold">
-            <div className="w-full flex">
-              <DatePickerInput onChange={setDateSold} value={dateSold} />
-            </div>
-          </FormField>
+          <Controller
+            name="dateSold"
+            control={control}
+            render={({ field, fieldState }) => (
+              <FormField label="Date Sold" error={fieldState.error?.message}>
+                <div className="w-full flex">
+                  <DatePickerInput
+                    onChange={(val) => field.onChange(val as DatePickerValue)}
+                    value={field.value ?? null}
+                    error={!!fieldState.error}
+                  />
+                </div>
+              </FormField>
+            )}
+          />
         </div>
 
-        {/* Actions */}
         <div className="flex flex-col sm:flex-row-reverse gap-3 mt-4">
           <Button
             type="submit"
-            disabled={!canSubmit}
+            disabled={isSubmitting}
             className="w-full sm:w-auto h-12 shadow-glow-subtle sm:px-6"
           >
             {isSubmitting ? (
@@ -577,8 +620,6 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
   );
 }
 
-// ─── BundleSaleButton ─────────────────────────────────────────────────────────
-
 export function BundleSaleButton() {
   const [isOpen, setIsOpen] = React.useState(false);
   return (
@@ -586,7 +627,7 @@ export function BundleSaleButton() {
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 h-9 px-4 text-body-sm-strong text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 rounded-lg transition-all whitespace-nowrap"
+        className="flex items-center gap-2 h-9 px-4 text-body-sm-strong text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 rounded-lg transition-all whitespace-nowrap cursor-pointer"
       >
         <PackagePlus className="w-4 h-4" />
         Bundle sale

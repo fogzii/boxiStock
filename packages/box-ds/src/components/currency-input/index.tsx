@@ -5,11 +5,13 @@ import { Input } from "../input";
 
 interface CurrencyInputProps extends React.ComponentProps<"input"> {
   symbol?: string;
+  error?: boolean;
 }
 
 export function CurrencyInput({
   className,
   symbol = "$",
+  error,
   ...props
 }: CurrencyInputProps) {
   return (
@@ -17,7 +19,7 @@ export function CurrencyInput({
       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-body-sm text-body pointer-events-none select-none">
         {symbol}
       </span>
-      <Input className={cn("pl-7", className)} {...props} />
+      <Input className={cn("pl-7", className)} error={error} {...props} />
     </div>
   );
 }

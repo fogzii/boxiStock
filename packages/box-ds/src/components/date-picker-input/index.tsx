@@ -6,6 +6,10 @@ import DatePicker from "react-date-picker";
 
 import { cn } from "../../utils/cn";
 
+interface DatePickerInputProps extends DatePickerProps {
+  error?: boolean;
+}
+
 function DatePickerInput({
   clearIcon = null,
   className,
@@ -13,8 +17,9 @@ function DatePickerInput({
   onCalendarClose,
   onCalendarOpen,
   portalContainer,
+  error,
   ...props
-}: DatePickerProps) {
+}: DatePickerInputProps) {
   const anchorRef = React.useRef<HTMLDivElement | null>(null);
   const ownedPortalRef = React.useRef<HTMLDivElement | null>(null);
   const [calendarContainer, setCalendarContainer] =
@@ -104,6 +109,7 @@ function DatePickerInput({
         }}
         className={cn(
           "min-h-11 w-full rounded-md border border-body bg-canvas text-body-md [color-scheme:dark]",
+          error && "border-negative ring-2 ring-negative/20",
           className,
         )}
         {...props}

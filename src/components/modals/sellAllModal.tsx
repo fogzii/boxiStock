@@ -7,16 +7,25 @@ import {
   FormField,
   Modal,
 } from "@box-ds";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 import { sellAllLots } from "@/actions/stock/inventory";
 import type { ProductWithLots } from "@/components/stock/stockTable";
 import { formatCurrency, round2 } from "@/lib/formatting";
+import { optionalDateSchema, sellPriceSchema } from "@/lib/schemas";
+import type { DatePickerValue } from "@/lib/types";
 
-type ValuePiece = Date | null;
-type Value = ValuePiece | [ValuePiece, ValuePiece];
+const schema = z.object({
+  sellPrice: sellPriceSchema,
+  dateSold: optionalDateSchema,
+});
+
+type FormData = z.infer<typeof schema>;
 
 interface SellAllModalProps {
   product: ProductWithLots;
@@ -26,8 +35,6 @@ interface SellAllModalProps {
 export function SellAllModal({ product, children }: SellAllModalProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [sellPriceStr, setSellPriceStr] = React.useState("");
-  const [dateSold, setDateSold] = React.useState<Value>(new Date());
   const router = useRouter();
 
   const totalQty = product.lots.reduce((s, l) => s + l.remainingQuantity, 0);
@@ -35,33 +42,44 @@ export function SellAllModal({ product, children }: SellAllModalProps) {
     product.lots.reduce((s, l) => s + l.remainingQuantity * l.buyPrice, 0),
   );
 
-  const sellPrice = parseFloat(sellPriceStr) || 0;
+  const {
+    control,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+    shouldFocusError: true,
+    defaultValues: {
+      sellPrice: undefined,
+      dateSold: new Date(),
+    },
+  });
+
+  const watchedSell = watch("sellPrice");
+  const sellPrice = Number(watchedSell) || 0;
   const totalProfit = round2(sellPrice - totalBuyCost);
 
-  const canSubmit =
-    sellPriceStr !== "" && sellPrice >= 0 && totalQty > 0 && !isSubmitting;
-
   function handleOpen() {
-    setSellPriceStr("");
-    setDateSold(new Date());
+    reset({ sellPrice: undefined, dateSold: new Date() });
     setIsOpen(true);
   }
 
   function handleClose() {
-    setSellPriceStr("");
-    setDateSold(new Date());
+    reset({ sellPrice: undefined, dateSold: new Date() });
     setIsOpen(false);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!canSubmit) return;
+  const onSubmit = handleSubmit(async (data) => {
     setIsSubmitting(true);
     try {
       await sellAllLots(
         product.id,
-        round2(sellPrice),
-        dateSold instanceof Date ? dateSold : new Date(),
+        round2(Number(data.sellPrice) || 0),
+        data.dateSold instanceof Date ? data.dateSold : new Date(),
       );
       toast.success(`Sold all ${totalQty} units of "${product.name}".`);
       handleClose();
@@ -73,15 +91,14 @@ export function SellAllModal({ product, children }: SellAllModalProps) {
     } finally {
       setIsSubmitting(false);
     }
-  }
+  });
 
   return (
     <>
       {children(handleOpen)}
       <Modal isOpen={isOpen} onClose={handleClose} title="Sell All Stock">
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
           <div className="space-y-5">
-            {/* Product summary */}
             <div className="rounded-lg border border-primary/20 bg-background/50 divide-y divide-primary/10">
               <div className="flex items-center justify-between px-4 h-11">
                 <span className="text-body-sm text-muted-foreground">
@@ -109,31 +126,45 @@ export function SellAllModal({ product, children }: SellAllModalProps) {
               </div>
             </div>
 
-            {/* Sell price */}
-            <FormField label="Sell Price" htmlFor="sell-all-price">
-              <CurrencyInput
-                id="sell-all-price"
-                type="number"
-                min="0"
-                step="0.01"
-                value={sellPriceStr}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
-                    setSellPriceStr(val);
-                  }
-                }}
-                onBlur={() => {
-                  const n = parseFloat(sellPriceStr);
-                  if (Number.isFinite(n)) setSellPriceStr(round2(n).toFixed(2));
-                }}
-                placeholder="0.00"
-                required
+            <FormField
+              label="Sell Price"
+              htmlFor="sell-all-price"
+              error={errors.sellPrice?.message}
+            >
+              <Controller
+                name="sellPrice"
+                control={control}
+                render={({ field }) => (
+                  <CurrencyInput
+                    id="sell-all-price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    error={!!errors.sellPrice}
+                    {...field}
+                    value={field.value ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "" || /^\d*\.?\d{0,2}$/.test(val)) {
+                        const n = parseFloat(val);
+                        field.onChange(Number.isNaN(n) ? undefined : n);
+                      }
+                    }}
+                    onBlur={() => {
+                      if (
+                        typeof field.value === "number" &&
+                        Number.isFinite(field.value)
+                      ) {
+                        field.onChange(round2(field.value));
+                      }
+                    }}
+                  />
+                )}
               />
             </FormField>
 
-            {/* Profit preview */}
-            {sellPriceStr !== "" && (
+            {typeof watchedSell === "number" && (
               <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-background/50 px-4 h-11">
                 <span className="text-body-sm text-muted-foreground">
                   Net profit
@@ -147,19 +178,26 @@ export function SellAllModal({ product, children }: SellAllModalProps) {
               </div>
             )}
 
-            {/* Date sold */}
-            <FormField label="Date Sold">
-              <div className="w-full flex">
-                <DatePickerInput onChange={setDateSold} value={dateSold} />
-              </div>
-            </FormField>
+            <Controller
+              name="dateSold"
+              control={control}
+              render={({ field }) => (
+                <FormField label="Date Sold">
+                  <div className="w-full flex">
+                    <DatePickerInput
+                      onChange={(val) => field.onChange(val as DatePickerValue)}
+                      value={field.value ?? null}
+                    />
+                  </div>
+                </FormField>
+              )}
+            />
           </div>
 
-          {/* Actions */}
           <div className="flex flex-col sm:flex-row-reverse gap-3 mt-4">
             <Button
               type="submit"
-              disabled={!canSubmit}
+              disabled={totalQty === 0 || isSubmitting}
               className="w-full sm:w-auto h-12 shadow-glow-subtle sm:px-6"
             >
               {isSubmitting ? (

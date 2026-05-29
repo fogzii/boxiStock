@@ -9,17 +9,32 @@ import {
   Modal,
   ModalActions,
 } from "@box-ds";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 import { updateLot } from "@/actions/stock/inventory";
 import type { StockLot } from "@/components/stock/lotCard";
 import { NotesField } from "@/components/ui/NotesField";
 import { StatusToggle } from "@/components/ui/StatusToggle";
-import { parseCurrencyInput, parseIntQty } from "@/lib/formatting";
+import {
+  buyPriceSchema,
+  lotIdentitySchema,
+  optionalDateSchema,
+  quantitySchema,
+} from "@/lib/schemas";
+import type { DatePickerValue } from "@/lib/types";
 
-type ValuePiece = Date | null;
-type Value = ValuePiece | [ValuePiece, ValuePiece];
+const schema = z.object({
+  quantity: quantitySchema,
+  buyPrice: buyPriceSchema,
+  dateAcquired: optionalDateSchema,
+  lotIdentity: lotIdentitySchema,
+});
+
+type FormData = z.infer<typeof schema>;
 
 interface EditLotModalProps {
   lot: StockLot;
@@ -35,23 +50,38 @@ export function EditLotModal({
   const [isOpen, setIsOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isStocked, setIsStocked] = React.useState(lot.isStocked);
-  const [dateAcquired, setDateAcquired] = React.useState<Value>(
-    new Date(lot.dateAcquired),
-  );
-  const [quantity, setQuantity] = React.useState(String(lot.remainingQuantity));
-  const [buyPrice, setBuyPrice] = React.useState(lot.buyPrice.toFixed(2));
-  const [lotIdentity, setLotIdentity] = React.useState(lot.lotIdentity ?? "");
   const [notes, setNotes] = React.useState(lot.notes ?? "");
   const router = useRouter();
 
   const lotRef = lot.lotIdentity || lot.id.slice(-6).toUpperCase();
 
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+    shouldFocusError: true,
+    defaultValues: {
+      quantity: lot.remainingQuantity,
+      buyPrice: lot.buyPrice,
+      dateAcquired: new Date(lot.dateAcquired),
+      lotIdentity: lot.lotIdentity ?? "",
+    },
+  });
+
   const resetForm = () => {
+    reset({
+      quantity: lot.remainingQuantity,
+      buyPrice: lot.buyPrice,
+      dateAcquired: new Date(lot.dateAcquired),
+      lotIdentity: lot.lotIdentity ?? "",
+    });
     setIsStocked(lot.isStocked);
-    setDateAcquired(new Date(lot.dateAcquired));
-    setQuantity(String(lot.remainingQuantity));
-    setBuyPrice(lot.buyPrice.toFixed(2));
-    setLotIdentity(lot.lotIdentity ?? "");
     setNotes(lot.notes ?? "");
   };
 
@@ -60,28 +90,16 @@ export function EditLotModal({
     setIsOpen(false);
   };
 
-  const handleQuantityBlur = () => {
-    setQuantity(String(parseIntQty(quantity, lot.remainingQuantity)));
-  };
-
-  const handleBuyPriceBlur = () => {
-    setBuyPrice(parseCurrencyInput(buyPrice));
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const onSubmit = handleSubmit(async (data) => {
     setIsSubmitting(true);
-
-    const parsedQty = Math.floor(parseFloat(quantity));
-    const parsedPrice = Math.round(parseFloat(buyPrice) * 100) / 100;
-
+    const parsedPrice = Math.round(data.buyPrice * 100) / 100;
     try {
       await updateLot(lot.id, {
-        remainingQuantity: parsedQty,
+        remainingQuantity: data.quantity,
         buyPrice: parsedPrice,
         isStocked,
-        dateAcquired: dateAcquired as Date,
-        lotIdentity,
+        dateAcquired: data.dateAcquired ?? new Date(lot.dateAcquired),
+        lotIdentity: data.lotIdentity ?? "",
         notes,
       });
       setIsOpen(false);
@@ -93,7 +111,7 @@ export function EditLotModal({
     } finally {
       setIsSubmitting(false);
     }
-  };
+  });
 
   return (
     <>
@@ -103,7 +121,7 @@ export function EditLotModal({
         onClose={handleClose}
         title={`Edit Lot — ${productName}`}
       >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
           <p className="text-body-sm text-foreground/80 bg-primary/10 p-3 rounded-lg border border-primary/20">
             Editing{" "}
             <strong className="text-foreground">
@@ -116,48 +134,75 @@ export function EditLotModal({
 
           <div className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Remaining Quantity" htmlFor="edit-quantity">
+              <FormField
+                label="Remaining Quantity"
+                htmlFor="edit-quantity"
+                error={errors.quantity?.message}
+              >
                 <Input
                   id="edit-quantity"
                   type="number"
                   min="1"
                   step="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  onBlur={handleQuantityBlur}
-                  required
+                  error={!!errors.quantity}
+                  {...register("quantity", { valueAsNumber: true })}
                 />
               </FormField>
-              <FormField label="Unit Buy Price" htmlFor="edit-buyPrice">
-                <CurrencyInput
-                  id="edit-buyPrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={buyPrice}
-                  onChange={(e) => setBuyPrice(e.target.value)}
-                  onBlur={handleBuyPriceBlur}
-                  required
+              <FormField
+                label="Unit Buy Price"
+                htmlFor="edit-buyPrice"
+                error={errors.buyPrice?.message}
+              >
+                <Controller
+                  name="buyPrice"
+                  control={control}
+                  render={({ field }) => (
+                    <CurrencyInput
+                      id="edit-buyPrice"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      error={!!errors.buyPrice}
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        const n = parseFloat(e.target.value);
+                        field.onChange(Number.isNaN(n) ? undefined : n);
+                      }}
+                    />
+                  )}
                 />
               </FormField>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Date Acquired" className="flex flex-col">
-                <div className="w-full flex">
-                  <DatePickerInput
-                    onChange={setDateAcquired}
-                    value={dateAcquired}
-                  />
-                </div>
-              </FormField>
+              <Controller
+                name="dateAcquired"
+                control={control}
+                render={({ field, fieldState }) => (
+                  <FormField
+                    label="Date Acquired"
+                    className="flex flex-col"
+                    error={fieldState.error?.message}
+                  >
+                    <div className="w-full flex">
+                      <DatePickerInput
+                        onChange={(val) =>
+                          field.onChange(val as DatePickerValue)
+                        }
+                        value={field.value ?? null}
+                        error={!!fieldState.error}
+                      />
+                    </div>
+                  </FormField>
+                )}
+              />
 
               <FormField label="Lot Identity" htmlFor="edit-lotIdentity">
                 <Input
                   id="edit-lotIdentity"
-                  value={lotIdentity}
-                  onChange={(e) => setLotIdentity(e.target.value)}
                   placeholder="e.g. L-20260430-143052"
+                  {...register("lotIdentity")}
                 />
               </FormField>
             </div>

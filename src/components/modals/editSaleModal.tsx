@@ -8,18 +8,32 @@ import {
   Modal,
   ModalActions,
 } from "@box-ds";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 import { updateSale } from "@/actions/stock/sales";
 import { NotesField } from "@/components/ui/NotesField";
-import { formatCurrency, parseIntQty } from "@/lib/formatting";
+import { formatCurrency } from "@/lib/formatting";
+import {
+  optionalDateSchema,
+  quantitySchema,
+  sellPriceSchema,
+} from "@/lib/schemas";
 import type { SaleWithProductName } from "@/lib/stock/types";
-
-type ValuePiece = Date | null;
-type Value = ValuePiece | [ValuePiece, ValuePiece];
+import type { DatePickerValue } from "@/lib/types";
 
 type SaleItem = SaleWithProductName;
+
+const schema = z.object({
+  quantity: quantitySchema,
+  sellPrice: sellPriceSchema,
+  dateSold: optionalDateSchema,
+});
+
+type FormData = z.infer<typeof schema>;
 
 interface EditSaleModalProps {
   sale: SaleItem;
@@ -29,6 +43,7 @@ interface EditSaleModalProps {
 export function EditSaleModal({ sale, children }: EditSaleModalProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [notes, setNotes] = React.useState(sale.notes ?? "");
   const router = useRouter();
 
   const buyPricePerUnit =
@@ -38,23 +53,39 @@ export function EditSaleModal({ sale, children }: EditSaleModalProps) {
   const sellPricePerUnit =
     sale.quantitySold > 0 ? sale.totalSalePrice / sale.quantitySold : 0;
 
-  const [quantity, setQuantity] = React.useState(String(sale.quantitySold));
-  const [sellPrice, setSellPrice] = React.useState(sellPricePerUnit.toFixed(2));
-  const [dateSold, setDateSold] = React.useState<Value>(
-    new Date(sale.dateSold || sale.createdAt),
-  );
-  const [notes, setNotes] = React.useState(sale.notes ?? "");
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+    shouldFocusError: true,
+    defaultValues: {
+      quantity: sale.quantitySold,
+      sellPrice: sellPricePerUnit,
+      dateSold: new Date(sale.dateSold || sale.createdAt),
+    },
+  });
 
-  const parsedQty = Math.max(1, Math.floor(parseFloat(quantity) || 1));
-  const parsedSell = Math.max(0, parseFloat(sellPrice) || 0);
+  const watchedQty = watch("quantity");
+  const watchedSell = watch("sellPrice");
+  const parsedQty = Math.max(1, Math.floor(Number(watchedQty) || 1));
+  const parsedSell = Math.max(0, Number(watchedSell) || 0);
   const previewTotal = Math.round(parsedQty * parsedSell * 100) / 100;
   const previewProfit =
     Math.round((previewTotal - parsedQty * buyPricePerUnit) * 100) / 100;
 
   const resetForm = () => {
-    setQuantity(String(sale.quantitySold));
-    setSellPrice(sellPricePerUnit.toFixed(2));
-    setDateSold(new Date(sale.dateSold || sale.createdAt));
+    reset({
+      quantity: sale.quantitySold,
+      sellPrice: sellPricePerUnit,
+      dateSold: new Date(sale.dateSold || sale.createdAt),
+    });
     setNotes(sale.notes ?? "");
   };
 
@@ -63,25 +94,15 @@ export function EditSaleModal({ sale, children }: EditSaleModalProps) {
     setIsOpen(false);
   };
 
-  const handleQuantityBlur = () => {
-    setQuantity(String(parseIntQty(quantity, sale.quantitySold)));
-  };
-
-  const handleSellPriceBlur = () => {
-    const n = parseFloat(sellPrice);
-    if (Number.isFinite(n) && n >= 0) {
-      setSellPrice((Math.round(n * 100) / 100).toFixed(2));
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const onSubmit = handleSubmit(async (data) => {
     setIsSubmitting(true);
+    const parsedQtyVal = data.quantity;
+    const parsedSellVal = Math.max(0, Math.round(data.sellPrice * 100) / 100);
     try {
       await updateSale(sale.id, {
-        quantitySold: parsedQty,
-        salePricePerUnit: parsedSell,
-        dateSold: dateSold as Date,
+        quantitySold: parsedQtyVal,
+        salePricePerUnit: parsedSellVal,
+        dateSold: data.dateSold ?? new Date(sale.dateSold || sale.createdAt),
         notes,
       });
       setIsOpen(false);
@@ -93,7 +114,7 @@ export function EditSaleModal({ sale, children }: EditSaleModalProps) {
     } finally {
       setIsSubmitting(false);
     }
-  };
+  });
 
   return (
     <>
@@ -103,7 +124,7 @@ export function EditSaleModal({ sale, children }: EditSaleModalProps) {
         onClose={handleClose}
         title={`Edit Sale — ${sale.Product?.name ?? "Unknown Product"}`}
       >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
           <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 text-body-sm text-foreground/80">
             Buy price is{" "}
             <strong className="text-foreground">
@@ -114,35 +135,65 @@ export function EditSaleModal({ sale, children }: EditSaleModalProps) {
 
           <div className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField label="Quantity Sold" htmlFor="es-quantity">
+              <FormField
+                label="Quantity Sold"
+                htmlFor="es-quantity"
+                error={errors.quantity?.message}
+              >
                 <Input
                   id="es-quantity"
                   type="number"
                   min="1"
                   step="1"
-                  value={quantity}
-                  onChange={(e) => setQuantity(e.target.value)}
-                  onBlur={handleQuantityBlur}
-                  required
+                  error={!!errors.quantity}
+                  {...register("quantity", { valueAsNumber: true })}
                 />
               </FormField>
-              <FormField label="Sell Price (per unit)" htmlFor="es-sellPrice">
-                <CurrencyInput
-                  id="es-sellPrice"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={sellPrice}
-                  onChange={(e) => setSellPrice(e.target.value)}
-                  onBlur={handleSellPriceBlur}
-                  required
+              <FormField
+                label="Sell Price (per unit)"
+                htmlFor="es-sellPrice"
+                error={errors.sellPrice?.message}
+              >
+                <Controller
+                  name="sellPrice"
+                  control={control}
+                  render={({ field }) => (
+                    <CurrencyInput
+                      id="es-sellPrice"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      error={!!errors.sellPrice}
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        const n = parseFloat(e.target.value);
+                        field.onChange(Number.isNaN(n) ? 0 : n);
+                      }}
+                    />
+                  )}
                 />
               </FormField>
             </div>
 
-            <FormField label="Date Sold" className="flex flex-col">
-              <DatePickerInput onChange={setDateSold} value={dateSold} />
-            </FormField>
+            <Controller
+              name="dateSold"
+              control={control}
+              render={({ field, fieldState }) => (
+                <FormField
+                  label="Date Sold"
+                  className="flex flex-col"
+                  htmlFor="es-dateSold"
+                  error={fieldState.error?.message}
+                >
+                  <DatePickerInput
+                    onChange={(val) => field.onChange(val as DatePickerValue)}
+                    value={field.value ?? null}
+                    error={!!fieldState.error}
+                  />
+                </FormField>
+              )}
+            />
 
             <FormField
               label="Notes"
@@ -152,7 +203,6 @@ export function EditSaleModal({ sale, children }: EditSaleModalProps) {
               <NotesField id="es-notes" value={notes} onChange={setNotes} />
             </FormField>
 
-            {/* Live preview */}
             <div className="grid grid-cols-2 gap-3 text-body-sm bg-muted/20 rounded-lg p-3 border border-border/50">
               <div>
                 <p className="text-caption text-muted-foreground mb-0.5">

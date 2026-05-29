@@ -1,11 +1,31 @@
 "use client";
 
-import { Button, CurrencyInput, FormField, Input, Modal } from "@box-ds";
+import {
+  Button,
+  CurrencyInput,
+  DatePickerInput,
+  FormField,
+  Input,
+  Modal,
+} from "@box-ds";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 import { updateBundle } from "@/actions/stock/bundles";
 import { formatCurrency, round2 } from "@/lib/formatting";
+import { optionalDateSchema, sellPriceSchema } from "@/lib/schemas";
+import type { DatePickerValue } from "@/lib/types";
+
+const schema = z.object({
+  name: z.string().min(1, "Bundle name is required"),
+  sellPrice: sellPriceSchema,
+  dateSold: optionalDateSchema,
+});
+
+type FormData = z.infer<typeof schema>;
 
 interface EditBundleModalProps {
   children: (open: () => void) => React.ReactNode;
@@ -23,37 +43,45 @@ export function EditBundleModal({ children, bundle }: EditBundleModalProps) {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const router = useRouter();
 
-  const [name, setName] = React.useState(bundle.bundleName);
-  const [sellPriceStr, setSellPriceStr] = React.useState(
-    bundle.totalSellPrice.toFixed(2),
-  );
-  const [dateSoldStr, setDateSoldStr] = React.useState(
-    bundle.dateSold ? new Date(bundle.dateSold).toISOString().slice(0, 10) : "",
-  );
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    watch,
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+    shouldFocusError: true,
+    defaultValues: {
+      name: bundle.bundleName,
+      sellPrice: bundle.totalSellPrice,
+      dateSold: bundle.dateSold ? new Date(bundle.dateSold) : undefined,
+    },
+  });
 
   function handleOpen() {
-    setName(bundle.bundleName);
-    setSellPriceStr(bundle.totalSellPrice.toFixed(2));
-    setDateSoldStr(
-      bundle.dateSold
-        ? new Date(bundle.dateSold).toISOString().slice(0, 10)
-        : "",
-    );
+    reset({
+      name: bundle.bundleName,
+      sellPrice: bundle.totalSellPrice,
+      dateSold: bundle.dateSold ? new Date(bundle.dateSold) : undefined,
+    });
     setIsOpen(true);
   }
 
-  const sellPrice = parseFloat(sellPriceStr) || 0;
+  const watchedSell = watch("sellPrice");
+  const sellPrice = Number(watchedSell) || 0;
   const previewProfit = round2(sellPrice - bundle.totalBuyCost);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim() || sellPriceStr === "") return;
+  const onSubmit = handleSubmit(async (data) => {
     setIsSubmitting(true);
     try {
       await updateBundle(bundle.bundleId, {
-        name: name.trim(),
-        totalSellPrice: round2(sellPrice),
-        dateSold: dateSoldStr ? new Date(dateSoldStr) : undefined,
+        name: data.name.trim(),
+        totalSellPrice: round2(Number(data.sellPrice) || 0),
+        dateSold: data.dateSold,
       });
       toast.success("Bundle updated.");
       setIsOpen(false);
@@ -65,48 +93,83 @@ export function EditBundleModal({ children, bundle }: EditBundleModalProps) {
     } finally {
       setIsSubmitting(false);
     }
-  }
+  });
 
   return (
     <>
       {children(handleOpen)}
       <Modal
         isOpen={isOpen}
-        onClose={() => !isSubmitting && setIsOpen(false)}
+        onClose={() => {
+          if (!isSubmitting) {
+            reset();
+            setIsOpen(false);
+          }
+        }}
         title="Edit Bundle"
       >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <FormField label="Bundle Name" htmlFor="edit-bundle-name">
+        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-5">
+          <FormField
+            label="Bundle Name"
+            htmlFor="edit-bundle-name"
+            error={undefined}
+          >
             <Input
               id="edit-bundle-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
+              error={!!errors.name}
+              {...register("name")}
             />
           </FormField>
 
-          <FormField label="Sell Price" htmlFor="edit-sell-price">
-            <CurrencyInput
-              id="edit-sell-price"
-              type="number"
-              min="0"
-              step="0.01"
-              value={sellPriceStr}
-              onChange={(e) => setSellPriceStr(e.target.value)}
-              required
+          <FormField
+            label="Sell Price"
+            htmlFor="edit-sell-price"
+            error={errors.sellPrice?.message}
+          >
+            <Controller
+              name="sellPrice"
+              control={control}
+              render={({ field }) => (
+                <CurrencyInput
+                  id="edit-sell-price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  error={!!errors.sellPrice}
+                  {...field}
+                  value={field.value ?? ""}
+                  onChange={(e) => {
+                    const n = parseFloat(e.target.value);
+                    field.onChange(Number.isNaN(n) ? 0 : n);
+                  }}
+                />
+              )}
             />
           </FormField>
 
-          <FormField label="Date sold" htmlFor="edit-date-sold" hint="optional">
-            <Input
-              id="edit-date-sold"
-              type="date"
-              value={dateSoldStr}
-              onChange={(e) => setDateSoldStr(e.target.value)}
-            />
-          </FormField>
+          <Controller
+            name="dateSold"
+            control={control}
+            render={({ field, fieldState }) => (
+              <FormField
+                label="Date sold"
+                className="flex flex-col"
+                hint="optional"
+                error={fieldState.error?.message}
+              >
+                <div className="w-full flex">
+                  <DatePickerInput
+                    onChange={(val) =>
+                      field.onChange((val as DatePickerValue) ?? undefined)
+                    }
+                    value={field.value ?? null}
+                    error={!!fieldState.error}
+                  />
+                </div>
+              </FormField>
+            )}
+          />
 
-          {/* Profit preview */}
           <div className="flex items-center justify-between rounded-lg bg-muted/20 border border-border/40 px-4 py-3">
             <div className="text-body-sm text-muted-foreground">
               <div>Buy cost: {formatCurrency(bundle.totalBuyCost)}</div>
@@ -128,14 +191,19 @@ export function EditBundleModal({ children, bundle }: EditBundleModalProps) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsOpen(false)}
+              onClick={() => {
+                if (!isSubmitting) {
+                  reset();
+                  setIsOpen(false);
+                }
+              }}
               disabled={isSubmitting}
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting || !name.trim() || sellPriceStr === ""}
+              disabled={isSubmitting}
               className="text-button-md"
             >
               {isSubmitting ? "Saving..." : "Save Changes"}

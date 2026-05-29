@@ -7,12 +7,16 @@ import {
   Modal,
   ModalActions,
 } from "@box-ds";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import * as React from "react";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 import { sellLotUnits } from "@/actions/stock/inventory";
 import { round2 } from "@/lib/formatting";
+import type { DatePickerValue } from "@/lib/types";
 
 interface SellUnitsModalProps {
   children: (open: () => void) => React.ReactNode;
@@ -34,20 +38,65 @@ export function SellUnitsModal({
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const router = useRouter();
 
-  const [quantity, setQuantity] = React.useState(lot.remainingQuantity);
-  const [dateSold, setDateSold] = React.useState<Date>(new Date());
-  const [perUnit, setPerUnit] = React.useState(lot.buyPrice.toFixed(2));
-  const [total, setTotal] = React.useState(
-    (lot.remainingQuantity * lot.buyPrice).toFixed(2),
-  );
-
   const lotRef = lot.lotIdentity || lot.id.slice(-6).toUpperCase();
 
+  const schema = React.useMemo(
+    () =>
+      z.object({
+        quantity: z
+          .number({ error: "Enter a valid number" })
+          .int("Must be a whole number")
+          .positive("Must be at least 1")
+          .max(
+            lot.remainingQuantity,
+            `Cannot exceed ${lot.remainingQuantity} units`,
+          ),
+        dateSold: z.date({ error: "Date is required" }),
+        perUnit: z
+          .number({ error: "Enter a valid number" })
+          .positive("Must be greater than 0")
+          .max(1_000_000_000, "Exceeds maximum"),
+        total: z
+          .number({ error: "Enter a valid number" })
+          .positive("Must be greater than 0")
+          .max(1_000_000_000, "Exceeds maximum"),
+      }),
+    [lot.remainingQuantity],
+  );
+
+  type FormData = z.infer<typeof schema>;
+
+  const {
+    register,
+    control,
+    handleSubmit,
+    formState: { errors },
+    reset,
+    setValue,
+    watch,
+  } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+    shouldFocusError: true,
+    defaultValues: {
+      quantity: lot.remainingQuantity,
+      dateSold: new Date(),
+      perUnit: lot.buyPrice,
+      total: round2(lot.remainingQuantity * lot.buyPrice),
+    },
+  });
+
+  const watchedQty = watch("quantity");
+  const watchedPerUnit = watch("perUnit");
+
   function resetForm() {
-    setQuantity(lot.remainingQuantity);
-    setDateSold(new Date());
-    setPerUnit(lot.buyPrice.toFixed(2));
-    setTotal((lot.remainingQuantity * lot.buyPrice).toFixed(2));
+    reset({
+      quantity: lot.remainingQuantity,
+      dateSold: new Date(),
+      perUnit: lot.buyPrice,
+      total: round2(lot.remainingQuantity * lot.buyPrice),
+    });
   }
 
   function handleOpen() {
@@ -57,91 +106,82 @@ export function SellUnitsModal({
 
   function handleQuantityChange(e: React.ChangeEvent<HTMLInputElement>) {
     const qty = parseInt(e.target.value, 10);
-    setQuantity(Number.isNaN(qty) ? 0 : qty);
-    const per = parseFloat(perUnit);
-    if (!Number.isNaN(qty) && qty > 0 && !Number.isNaN(per)) {
-      setTotal((qty * per).toFixed(2));
+    const per = Number(watchedPerUnit) || 0;
+    if (!Number.isNaN(qty) && qty > 0 && per > 0) {
+      setValue("total", round2(qty * per));
     }
   }
 
   function handlePerUnitChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = e.target.value;
-    setPerUnit(val);
-    const per = parseFloat(val);
-    if (!Number.isNaN(per) && quantity > 0) {
-      setTotal((quantity * per).toFixed(2));
+    const per = parseFloat(e.target.value);
+    const qty = Number(watchedQty) || 0;
+    if (!Number.isNaN(per) && qty > 0) {
+      setValue("total", round2(qty * per));
     }
   }
 
-  function handlePerUnitBlur() {
-    const per = parseFloat(perUnit);
+  function handlePerUnitBlur(e: React.FocusEvent<HTMLInputElement>) {
+    const per = parseFloat(e.target.value);
     if (!Number.isNaN(per)) {
       const rounded = round2(per);
-      setPerUnit(rounded.toFixed(2));
-      setTotal((quantity * rounded).toFixed(2));
+      setValue("perUnit", rounded);
+      const qty = Number(watchedQty) || 0;
+      if (qty > 0) setValue("total", round2(qty * rounded));
     }
   }
 
   function handleTotalChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const val = e.target.value;
-    setTotal(val);
-    const tot = parseFloat(val);
-    if (!Number.isNaN(tot) && quantity > 0) {
-      setPerUnit((tot / quantity).toFixed(2));
+    const tot = parseFloat(e.target.value);
+    const qty = Number(watchedQty) || 0;
+    if (!Number.isNaN(tot) && qty > 0) {
+      setValue("perUnit", round2(tot / qty));
     }
   }
 
-  function handleTotalBlur() {
-    const tot = parseFloat(total);
+  function handleTotalBlur(e: React.FocusEvent<HTMLInputElement>) {
+    const tot = parseFloat(e.target.value);
     if (!Number.isNaN(tot)) {
       const rounded = round2(tot);
-      setTotal(rounded.toFixed(2));
-      if (quantity > 0) {
-        setPerUnit(round2(rounded / quantity).toFixed(2));
-      }
+      setValue("total", rounded);
+      const qty = Number(watchedQty) || 0;
+      if (qty > 0) setValue("perUnit", round2(rounded / qty));
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const onSubmit = handleSubmit(async (data) => {
     setIsSubmitting(true);
-
-    const salePrice = round2(parseFloat(perUnit));
-    if (Number.isNaN(salePrice) || salePrice <= 0) {
-      toast.error("Please enter a valid sell price.");
-      setIsSubmitting(false);
-      return;
-    }
-
+    const salePrice = Math.round(data.perUnit * 100) / 100;
     try {
-      await sellLotUnits(lot.id, quantity, salePrice, dateSold);
+      await sellLotUnits(lot.id, data.quantity, salePrice, data.dateSold);
       posthog.capture("units_sold", {
         product_name: productName,
-        quantity_sold: quantity,
+        quantity_sold: data.quantity,
         sale_price_per_unit: salePrice,
-        total_sale_price: round2(quantity * salePrice),
+        total_sale_price: round2(data.quantity * salePrice),
       });
       setIsOpen(false);
       router.refresh();
     } catch (error) {
-      console.error("Failed to sell units:", error);
       toast.error(
         error instanceof Error ? error.message : "Failed to sell units",
       );
     } finally {
       setIsSubmitting(false);
     }
-  };
+  });
 
   return (
     <>
       {children(handleOpen)}
       <Modal
         isOpen={isOpen}
-        onClose={() => setIsOpen(false)}
+        onClose={() => {
+          reset();
+          setIsOpen(false);
+        }}
         title="Sell Units"
       >
-        <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
           <div>
             <p className="text-body-sm text-foreground/80 bg-primary/10 p-3 rounded-lg border border-primary/20">
               You are selling units from{" "}
@@ -159,24 +199,37 @@ export function SellUnitsModal({
               label="Quantity to Sell"
               htmlFor="quantity"
               className="min-w-0"
+              error={errors.quantity?.message}
             >
               <Input
                 id="quantity"
-                name="quantity"
                 type="number"
                 min="1"
                 max={lot.remainingQuantity}
-                value={quantity}
-                onChange={handleQuantityChange}
-                required
+                error={!!errors.quantity}
+                {...register("quantity", {
+                  valueAsNumber: true,
+                  onChange: handleQuantityChange,
+                })}
               />
             </FormField>
-            <FormField label="Date Sold" className="min-w-0">
-              <DatePickerInput
-                onChange={(val) => setDateSold(val as Date)}
-                value={dateSold}
-              />
-            </FormField>
+            <Controller
+              name="dateSold"
+              control={control}
+              render={({ field, fieldState }) => (
+                <FormField
+                  label="Date Sold"
+                  className="min-w-0"
+                  error={fieldState.error?.message}
+                >
+                  <DatePickerInput
+                    onChange={(val) => field.onChange(val as DatePickerValue)}
+                    value={field.value}
+                    error={!!fieldState.error}
+                  />
+                </FormField>
+              )}
+            />
           </div>
 
           <div className="space-y-3">
@@ -185,17 +238,19 @@ export function SellUnitsModal({
                 label="Sell Price (per unit)"
                 htmlFor="perUnit"
                 className="min-w-0"
+                error={errors.perUnit?.message}
               >
                 <Input
                   id="perUnit"
-                  name="salePrice"
                   type="number"
                   min="0.01"
                   step="0.01"
-                  value={perUnit}
-                  onChange={handlePerUnitChange}
-                  onBlur={handlePerUnitBlur}
-                  required
+                  error={!!errors.perUnit}
+                  {...register("perUnit", {
+                    valueAsNumber: true,
+                    onChange: handlePerUnitChange,
+                    onBlur: handlePerUnitBlur,
+                  })}
                 />
               </FormField>
               <div className="-translate-x-1/2 -translate-y-1/2 absolute left-1/2 top-[calc(50%+0.875rem)] hidden rounded-full bg-canvas px-1.5 text-body-sm-strong text-foreground/40 select-none sm:block">
@@ -205,16 +260,19 @@ export function SellUnitsModal({
                 label="Sell Price (total)"
                 htmlFor="total"
                 className="min-w-0"
+                error={errors.total?.message}
               >
                 <Input
                   id="total"
                   type="number"
                   min="0.01"
                   step="0.01"
-                  value={total}
-                  onChange={handleTotalChange}
-                  onBlur={handleTotalBlur}
-                  required
+                  error={!!errors.total}
+                  {...register("total", {
+                    valueAsNumber: true,
+                    onChange: handleTotalChange,
+                    onBlur: handleTotalBlur,
+                  })}
                 />
               </FormField>
             </div>
@@ -228,7 +286,10 @@ export function SellUnitsModal({
             loadingLabel="Processing..."
             isLoading={isSubmitting}
             disabled={lot.remainingQuantity === 0}
-            onCancel={() => setIsOpen(false)}
+            onCancel={() => {
+              reset();
+              setIsOpen(false);
+            }}
           />
         </form>
       </Modal>

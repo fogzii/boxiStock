@@ -20,3 +20,10 @@ export function parseCurrencyInput(raw: string): string {
   const n = parseFloat(raw);
   return Number.isFinite(n) ? (Math.round(n * 100) / 100).toFixed(2) : raw;
 }
+
+export function generateLotIdentity(): string {
+  const now = new Date();
+  const date = now.toISOString().split("T")[0].replace(/-/g, "");
+  const time = now.toTimeString().slice(0, 8).replace(/:/g, "");
+  return `L-${date}-${time}`;
+}
