@@ -16,6 +16,9 @@ export default async function Home() {
       </div>
       <div className="max-w-4xl w-full text-center space-y-12 z-10">
         <div className="space-y-4">
+          <p className="font-display text-display-sm text-primary font-extrabold tracking-tight">
+            BoxiStock
+          </p>
           <h1 className="font-display text-display-lg md:text-display-xxl text-ink-deep tracking-tighter">
             Scale Faster. <br />
             <span className="text-primary">Track Less.</span>
