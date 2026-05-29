@@ -197,8 +197,11 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Date Received */}
-              <FormField label="Date Received" className="flex flex-col">
+              {/* Date Received / Date Ordered */}
+              <FormField
+                label={isStocked ? "Date Received" : "Date Ordered"}
+                className="flex flex-col"
+              >
                 <div className="w-full flex">
                   <DatePickerInput
                     onChange={setDateReceived}

@@ -109,7 +109,7 @@ export function LotCard({
               <StockStatusBadge isStocked={lot.isStocked} />
             </div>
             <p className="text-caption text-muted-foreground">
-              {lot.isStocked ? "Received" : "Created"}{" "}
+              {lot.isStocked ? "Received" : "Ordered"}{" "}
               {format(new Date(lot.dateAcquired), "MMM dd, yyyy")}
             </p>
           </div>
