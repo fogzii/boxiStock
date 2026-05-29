@@ -6,6 +6,8 @@
 // - Supabase REST/Realtime calls go to your project subdomain of supabase.co.
 // - Google Generative AI calls go to generativelanguage.googleapis.com from the server,
 //   so they don't need to be in the browser CSP.
+const isDev = process.env.NODE_ENV === "development";
+
 const ContentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -15,7 +17,8 @@ const ContentSecurityPolicy = [
   "img-src 'self' data: blob: https://lh3.googleusercontent.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+  // React dev mode requires 'unsafe-eval' for call stack reconstruction
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://challenges.cloudflare.com`,
   "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://us.i.posthog.com https://us-assets.i.posthog.com",
   "worker-src 'self' blob:",
   "frame-src 'self' https://challenges.cloudflare.com",
