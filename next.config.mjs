@@ -7,6 +7,7 @@
 // - Google Generative AI calls go to generativelanguage.googleapis.com from the server,
 //   so they don't need to be in the browser CSP.
 const isDev = process.env.NODE_ENV === "development";
+const isPreview = process.env.VERCEL_ENV === "preview";
 
 const ContentSecurityPolicy = [
   "default-src 'self'",
@@ -18,8 +19,8 @@ const ContentSecurityPolicy = [
   "font-src 'self' data: https://fonts.gstatic.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   // React dev mode requires 'unsafe-eval' for call stack reconstruction
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} https://challenges.cloudflare.com`,
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://us.i.posthog.com https://us-assets.i.posthog.com",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}${isPreview ? " https://vercel.live https://vercel.com" : ""} https://challenges.cloudflare.com`,
+  `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://us.i.posthog.com https://us-assets.i.posthog.com${isPreview ? " https://vercel.live wss://ws-us3.pusher.com https://*.pusher.com" : ""}`,
   "worker-src 'self' blob:",
   "frame-src 'self' https://challenges.cloudflare.com",
   "upgrade-insecure-requests",
