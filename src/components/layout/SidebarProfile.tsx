@@ -2,27 +2,26 @@
 
 import type { User } from "@supabase/supabase-js";
 import { LogOut } from "lucide-react";
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useNavLoading } from "@/components/layout/NavLoadingContext";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 interface SidebarProfileProps {
   isCollapsed: boolean;
+  user: User;
 }
 
-export function SidebarProfile({ isCollapsed }: SidebarProfileProps) {
-  const [user, setUser] = useState<User | null>(null);
+export function SidebarProfile({ isCollapsed, user }: SidebarProfileProps) {
+  const { startLoading } = useNavLoading();
+  const pathname = usePathname();
 
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user));
-  }, []);
-
-  const email = user?.email ?? "";
+  const email = user.email ?? "";
   const displayName =
-    (user?.user_metadata?.full_name as string | undefined) ??
-    (user?.user_metadata?.name as string | undefined) ??
-    (email.split("@")[0] || "?");
+    (user.user_metadata?.full_name as string | undefined) ??
+    (user.user_metadata?.name as string | undefined) ??
+    (email.split("@")[0] || email);
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -37,9 +36,13 @@ export function SidebarProfile({ isCollapsed }: SidebarProfileProps) {
         isCollapsed && "md:justify-center md:p-2",
       )}
     >
-      <div
+      <Link
+        href="/settings"
+        onClick={() => {
+          if (pathname !== "/settings") startLoading();
+        }}
         className={cn(
-          "flex flex-col min-w-0 flex-1 transition-all duration-300",
+          "flex flex-col min-w-0 flex-1 transition-all duration-300 cursor-pointer hover:opacity-80",
           isCollapsed ? "md:hidden" : "",
         )}
       >
@@ -47,7 +50,7 @@ export function SidebarProfile({ isCollapsed }: SidebarProfileProps) {
           {displayName}
         </span>
         <span className="text-caption text-body truncate">{email}</span>
-      </div>
+      </Link>
 
       {!isCollapsed && (
         <button

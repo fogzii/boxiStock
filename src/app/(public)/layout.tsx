@@ -1,11 +1,21 @@
 import { Package } from "lucide-react";
 import Link from "next/link";
+import { DashboardShell } from "@/components/layout/DashboardShell";
+import { getAuthUser } from "@/lib/supabase/auth";
 
-export default function PublicLayout({
+export default async function PublicLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const {
+    data: { user },
+  } = await getAuthUser();
+
+  if (user) {
+    return <DashboardShell user={user}>{children}</DashboardShell>;
+  }
+
   return (
     <div className="h-screen bg-background flex flex-col">
       <header className="border-b border-border px-6 py-4">
@@ -20,7 +30,7 @@ export default function PublicLayout({
         </Link>
       </header>
 
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      <main className="flex-1 overflow-y-auto relative">{children}</main>
 
       <footer className="border-t border-border px-6 py-6 text-body-sm text-body flex flex-col sm:flex-row items-center justify-between gap-3">
         <span>

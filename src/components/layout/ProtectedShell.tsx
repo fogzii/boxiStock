@@ -12,5 +12,5 @@ export async function ProtectedShell({
   } = await getAuthUser();
   if (!user) redirect("/sign-in");
 
-  return <DashboardShell>{children}</DashboardShell>;
+  return <DashboardShell user={user}>{children}</DashboardShell>;
 }

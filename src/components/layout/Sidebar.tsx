@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 interface SidebarProps {
   isOpenMobile: boolean;
   onCloseMobile: () => void;
+  user: import("@supabase/supabase-js").User;
 }
 
 const navItems = [
@@ -70,7 +71,7 @@ function SidebarActionButton({
   );
 }
 
-export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
+export function Sidebar({ isOpenMobile, onCloseMobile, user }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
 
@@ -198,7 +199,7 @@ export function Sidebar({ isOpenMobile, onCloseMobile }: SidebarProps) {
             </AIImportModal>
 
             {/* Profile */}
-            <SidebarProfile isCollapsed={isCollapsed} />
+            <SidebarProfile isCollapsed={isCollapsed} user={user} />
           </div>
         </div>
 

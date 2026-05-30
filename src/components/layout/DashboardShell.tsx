@@ -1,28 +1,39 @@
 "use client";
 
+import type { User } from "@supabase/supabase-js";
 import * as React from "react";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { Footer } from "@/components/layout/Footer";
+import {
+  NavLoadingProvider,
+  useNavLoading,
+} from "@/components/layout/NavLoadingContext";
 import { Sidebar } from "@/components/layout/Sidebar";
+import { FullScreenLoading } from "@/components/ui/fullScreenLoading";
 import { PostHogUserIdentifier } from "@/lib/posthog-user";
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+function DashboardShellInner({
+  children,
+  user,
+}: {
+  children: React.ReactNode;
+  user: User;
+}) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
-
-  // Close sidebar when clicking a link on mobile (handled by route change normally, but good to ensure)
-  // In a real app we might use usePathname effect to auto-close
+  const { isLoading } = useNavLoading();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <PostHogUserIdentifier />
-      {/* Sidebar handles both mobile drawer and desktop collapse internally */}
       <Sidebar
         isOpenMobile={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
+        user={user}
       />
 
       {/* Main Content Area */}
       <main className="flex-1 flex flex-col overflow-hidden w-full relative">
+        {isLoading && <FullScreenLoading contained />}
         <DashboardHeader
           onToggleSidebar={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         />
@@ -38,5 +49,19 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
     </div>
+  );
+}
+
+export function DashboardShell({
+  children,
+  user,
+}: {
+  children: React.ReactNode;
+  user: User;
+}) {
+  return (
+    <NavLoadingProvider>
+      <DashboardShellInner user={user}>{children}</DashboardShellInner>
+    </NavLoadingProvider>
   );
 }

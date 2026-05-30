@@ -1,3 +1,4 @@
+import { AccountSettings } from "@/components/settings/AccountSettings";
 import { DataManagement } from "@/components/settings/DataManagement";
 
 export default function SettingsPage() {
@@ -10,6 +11,10 @@ export default function SettingsPage() {
             Settings
           </h1>
         </div>
+      </div>
+
+      <div className="mb-8">
+        <AccountSettings />
       </div>
 
       <div className="mb-8">

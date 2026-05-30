@@ -1,6 +1,8 @@
 "use client";
 
-import { Package } from "lucide-react";
+import { Button, FormField, Input } from "@box-ds";
+import { Loader2, Package } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { FullScreenLoading } from "@/components/ui/fullScreenLoading";
@@ -9,6 +11,13 @@ import { createClient } from "@/lib/supabase/client";
 export default function SignInPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [formError, setFormError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
@@ -24,6 +33,43 @@ export default function SignInPage() {
   const handleGoToSignUp = () => {
     setLoading(true);
     router.push("/sign-up");
+  };
+
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError("");
+    setPasswordError("");
+    setFormError("");
+
+    let hasError = false;
+    if (!email.trim()) {
+      setEmailError("Email is required.");
+      hasError = true;
+    }
+    if (!password) {
+      setPasswordError("Password is required.");
+      hasError = true;
+    }
+    if (hasError) return;
+
+    setSubmitting(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    setSubmitting(false);
+
+    if (error) {
+      if (error.message === "Invalid login credentials") {
+        setFormError("Invalid email or password.");
+      } else {
+        setFormError(error.message);
+      }
+      return;
+    }
+
+    router.push("/dashboard");
   };
 
   return (
@@ -59,12 +105,88 @@ export default function SignInPage() {
             <button
               type="button"
               onClick={handleGoogleSignIn}
-              disabled={loading}
+              disabled={loading || submitting}
               className="flex h-12 w-full cursor-pointer items-center justify-center gap-3 rounded-xl border border-border bg-background text-sm font-semibold text-foreground transition-colors hover:bg-muted/40 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <GoogleIcon />
               Continue with Google
             </button>
+
+            <div className="flex items-center gap-3">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">or</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+
+            <form
+              onSubmit={handleEmailSignIn}
+              className="flex flex-col gap-4"
+              noValidate
+            >
+              {formError && (
+                <p className="rounded-lg bg-negative-bg px-3 py-2 text-sm text-negative">
+                  {formError}
+                </p>
+              )}
+
+              <FormField
+                label="Email"
+                htmlFor="signin-email"
+                error={emailError}
+              >
+                <Input
+                  id="signin-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  error={!!emailError}
+                  disabled={submitting}
+                  autoComplete="email"
+                />
+              </FormField>
+
+              <FormField
+                label="Password"
+                htmlFor="signin-password"
+                error={passwordError}
+              >
+                <Input
+                  id="signin-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  error={!!passwordError}
+                  disabled={submitting}
+                  autoComplete="current-password"
+                />
+                <div className="flex justify-end">
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+              </FormField>
+
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full"
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="animate-spin" />
+                    Signing in…
+                  </>
+                ) : (
+                  "Sign in"
+                )}
+              </Button>
+            </form>
           </div>
 
           <p className="text-sm text-muted-foreground">
