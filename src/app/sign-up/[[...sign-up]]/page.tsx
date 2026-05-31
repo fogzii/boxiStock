@@ -72,8 +72,7 @@ export default function SignUpPage() {
       email,
       password,
       options: {
-        emailRedirectTo:
-          window.location.origin + "/auth/confirm?next=/dashboard&type=signup",
+        emailRedirectTo: `${window.location.origin}/auth/confirm?next=/dashboard&type=signup`,
       },
     });
     setSubmitting(false);

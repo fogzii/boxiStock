@@ -17,7 +17,7 @@ export default async function proxy(request: NextRequest) {
   const isPublic = PUBLIC_PREFIXES.some(
     (p) =>
       pathname === p ||
-      (p.endsWith("/") ? pathname.startsWith(p) : pathname.startsWith(p + "/")),
+      (p.endsWith("/") ? pathname.startsWith(p) : pathname.startsWith(`${p}/`)),
   );
 
   let supabaseResponse = NextResponse.next({ request });

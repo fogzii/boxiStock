@@ -43,9 +43,9 @@ interface SharingClientProps {
 const TABS = [
   { value: "invite", label: "Invite Only" },
   { value: "public", label: "Public" },
-] as const;
+];
 
-type SharingTab = (typeof TABS)[number]["value"];
+type SharingTab = "invite" | "public";
 
 const STATUS_META: Record<
   InviteStatus,

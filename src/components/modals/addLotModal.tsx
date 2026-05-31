@@ -26,7 +26,6 @@ import {
   optionalDateSchema,
   quantitySchema,
 } from "@/lib/schemas";
-import type { DatePickerValue } from "@/lib/types";
 
 const schema = z.object({
   quantity: quantitySchema,

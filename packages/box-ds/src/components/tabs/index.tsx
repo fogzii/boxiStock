@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { cn } from "../../utils/cn";
 
 interface Tab<T extends string> {
