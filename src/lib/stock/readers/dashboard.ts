@@ -85,146 +85,166 @@ export async function getSalesMetricsForUser(userId: string) {
 }
 
 export async function getDashboardMetricsForUser(userId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_dashboard_metrics", {
-    p_user_id: userId,
-  });
-  if (error) throw new Error(error.message);
+  return unstable_cache(
+    async (uid: string) => {
+      const supabase = await createClient();
+      const { data, error } = await supabase.rpc("get_dashboard_metrics", {
+        p_user_id: uid,
+      });
+      if (error) throw new Error(error.message);
 
-  const metrics = data as DashboardMetricsRow;
+      const metrics = data as DashboardMetricsRow;
 
-  const currentROI =
-    metrics.totalSoldCost > 0
-      ? (metrics.totalLifetimeProfit / metrics.totalSoldCost) * 100
-      : 0;
+      const currentROI =
+        metrics.totalSoldCost > 0
+          ? (metrics.totalLifetimeProfit / metrics.totalSoldCost) * 100
+          : 0;
 
-  return {
-    totalLifetimeProfit: metrics.totalLifetimeProfit,
-    currentInventoryValue: metrics.currentInventoryValue,
-    currentROI,
-  };
+      return {
+        totalLifetimeProfit: metrics.totalLifetimeProfit,
+        currentInventoryValue: metrics.currentInventoryValue,
+        currentROI,
+      };
+    },
+    [`dashboard-metrics-${userId}`],
+    { revalidate: 60 },
+  )(userId);
 }
 
 export async function getProfitChartDataForUser(userId: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_sales_by_month", {
-    p_user_id: userId,
-  });
-  if (error) throw new Error(error.message);
+  return unstable_cache(
+    async (uid: string) => {
+      const supabase = await createClient();
+      const { data, error } = await supabase.rpc("get_sales_by_month", {
+        p_user_id: uid,
+      });
+      if (error) throw new Error(error.message);
 
-  const rows: SalesByMonth[] = (data ?? []) as SalesByMonth[];
-  const now = new Date();
+      const rows: SalesByMonth[] = (data ?? []) as SalesByMonth[];
+      const now = new Date();
 
-  const profitByYearMonth = new Map<string, number>();
-  let firstYear = now.getFullYear();
-  let firstMonth = now.getMonth() + 1;
-  for (const r of rows) {
-    profitByYearMonth.set(`${r.year}-${r.month}`, Number(r.total_profit));
-    if (r.year < firstYear || (r.year === firstYear && r.month < firstMonth)) {
-      firstYear = r.year;
-      firstMonth = r.month;
-    }
-  }
+      const profitByYearMonth = new Map<string, number>();
+      let firstYear = now.getFullYear();
+      let firstMonth = now.getMonth() + 1;
+      for (const r of rows) {
+        profitByYearMonth.set(`${r.year}-${r.month}`, Number(r.total_profit));
+        if (
+          r.year < firstYear ||
+          (r.year === firstYear && r.month < firstMonth)
+        ) {
+          firstYear = r.year;
+          firstMonth = r.month;
+        }
+      }
 
-  const monthNames = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
+      const monthNames = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
+      ];
 
-  const eightWeeksAgo = new Date(now);
-  eightWeeksAgo.setDate(now.getDate() - 56);
-  const eightWeeksAgoIso = eightWeeksAgo.toISOString();
-  const recentWeekFilter = `dateSold.gte.${eightWeeksAgoIso},and(dateSold.is.null,createdAt.gte.${eightWeeksAgoIso})`;
+      const eightWeeksAgo = new Date(now);
+      eightWeeksAgo.setDate(now.getDate() - 56);
+      const eightWeeksAgoIso = eightWeeksAgo.toISOString();
+      const recentWeekFilter = `dateSold.gte.${eightWeeksAgoIso},and(dateSold.is.null,createdAt.gte.${eightWeeksAgoIso})`;
 
-  const [
-    { data: recentSales, error: recentError },
-    { data: recentBundles, error: recentBundlesError },
-  ] = await Promise.all([
-    supabase
-      .from("Sale")
-      .select("totalProfit, dateSold, createdAt, Product!inner(userId)")
-      .eq("Product.userId", userId)
-      .or(recentWeekFilter)
-      .order("createdAt", { ascending: true }),
-    supabase
-      .from("Bundle")
-      .select("totalProfit, dateSold, createdAt")
-      .eq("userId", userId)
-      .or(recentWeekFilter),
-  ]);
+      const [
+        { data: recentSales, error: recentError },
+        { data: recentBundles, error: recentBundlesError },
+      ] = await Promise.all([
+        supabase
+          .from("Sale")
+          .select("totalProfit, dateSold, createdAt, Product!inner(userId)")
+          .eq("Product.userId", userId)
+          .or(recentWeekFilter)
+          .order("createdAt", { ascending: true }),
+        supabase
+          .from("Bundle")
+          .select("totalProfit, dateSold, createdAt")
+          .eq("userId", userId)
+          .or(recentWeekFilter),
+      ]);
 
-  if (recentError) throw new Error(recentError.message);
-  if (recentBundlesError) throw new Error(recentBundlesError.message);
+      if (recentError) throw new Error(recentError.message);
+      if (recentBundlesError) throw new Error(recentBundlesError.message);
 
-  type WeeklyRow = {
-    totalProfit: number;
-    dateSold: string | null;
-    createdAt: string;
-  };
-  const recentRows: WeeklyRow[] = [
-    ...(recentSales || []),
-    ...(recentBundles || []),
-  ];
+      type WeeklyRow = {
+        totalProfit: number;
+        dateSold: string | null;
+        createdAt: string;
+      };
+      const recentRows: WeeklyRow[] = [
+        ...(recentSales || []),
+        ...(recentBundles || []),
+      ];
 
-  const weeklyData: { name: string; total: number }[] = [];
-  for (let i = 7; i >= 0; i--) {
-    const weekEnd = new Date(now);
-    weekEnd.setDate(now.getDate() - i * 7);
-    weekEnd.setHours(23, 59, 59, 999);
-    const weekStart = new Date(weekEnd);
-    weekStart.setDate(weekEnd.getDate() - 6);
-    weekStart.setHours(0, 0, 0, 0);
+      const weeklyData: { name: string; total: number }[] = [];
+      for (let i = 7; i >= 0; i--) {
+        const weekEnd = new Date(now);
+        weekEnd.setDate(now.getDate() - i * 7);
+        weekEnd.setHours(23, 59, 59, 999);
+        const weekStart = new Date(weekEnd);
+        weekStart.setDate(weekEnd.getDate() - 6);
+        weekStart.setHours(0, 0, 0, 0);
 
-    const weekProfit = recentRows
-      .filter((s) => {
-        const d = new Date(s.dateSold ?? s.createdAt);
-        return d >= weekStart && d <= weekEnd;
-      })
-      .reduce((acc, s) => acc + (s.totalProfit || 0), 0);
+        const weekProfit = recentRows
+          .filter((s) => {
+            const d = new Date(s.dateSold ?? s.createdAt);
+            return d >= weekStart && d <= weekEnd;
+          })
+          .reduce((acc, s) => acc + (s.totalProfit || 0), 0);
 
-    weeklyData.push({
-      name: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`,
-      total: parseFloat(weekProfit.toFixed(2)),
-    });
-  }
+        weeklyData.push({
+          name: `${weekStart.getDate()}/${weekStart.getMonth() + 1}`,
+          total: parseFloat(weekProfit.toFixed(2)),
+        });
+      }
 
-  const monthlyData: { name: string; total: number }[] = [];
-  for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const year = d.getFullYear();
-    const month = d.getMonth() + 1;
-    const profit = profitByYearMonth.get(`${year}-${month}`) ?? 0;
-    monthlyData.push({
-      name: `${monthNames[month - 1]} ${year.toString().slice(-2)}`,
-      total: parseFloat(profit.toFixed(2)),
-    });
-  }
+      const monthlyData: { name: string; total: number }[] = [];
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const year = d.getFullYear();
+        const month = d.getMonth() + 1;
+        const profit = profitByYearMonth.get(`${year}-${month}`) ?? 0;
+        monthlyData.push({
+          name: `${monthNames[month - 1]} ${year.toString().slice(-2)}`,
+          total: parseFloat(profit.toFixed(2)),
+        });
+      }
 
-  const nowYear = now.getFullYear();
-  const yearsDiff = rows.length > 0 ? nowYear - firstYear : 0;
-  const groupByYear = yearsDiff >= 3;
+      const nowYear = now.getFullYear();
+      const yearsDiff = rows.length > 0 ? nowYear - firstYear : 0;
+      const groupByYear = yearsDiff >= 3;
 
-  const allTimeMap = new Map<string, number>();
-  for (const r of rows) {
-    const key = groupByYear
-      ? String(r.year)
-      : `${monthNames[r.month - 1]} ${String(r.year).slice(-2)}`;
-    allTimeMap.set(key, (allTimeMap.get(key) ?? 0) + Number(r.total_profit));
-  }
-  const allTimeData = Array.from(allTimeMap.entries()).map(([name, total]) => ({
-    name,
-    total: parseFloat(total.toFixed(2)),
-  }));
+      const allTimeMap = new Map<string, number>();
+      for (const r of rows) {
+        const key = groupByYear
+          ? String(r.year)
+          : `${monthNames[r.month - 1]} ${String(r.year).slice(-2)}`;
+        allTimeMap.set(
+          key,
+          (allTimeMap.get(key) ?? 0) + Number(r.total_profit),
+        );
+      }
+      const allTimeData = Array.from(allTimeMap.entries()).map(
+        ([name, total]) => ({
+          name,
+          total: parseFloat(total.toFixed(2)),
+        }),
+      );
 
-  return { weeklyData, monthlyData, allTimeData };
+      return { weeklyData, monthlyData, allTimeData };
+    },
+    [`profit-chart-${userId}`],
+    { revalidate: 60 },
+  )(userId);
 }
