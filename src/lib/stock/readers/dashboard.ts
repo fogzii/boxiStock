@@ -5,7 +5,6 @@ import { unstable_cache } from "next/cache";
 import type { DashboardMetricsRow, SalesByMonth } from "@/lib/stock/types";
 import { createClient } from "@/lib/supabase/server";
 
-
 export async function getSalesMetricsForUser(userId: string) {
   return unstable_cache(
     async (uid: string) => {
@@ -144,16 +143,38 @@ export async function getProfitChartDataForUser(userId: string) {
 
   const eightWeeksAgo = new Date(now);
   eightWeeksAgo.setDate(now.getDate() - 56);
+  const eightWeeksAgoIso = eightWeeksAgo.toISOString();
+  const recentWeekFilter = `dateSold.gte.${eightWeeksAgoIso},and(dateSold.is.null,createdAt.gte.${eightWeeksAgoIso})`;
 
-  const { data: recentSales, error: recentError } = await supabase
-    .from("Sale")
-    .select("totalProfit, createdAt, Product!inner(userId)")
-    .eq("Product.userId", userId)
-    .gte("createdAt", eightWeeksAgo.toISOString())
-    .order("createdAt", { ascending: true });
+  const [
+    { data: recentSales, error: recentError },
+    { data: recentBundles, error: recentBundlesError },
+  ] = await Promise.all([
+    supabase
+      .from("Sale")
+      .select("totalProfit, dateSold, createdAt, Product!inner(userId)")
+      .eq("Product.userId", userId)
+      .or(recentWeekFilter)
+      .order("createdAt", { ascending: true }),
+    supabase
+      .from("Bundle")
+      .select("totalProfit, dateSold, createdAt")
+      .eq("userId", userId)
+      .or(recentWeekFilter),
+  ]);
 
   if (recentError) throw new Error(recentError.message);
-  const recentRows = recentSales || [];
+  if (recentBundlesError) throw new Error(recentBundlesError.message);
+
+  type WeeklyRow = {
+    totalProfit: number;
+    dateSold: string | null;
+    createdAt: string;
+  };
+  const recentRows: WeeklyRow[] = [
+    ...(recentSales || []),
+    ...(recentBundles || []),
+  ];
 
   const weeklyData: { name: string; total: number }[] = [];
   for (let i = 7; i >= 0; i--) {
@@ -166,7 +187,7 @@ export async function getProfitChartDataForUser(userId: string) {
 
     const weekProfit = recentRows
       .filter((s) => {
-        const d = new Date(s.createdAt);
+        const d = new Date(s.dateSold ?? s.createdAt);
         return d >= weekStart && d <= weekEnd;
       })
       .reduce((acc, s) => acc + (s.totalProfit || 0), 0);
