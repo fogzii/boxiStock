@@ -1,14 +1,16 @@
 "use client";
 
-import { Button, Input, Label, Modal, Skeleton } from "@box-ds";
-import { Check, Copy, Eye, EyeOff, Link2, Lock, Share2 } from "lucide-react";
+import { Button, Input, Label, Skeleton } from "@box-ds";
+import { Check, Copy, Eye, EyeOff, Lock, Share2 } from "lucide-react";
 import * as React from "react";
+import Calendar from "react-calendar";
 import { toast } from "sonner";
 import {
   createShareLink,
   disableShareLink,
   getMyShareLink,
   updateSharePassword,
+  updateShareSections,
 } from "@/actions/share";
 import { cn } from "@/lib/utils";
 
@@ -18,25 +20,16 @@ const SECTIONS = [
   { key: "sales", label: "Sales History" },
 ] as const;
 
-const SECTION_LABELS: Record<string, string> = {
-  dashboard: "Dashboard",
-  stock: "Stock Inventory",
-  sales: "Sales History",
-};
+type ExpiryValue = number | null | "custom";
 
-const EXPIRY_OPTIONS = [
-  { label: "7 days", days: 7 },
-  { label: "30 days", days: 30 },
-  { label: "90 days", days: 90 },
-  { label: "Never", days: null },
-] as const;
+const EXPIRY_OPTIONS: { label: string; value: ExpiryValue }[] = [
+  { label: "7 days", value: 7 },
+  { label: "30 days", value: 30 },
+  { label: "Never", value: null },
+  { label: "Custom", value: "custom" },
+];
 
 type ShareLink = NonNullable<Awaited<ReturnType<typeof getMyShareLink>>>;
-
-interface ShareStatsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-}
 
 function formatExpiry(expiresAt: string | null) {
   if (!expiresAt) return "Never";
@@ -47,23 +40,38 @@ function formatExpiry(expiresAt: string | null) {
   });
 }
 
-export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
-  const [link, setLink] = React.useState<ShareLink | null | undefined>(
-    undefined,
-  );
-  const [isLoading, setIsLoading] = React.useState(false);
+function sameSections(a: string[], b: string[]) {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort();
+  const sb = [...b].sort();
+  return sa.every((s, i) => s === sb[i]);
+}
+
+function shareUrl(token: string) {
+  return `${typeof window !== "undefined" ? window.location.origin : ""}/share/${token}`;
+}
+
+function sectionLabel(key: string) {
+  return SECTIONS.find((s) => s.key === key)?.label ?? key;
+}
+
+interface PublicPanelProps {
+  link: ShareLink | null | undefined;
+  onChange: (link: ShareLink | null) => void;
+  reload: () => Promise<void>;
+}
+
+function PublicLinkPanel({ link, onChange, reload }: PublicPanelProps) {
   const [isCreating, setIsCreating] = React.useState(false);
   const [isDisabling, setIsDisabling] = React.useState(false);
   const [disableConfirm, setDisableConfirm] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
 
-  // Password change state (active link view)
   const [showPasswordChange, setShowPasswordChange] = React.useState(false);
   const [newPassword, setNewPassword] = React.useState("");
   const [showNewPasswordText, setShowNewPasswordText] = React.useState(false);
   const [isSavingPassword, setIsSavingPassword] = React.useState(false);
 
-  // Create-form state
   const [selectedSections, setSelectedSections] = React.useState<string[]>([
     "dashboard",
     "stock",
@@ -72,27 +80,17 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
   const [showPasswordField, setShowPasswordField] = React.useState(false);
   const [password, setPassword] = React.useState("");
   const [showPasswordText, setShowPasswordText] = React.useState(false);
-  const [expiryDays, setExpiryDays] = React.useState<number | null>(30);
-
-  React.useEffect(() => {
-    if (!isOpen) return;
-    setIsLoading(true);
-    setDisableConfirm(false);
-    setShowPasswordChange(false);
-    setNewPassword("");
-    getMyShareLink()
-      .then(setLink)
-      .catch(() => setLink(null))
-      .finally(() => setIsLoading(false));
-  }, [isOpen]);
+  const [expiryDays, setExpiryDays] = React.useState<ExpiryValue>(30);
+  const [customExpiryDate, setCustomExpiryDate] = React.useState<Date | null>(
+    null,
+  );
+  const [showCalendar, setShowCalendar] = React.useState(false);
 
   const now = new Date();
   const isExpired = link?.expiresAt != null && new Date(link.expiresAt) < now;
   const activeLink = link?.isActive && !isExpired ? link : null;
 
-  const publicUrl = activeLink
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/share/${activeLink.token}`
-    : "";
+  const publicUrl = activeLink ? shareUrl(activeLink.token) : "";
 
   const handleCopy = async () => {
     try {
@@ -115,20 +113,25 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
       toast.error("Select at least one section.");
       return;
     }
+    if (expiryDays === "custom" && !customExpiryDate) {
+      toast.error("Select a custom expiry date.");
+      return;
+    }
     setIsCreating(true);
     try {
       const expiresAt =
-        expiryDays != null
-          ? new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000)
-          : null;
+        expiryDays === "custom"
+          ? customExpiryDate
+          : expiryDays != null
+            ? new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000)
+            : null;
       await createShareLink({
         sections: selectedSections,
         password:
           showPasswordField && password.trim() ? password.trim() : undefined,
         expiresAt,
       });
-      const updated = await getMyShareLink();
-      setLink(updated);
+      await reload();
       setPassword("");
       setShowPasswordField(false);
       toast.success("Share link created!");
@@ -143,8 +146,8 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
     setIsSavingPassword(true);
     try {
       await updateSharePassword(newPassword.trim() || null);
-      setLink((prev) =>
-        prev ? { ...prev, hasPassword: !!newPassword.trim() } : prev,
+      onChange(
+        link ? { ...link, hasPassword: !!newPassword.trim() } : (link ?? null),
       );
       setShowPasswordChange(false);
       setNewPassword("");
@@ -162,7 +165,7 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
     setIsDisabling(true);
     try {
       await disableShareLink();
-      setLink((prev) => (prev ? { ...prev, isActive: false } : prev));
+      onChange(link ? { ...link, isActive: false } : (link ?? null));
       setDisableConfirm(false);
       toast.success("Share link disabled.");
     } catch {
@@ -172,16 +175,17 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
     }
   };
 
+  const pillClass = (active: boolean) =>
+    cn(
+      "px-3 py-1.5 rounded-md border text-body-sm-strong transition-all cursor-pointer",
+      active
+        ? "bg-primary/20 border-primary/40 text-primary"
+        : "bg-background/50 border-primary/20 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+    );
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Share Stats">
-      {isLoading ? (
-        <div className="flex flex-col gap-4">
-          <Skeleton className="h-11 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-3/4" />
-        </div>
-      ) : activeLink ? (
-        /* ── Active link view ── */
+    <div className="flex flex-col gap-3">
+      {activeLink ? (
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
             <Label>Your share link</Label>
@@ -196,7 +200,7 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
                 type="button"
                 variant="outline"
                 onClick={handleCopy}
-                className="h-11 px-3 border-primary/20 shrink-0"
+                className="h-11 px-3 border-primary/20 shrink-0 cursor-pointer"
               >
                 {copied ? (
                   <Check className="w-4 h-4 text-positive" />
@@ -209,12 +213,8 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
 
           <div className="flex flex-col gap-1.5 text-body-sm text-muted-foreground bg-primary/5 border border-primary/10 rounded-xl p-4">
             <div className="flex items-start gap-2">
-              <Link2 className="w-4 h-4 shrink-0 mt-0.5 text-primary/60" />
-              <span>
-                {activeLink.sections
-                  .map((s) => SECTION_LABELS[s] ?? s)
-                  .join(", ")}
-              </span>
+              <Share2 className="w-4 h-4 shrink-0 mt-0.5 text-primary/60" />
+              <span>{activeLink.sections.map(sectionLabel).join(", ")}</span>
             </div>
             <div className="flex items-center gap-2">
               <Lock className="w-4 h-4 shrink-0 text-primary/60" />
@@ -232,7 +232,6 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
             </div>
           </div>
 
-          {/* Password change section */}
           {showPasswordChange ? (
             <div className="flex flex-col gap-3">
               <div className="relative">
@@ -251,7 +250,7 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
                 <button
                   type="button"
                   onClick={() => setShowNewPasswordText((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
                   {showNewPasswordText ? (
                     <EyeOff className="w-4 h-4" />
@@ -269,7 +268,7 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
                     setNewPassword("");
                   }}
                   disabled={isSavingPassword}
-                  className="flex-1 h-11"
+                  className="flex-1 h-11 cursor-pointer"
                 >
                   Cancel
                 </Button>
@@ -277,7 +276,7 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
                   type="button"
                   onClick={handleSavePassword}
                   disabled={isSavingPassword}
-                  className="flex-1 h-11"
+                  className="flex-1 h-11 cursor-pointer"
                 >
                   {isSavingPassword ? "Saving…" : "Save Password"}
                 </Button>
@@ -288,7 +287,7 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
               type="button"
               variant="outline"
               onClick={() => setShowPasswordChange(true)}
-              className="w-full h-11 border-primary/20"
+              className="w-full h-11 border-primary/20 cursor-pointer"
             >
               <Lock className="w-4 h-4 mr-2" />
               {activeLink.hasPassword ? "Change Password" : "Add Password"}
@@ -306,7 +305,7 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
                   variant="outline"
                   onClick={() => setDisableConfirm(false)}
                   disabled={isDisabling}
-                  className="flex-1 h-11"
+                  className="flex-1 h-11 cursor-pointer"
                 >
                   Cancel
                 </Button>
@@ -315,7 +314,7 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
                   variant="destructive"
                   onClick={handleDisable}
                   disabled={isDisabling}
-                  className="flex-1 h-11"
+                  className="flex-1 h-11 cursor-pointer"
                 >
                   {isDisabling ? "Disabling…" : "Confirm Disable"}
                 </Button>
@@ -326,41 +325,30 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
               type="button"
               variant="destructive-outline"
               onClick={() => setDisableConfirm(true)}
-              className="h-11 w-full"
+              className="h-11 w-full cursor-pointer"
             >
               Disable Link
             </Button>
           )}
         </div>
       ) : (
-        /* ── Create link view ── */
         <div className="flex flex-col gap-6">
-          {/* Section pills */}
           <div className="flex flex-col gap-2">
             <Label>Sections to share</Label>
             <div className="flex flex-wrap gap-2">
-              {SECTIONS.map(({ key, label }) => {
-                const active = selectedSections.includes(key);
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => toggleSection(key)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-md border text-body-sm-strong transition-all",
-                      active
-                        ? "bg-primary/20 border-primary/40 text-primary"
-                        : "bg-background/50 border-primary/20 text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                    )}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
+              {SECTIONS.map(({ key, label }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => toggleSection(key)}
+                  className={pillClass(selectedSections.includes(key))}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Password protection */}
           <div className="flex flex-col gap-2">
             <button
               type="button"
@@ -369,7 +357,7 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
                 setPassword("");
               }}
               className={cn(
-                "flex items-center gap-2 self-start px-3 py-1.5 rounded-md border text-body-sm-strong transition-all",
+                "flex items-center gap-2 self-start px-3 py-1.5 rounded-md border text-body-sm-strong transition-all cursor-pointer",
                 showPasswordField
                   ? "bg-primary/20 border-primary/40 text-primary"
                   : "bg-background/50 border-primary/20 text-muted-foreground hover:border-primary/40 hover:text-foreground",
@@ -393,7 +381,7 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
                 <button
                   type="button"
                   onClick={() => setShowPasswordText((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
                   {showPasswordText ? (
                     <EyeOff className="w-4 h-4" />
@@ -405,23 +393,54 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
             )}
           </div>
 
-          {/* Expiry */}
           <div className="flex flex-col gap-2">
             <Label>Link expiry</Label>
             <div className="flex flex-wrap gap-2">
-              {EXPIRY_OPTIONS.map(({ label, days }) => {
-                const active = expiryDays === days;
+              {EXPIRY_OPTIONS.map(({ label, value }) => {
+                if (value === "custom") {
+                  const customLabel =
+                    expiryDays === "custom" && customExpiryDate
+                      ? customExpiryDate.toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })
+                      : "Custom";
+                  return (
+                    <div key="custom" className="relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExpiryDays("custom");
+                          setShowCalendar((v) => !v);
+                        }}
+                        className={pillClass(expiryDays === "custom")}
+                      >
+                        {customLabel}
+                      </button>
+                      {expiryDays === "custom" && showCalendar && (
+                        <div className="absolute left-0 top-full z-50 mt-1">
+                          <Calendar
+                            value={customExpiryDate}
+                            onChange={(v) => {
+                              setCustomExpiryDate(v as Date);
+                              setShowCalendar(false);
+                            }}
+                            minDate={new Date()}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
                 return (
                   <button
                     key={label}
                     type="button"
-                    onClick={() => setExpiryDays(days)}
-                    className={cn(
-                      "px-3 py-1.5 rounded-md border text-body-sm-strong transition-all",
-                      active
-                        ? "bg-primary/20 border-primary/40 text-primary"
-                        : "bg-background/50 border-primary/20 text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                    )}
+                    onClick={() => {
+                      setExpiryDays(value);
+                      setShowCalendar(false);
+                    }}
+                    className={pillClass(expiryDays === value)}
                   >
                     {label}
                   </button>
@@ -434,7 +453,7 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
             type="button"
             onClick={handleCreate}
             disabled={isCreating || selectedSections.length === 0}
-            className="h-12 shadow-glow-primary"
+            className="h-12 shadow-glow-primary cursor-pointer"
           >
             {isCreating ? (
               <>Creating…</>
@@ -447,6 +466,138 @@ export function ShareStatsModal({ isOpen, onClose }: ShareStatsModalProps) {
           </Button>
         </div>
       )}
-    </Modal>
+    </div>
   );
+}
+
+const ALL_SECTIONS = SECTIONS.map((s) => s.key);
+
+export function InviteSectionsPanel() {
+  const [sections, setSections] = React.useState<string[]>(ALL_SECTIONS);
+  const [savedSections, setSavedSections] =
+    React.useState<string[]>(ALL_SECTIONS);
+  const [linkActive, setLinkActive] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsLoading(true);
+    getMyShareLink("invite_only")
+      .then((link) => {
+        const s = link?.sections?.length ? link.sections : ALL_SECTIONS;
+        setSections(s);
+        setSavedSections(s);
+        setLinkActive(!!link?.isActive);
+      })
+      .catch(() => {
+        toast.error("Failed to load sharing settings.");
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const isDirty = !sameSections(sections, savedSections);
+
+  const toggleSection = (key: string) =>
+    setSections((prev) =>
+      prev.includes(key) ? prev.filter((s) => s !== key) : [...prev, key],
+    );
+
+  const handleSave = async () => {
+    if (sections.length === 0) {
+      toast.error("Select at least one section.");
+      return;
+    }
+    setIsSaving(true);
+    try {
+      if (linkActive) {
+        await updateShareSections(sections, "invite_only");
+      } else {
+        await createShareLink({ sections, visibility: "invite_only" });
+        setLinkActive(true);
+      }
+      setSavedSections(sections);
+      toast.success("Sections updated.");
+    } catch {
+      toast.error("Failed to save sections.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
+    return <Skeleton className="h-16 w-full" />;
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-body-md-strong text-foreground">
+          Sections shared with invitees
+        </h3>
+        <p className="text-body-sm text-muted-foreground">
+          Choose which sections accepted invitees can view.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {SECTIONS.map(({ key, label }) => {
+          const active = sections.includes(key);
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => toggleSection(key)}
+              className={cn(
+                "px-3 py-1.5 rounded-md border text-body-sm-strong transition-all cursor-pointer",
+                active
+                  ? "bg-primary/20 border-primary/40 text-primary"
+                  : "bg-background/50 border-primary/20 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+              )}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      {isDirty && (
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={isSaving || sections.length === 0}
+          className="h-10 w-fit cursor-pointer"
+        >
+          {isSaving ? "Saving…" : "Save sections"}
+        </Button>
+      )}
+    </section>
+  );
+}
+
+export function PublicLinkSection() {
+  const [link, setLink] = React.useState<ShareLink | null | undefined>(
+    undefined,
+  );
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  const load = React.useCallback(async () => {
+    const data = await getMyShareLink("everyone");
+    setLink(data);
+  }, []);
+
+  React.useEffect(() => {
+    load()
+      .catch(() => setLink(null))
+      .finally(() => setIsLoading(false));
+  }, [load]);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-11 w-full" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-10 w-3/4" />
+      </div>
+    );
+  }
+
+  return <PublicLinkPanel link={link} onChange={setLink} reload={load} />;
 }

@@ -1,6 +1,8 @@
-import { LinkIcon } from "lucide-react";
+import { LinkIcon, Lock } from "lucide-react";
 import { cookies } from "next/headers";
+import Link from "next/link";
 import { getPublicShareLink } from "@/actions/share";
+import { isAcceptedInvitee } from "@/lib/sharing/access";
 import {
   getCombinedSalesGroupedForUser,
   getDashboardMetricsForUser,
@@ -8,8 +10,49 @@ import {
   getProfitChartDataForUser,
   getSalesMetricsForUser,
 } from "@/lib/stock/readers";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { ShareContent } from "./ShareContent";
 import { SharePasswordGate } from "./SharePasswordGate";
+
+function NotFoundState() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
+      <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+        <LinkIcon className="w-7 h-7 text-primary/60" />
+      </div>
+      <h1 className="font-display text-display-xs text-foreground">
+        Link not found
+      </h1>
+      <p className="text-body-md text-body max-w-sm">
+        This share link is invalid, has expired, or has been disabled by its
+        owner.
+      </p>
+    </div>
+  );
+}
+
+function InviteOnlyGate() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
+      <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
+        <Lock className="w-7 h-7 text-primary/60" />
+      </div>
+      <h1 className="font-display text-display-xs text-foreground">
+        Invite-only portfolio
+      </h1>
+      <p className="text-body-md text-body max-w-sm">
+        This portfolio is shared with invited members only. Sign in with the
+        account that was invited to view it.
+      </p>
+      <Link
+        href="/sign-in"
+        className="inline-flex items-center justify-center h-11 px-5 rounded-xl bg-primary hover:bg-primary-active text-primary-foreground text-body-sm-strong transition-colors cursor-pointer"
+      >
+        Sign in
+      </Link>
+    </div>
+  );
+}
 
 export default async function SharePage({
   params,
@@ -26,24 +69,28 @@ export default async function SharePage({
   const link = await getPublicShareLink(token);
 
   if (!link) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center">
-          <LinkIcon className="w-7 h-7 text-primary/60" />
-        </div>
-        <h1 className="font-display text-display-xs text-foreground">
-          Link not found
-        </h1>
-        <p className="text-body-md text-body max-w-sm">
-          This share link is invalid, has expired, or has been disabled by its
-          owner.
-        </p>
-      </div>
-    );
+    return <NotFoundState />;
   }
 
-  // Password gate
-  if (link.hasPassword) {
+  // Invite-only links require login + an accepted invite (or being the owner).
+  if (link.visibility === "invite_only") {
+    const {
+      data: { user },
+    } = await getAuthUser();
+
+    if (!user) {
+      return <InviteOnlyGate />;
+    }
+    if (
+      user.id !== link.userId &&
+      !(await isAcceptedInvitee(link.userId, user.id))
+    ) {
+      // Don't reveal that the link exists to non-invitees.
+      return <NotFoundState />;
+    }
+    // Authorized invitee — no password gate.
+  } else if (link.hasPassword) {
+    // Public link password gate.
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get(`share_session_${token}`);
     if (!sessionCookie) {

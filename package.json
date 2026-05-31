@@ -11,7 +11,9 @@
     "format": "biome format --write",
     "lint": "biome lint",
     "prepare": "husky",
-    "db:types": "npx supabase gen types typescript --project-id idgpprtyleutgqinrouo > src/lib/supabase/database.types.ts"
+    "db:types": "npx supabase gen types typescript --project-id ${SUPABASE_PROJECT_REF:-idgpprtyleutgqinrouo} > src/lib/supabase/database.types.ts",
+    "db:types:prod": "SUPABASE_PROJECT_REF=idgpprtyleutgqinrouo npm run db:types",
+    "db:types:preview": "SUPABASE_PROJECT_REF=uzsijodyaiooiroscfdx npm run db:types"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",

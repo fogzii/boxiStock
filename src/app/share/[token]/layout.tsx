@@ -2,6 +2,8 @@ import { Package } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getPublicShareLink } from "@/actions/share";
+import { isAcceptedInvitee } from "@/lib/sharing/access";
+import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -26,12 +28,27 @@ export default async function ShareLayout({
   try {
     const link = await getPublicShareLink(token);
     if (link?.userId) {
-      const supabase = await createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.admin.getUserById(link.userId);
-      const fullName = user?.user_metadata?.full_name as string | undefined;
-      username = fullName?.split(" ")[0] ?? null;
+      // For invite-only links, only reveal the owner's name to authorized
+      // viewers so a guessed token can't leak who it belongs to.
+      let mayReveal = link.visibility !== "invite_only";
+      if (!mayReveal) {
+        const {
+          data: { user },
+        } = await getAuthUser();
+        mayReveal =
+          !!user &&
+          (user.id === link.userId ||
+            (await isAcceptedInvitee(link.userId, user.id)));
+      }
+
+      if (mayReveal) {
+        const supabase = await createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.admin.getUserById(link.userId);
+        const fullName = user?.user_metadata?.full_name as string | undefined;
+        username = fullName?.split(" ")[0] ?? null;
+      }
     }
   } catch {
     // username is optional decoration

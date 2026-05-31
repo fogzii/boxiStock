@@ -53,6 +53,22 @@ When building or modifying any UI, resolve tokens from DESIGN.md rather than har
 - Generated types: **`src/lib/supabase/database.types.ts`**, consumed by **`src/lib/supabase/server.ts`**.
 - **Run `npm run db:types` after any schema change** (table, column, RPC, enum, or view). Do not hand-edit the file.
 
+## Database migrations — ALWAYS apply to BOTH environments
+
+There are **two Supabase projects**, and a schema change applied to only one will break the other (e.g. PostgREST `Could not find the table 'public.X' in the schema cache`):
+
+| Env | Name | Project ref |
+| --- | --- | --- |
+| Production | `boxiStock` | `idgpprtyleutgqinrouo` |
+| Preview/staging | `boxistock-preview` | `uzsijodyaiooiroscfdx` |
+
+- **`.env.local` (local dev) points at PREVIEW.** The `mcp__supabase__*` tools and the default `npm run db:types` point at **PRODUCTION**. This mismatch is easy to miss — a migration applied only via MCP lands on prod, not the DB your local app uses.
+- **Every** schema change (table, column, RPC, constraint, enum, view) MUST be applied to **both** refs. Write it as **idempotent SQL** (`IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS`, `CREATE OR REPLACE`) so it's safe to run on each.
+- Apply to **preview** with the CLI: `npx supabase link --project-ref uzsijodyaiooiroscfdx` then `npx supabase db query --linked --dns-resolver https -f migration.sql` (the `--linked` route uses the Management API, so no DB password goes on the command line).
+- Apply to **production** via `mcp__supabase__apply_migration` (or the same CLI linked to the prod ref).
+- After creating a **new table**, reload PostgREST so the REST API sees it: `NOTIFY pgrst, 'reload schema';`.
+- Regenerate types per env: **`npm run db:types:prod`** / **`npm run db:types:preview`** (or `SUPABASE_PROJECT_REF=<ref> npm run db:types`). The schema — and therefore the generated types — must match across both.
+
 ## Code quality
 
 - Keep changes scoped; follow existing naming, Tailwind conventions, and client/server boundaries.

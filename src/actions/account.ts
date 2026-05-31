@@ -24,6 +24,11 @@ export async function deleteAccount() {
     await supabase.from("Product").delete().in("id", productIds);
   }
 
+  // Sharing data: the user's own links, and any invite relationship on either side.
+  await supabase.from("ShareLink").delete().eq("userId", user.id);
+  await supabase.from("ShareInvite").delete().eq("ownerId", user.id);
+  await supabase.from("ShareInvite").delete().eq("inviteeId", user.id);
+
   // Delete the auth user via admin API (requires service role key)
   const { error } = await supabase.auth.admin.deleteUser(user.id);
   if (error) throw new Error(error.message);

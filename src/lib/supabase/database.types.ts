@@ -185,6 +185,36 @@ export type Database = {
           },
         ];
       };
+      ShareInvite: {
+        Row: {
+          createdAt: string;
+          id: string;
+          inviteeEmail: string;
+          inviteeId: string;
+          ownerId: string;
+          respondedAt: string | null;
+          status: string;
+        };
+        Insert: {
+          createdAt?: string;
+          id?: string;
+          inviteeEmail: string;
+          inviteeId: string;
+          ownerId: string;
+          respondedAt?: string | null;
+          status?: string;
+        };
+        Update: {
+          createdAt?: string;
+          id?: string;
+          inviteeEmail?: string;
+          inviteeId?: string;
+          ownerId?: string;
+          respondedAt?: string | null;
+          status?: string;
+        };
+        Relationships: [];
+      };
       ShareLink: {
         Row: {
           createdAt: string;
@@ -195,6 +225,7 @@ export type Database = {
           sections: string[];
           token: string;
           userId: string;
+          visibility: string;
         };
         Insert: {
           createdAt?: string;
@@ -205,6 +236,7 @@ export type Database = {
           sections: string[];
           token: string;
           userId: string;
+          visibility?: string;
         };
         Update: {
           createdAt?: string;
@@ -215,6 +247,7 @@ export type Database = {
           sections?: string[];
           token?: string;
           userId?: string;
+          visibility?: string;
         };
         Relationships: [];
       };
@@ -273,6 +306,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      find_user_id_by_email: { Args: { p_email: string }; Returns: string };
       get_dashboard_metrics: { Args: { p_user_id: string }; Returns: Json };
       get_inventory_paginated:
         | {

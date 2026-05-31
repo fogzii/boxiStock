@@ -10,7 +10,25 @@ import { createClient } from "@/lib/supabase/server";
 
 const ALLOWED_SECTIONS = ["dashboard", "stock", "sales"] as const;
 
-export async function getMyShareLink() {
+export type ShareVisibility = "everyone" | "invite_only";
+
+function assertVisibility(
+  visibility: string,
+): asserts visibility is ShareVisibility {
+  if (visibility !== "everyone" && visibility !== "invite_only")
+    throw new Error(`Invalid visibility: ${visibility}`);
+}
+
+function assertSections(sections: unknown): asserts sections is string[] {
+  if (!Array.isArray(sections) || sections.length === 0)
+    throw new Error("At least one section is required");
+  for (const s of sections) {
+    if (!(ALLOWED_SECTIONS as readonly string[]).includes(s))
+      throw new Error(`Invalid section: ${s}`);
+  }
+}
+
+export async function getMyShareLink(visibility: ShareVisibility = "everyone") {
   const {
     data: { user },
   } = await getAuthUser();
@@ -21,14 +39,24 @@ export async function getMyShareLink() {
   const { data } = await supabase
     .from("ShareLink")
     .select(
-      "id, userId, token, sections, expiresAt, isActive, createdAt, passwordHash",
+      "id, userId, token, sections, expiresAt, isActive, createdAt, visibility, passwordHash",
     )
     .eq("userId", userId)
+    .eq("visibility", visibility)
     .maybeSingle();
 
   if (!data) return null;
   const { passwordHash, ...rest } = data;
   return { ...rest, hasPassword: !!passwordHash };
+}
+
+/** Convenience for the share modal, which manages both links at once. */
+export async function getMyShareLinks() {
+  const [everyone, inviteOnly] = await Promise.all([
+    getMyShareLink("everyone"),
+    getMyShareLink("invite_only"),
+  ]);
+  return { everyone, inviteOnly };
 }
 
 export async function updateSharePassword(password: string | null) {
@@ -47,39 +75,38 @@ export async function updateSharePassword(password: string | null) {
   const { error } = await supabase
     .from("ShareLink")
     .update({ passwordHash })
-    .eq("userId", userId);
+    .eq("userId", userId)
+    .eq("visibility", "everyone");
 
   if (error) throw new Error(error.message);
-  revalidateTag("share-link");
+  revalidateTag("share-link", "max");
 }
 
 export async function createShareLink({
   sections,
   password,
   expiresAt,
+  visibility = "everyone",
 }: {
   sections: string[];
   password?: string;
   expiresAt?: Date | null;
+  visibility?: ShareVisibility;
 }) {
+  assertVisibility(visibility);
+  assertSections(sections);
+
   const {
     data: { user },
   } = await getAuthUser();
   const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
 
-  if (!Array.isArray(sections) || sections.length === 0)
-    throw new Error("At least one section is required");
-
-  for (const s of sections) {
-    if (!(ALLOWED_SECTIONS as readonly string[]).includes(s))
-      throw new Error(`Invalid section: ${s}`);
-  }
-
   const token = crypto.randomUUID().replace(/-/g, "");
 
+  // Invite-only links are gated by invite acceptance + login, never a password.
   let passwordHash: string | null = null;
-  if (password?.trim()) {
+  if (visibility === "everyone" && password?.trim()) {
     passwordHash = await bcrypt.hash(password.trim(), 10);
   }
 
@@ -88,6 +115,7 @@ export async function createShareLink({
   const { error } = await supabase.from("ShareLink").upsert(
     {
       userId,
+      visibility,
       token,
       sections,
       passwordHash,
@@ -95,14 +123,46 @@ export async function createShareLink({
       isActive: true,
       createdAt: new Date().toISOString(),
     },
-    { onConflict: "userId" },
+    { onConflict: "userId,visibility" },
   );
 
   if (error) throw new Error(error.message);
-  revalidateTag("share-link");
+  revalidateTag("share-link", "max");
 }
 
-export async function disableShareLink() {
+/**
+ * Update which sections an existing link exposes without rotating its token,
+ * so invitees' bookmarked/clicked links keep working.
+ */
+export async function updateShareSections(
+  sections: string[],
+  visibility: ShareVisibility = "everyone",
+) {
+  assertVisibility(visibility);
+  assertSections(sections);
+
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("ShareLink")
+    .update({ sections })
+    .eq("userId", userId)
+    .eq("visibility", visibility);
+
+  if (error) throw new Error(error.message);
+  revalidateTag("share-link", "max");
+}
+
+export async function disableShareLink(
+  visibility: ShareVisibility = "everyone",
+) {
+  assertVisibility(visibility);
+
   const {
     data: { user },
   } = await getAuthUser();
@@ -113,10 +173,11 @@ export async function disableShareLink() {
   const { error } = await supabase
     .from("ShareLink")
     .update({ isActive: false })
-    .eq("userId", userId);
+    .eq("userId", userId)
+    .eq("visibility", visibility);
 
   if (error) throw new Error(error.message);
-  revalidateTag("share-link");
+  revalidateTag("share-link", "max");
 }
 
 async function fetchPublicShareLink(token: string) {
@@ -126,7 +187,7 @@ async function fetchPublicShareLink(token: string) {
   const { data } = await supabase
     .from("ShareLink")
     .select(
-      "id, userId, token, sections, expiresAt, isActive, createdAt, passwordHash",
+      "id, userId, token, sections, expiresAt, isActive, createdAt, visibility, passwordHash",
     )
     .eq("token", token)
     .eq("isActive", true)

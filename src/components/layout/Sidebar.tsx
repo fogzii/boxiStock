@@ -8,16 +8,17 @@ import {
   Package,
   PlusCircle,
   Settings,
-  Share2,
   Sparkles,
+  Users,
   X,
 } from "lucide-react";
+import { usePathname } from "next/navigation";
 import * as React from "react";
+import { getPendingInviteCount } from "@/actions/sharing";
 import { NavListItem } from "@/components/layout/NavListItem";
 import { SidebarProfile } from "@/components/layout/SidebarProfile";
 import { AIImportModal } from "@/components/modals/AIImportModal";
 import { AddProductModal } from "@/components/modals/addProductModal";
-import { ShareStatsModal } from "@/components/modals/ShareStatsModal";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/stock", icon: Package, label: "Stock Inventory" },
   { href: "/sales", icon: History, label: "Sales History" },
+  { href: "/sharing", icon: Users, label: "Sharing" },
   { href: "/settings", icon: Settings, label: "Settings" },
 ];
 
@@ -73,7 +75,31 @@ function SidebarActionButton({
 
 export function Sidebar({ isOpenMobile, onCloseMobile, user }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
-  const [shareOpen, setShareOpen] = React.useState(false);
+  const [pendingCount, setPendingCount] = React.useState(0);
+  const pathname = usePathname();
+
+  // Re-fetch the badge on mount, on route change (pathname), and on window focus —
+  // so it reflects accept/decline actions taken on the /sharing page.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the intended trigger
+  React.useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      getPendingInviteCount()
+        .then((count) => {
+          if (!cancelled) setPendingCount(count);
+        })
+        .catch(() => {
+          if (!cancelled) setPendingCount(0);
+        });
+    };
+
+    refresh();
+    window.addEventListener("focus", refresh);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("focus", refresh);
+    };
+  }, [pathname]);
 
   return (
     <>
@@ -144,38 +170,13 @@ export function Sidebar({ isOpenMobile, onCloseMobile, user }: SidebarProps) {
                 label={item.label}
                 isCollapsed={isCollapsed}
                 onClick={onCloseMobile}
+                badge={item.href === "/sharing" ? pendingCount : undefined}
               />
             ))}
           </nav>
 
           {/* Bottom actions */}
           <div className="flex flex-col gap-4 mt-auto">
-            {/* Share Stats — utility style, separated by divider */}
-            <div className="flex flex-col gap-3">
-              <div className="h-px bg-primary/10" />
-              <button
-                type="button"
-                onClick={() => setShareOpen(true)}
-                title="Share Stats"
-                className={cn(
-                  "flex items-center justify-center gap-2 border border-primary/20 text-body hover:text-foreground hover:bg-primary/10 hover:border-primary/40 rounded-xl py-2 text-body-sm-strong transition-all",
-                  isCollapsed ? "md:px-0 px-3" : "px-3",
-                )}
-              >
-                <Share2 className="w-4 h-4 shrink-0" />
-                <span
-                  className={cn(
-                    "transition-all duration-300 whitespace-nowrap",
-                    isCollapsed
-                      ? "md:opacity-0 md:w-0 overflow-hidden"
-                      : "opacity-100",
-                  )}
-                >
-                  Share Stats
-                </span>
-              </button>
-            </div>
-
             <AddProductModal>
               {(open) => (
                 <SidebarActionButton
@@ -218,8 +219,6 @@ export function Sidebar({ isOpenMobile, onCloseMobile, user }: SidebarProps) {
           )}
         </button>
       </aside>
-
-      <ShareStatsModal isOpen={shareOpen} onClose={() => setShareOpen(false)} />
     </>
   );
 }

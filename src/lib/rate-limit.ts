@@ -43,6 +43,7 @@ export const RATE_LIMITS = {
   ai: { limit: 20, windowMs: 5 * 60 * 1000 },
   contact: { limit: 5, windowMs: 60 * 60 * 1000 },
   sharePassword: { limit: 10, windowMs: 15 * 60 * 1000 },
+  invite: { limit: 30, windowMs: 60 * 60 * 1000 },
 } as const satisfies Record<string, LimiterConfig>;
 
 const redis = createRedis();
