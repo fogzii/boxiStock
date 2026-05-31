@@ -367,7 +367,7 @@ export async function updateBundle(
 
   if (error) throw new Error(error.message);
 
-  revalidatePath("/sales");
+  revalidatePath("/", "layout");
 }
 
 export async function deleteBundle(bundleId: string) {

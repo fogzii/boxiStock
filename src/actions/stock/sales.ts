@@ -259,7 +259,7 @@ export async function updateSale(
 
   await syncProductSalesStats(supabase, sale.productId);
 
-  revalidatePath("/sales");
+  revalidatePath("/", "layout");
 }
 
 export async function deleteSale(saleId: string) {
@@ -289,7 +289,7 @@ export async function deleteSale(saleId: string) {
 
   await syncProductSalesStats(supabase, sale.productId);
 
-  revalidatePath("/sales");
+  revalidatePath("/", "layout");
 }
 
 export async function deleteProductSales(productId: string) {
@@ -323,7 +323,7 @@ export async function deleteProductSales(productId: string) {
 
   await syncProductSalesStats(supabase, cleanId);
 
-  revalidatePath("/sales");
+  revalidatePath("/", "layout");
 }
 
 export async function getProductGroupHeaders(
@@ -427,7 +427,7 @@ export async function mergeProductSales(
   await syncProductSalesStats(supabase, cleanSourceId);
   await syncProductSalesStats(supabase, cleanTargetId);
 
-  revalidatePath("/sales");
+  revalidatePath("/", "layout");
   return { success: true };
 }
 

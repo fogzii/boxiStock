@@ -1,7 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { unstable_cache } from "next/cache";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
@@ -50,6 +50,7 @@ export async function updateSharePassword(password: string | null) {
     .eq("userId", userId);
 
   if (error) throw new Error(error.message);
+  revalidateTag("share-link");
 }
 
 export async function createShareLink({
@@ -98,6 +99,7 @@ export async function createShareLink({
   );
 
   if (error) throw new Error(error.message);
+  revalidateTag("share-link");
 }
 
 export async function disableShareLink() {
@@ -114,6 +116,7 @@ export async function disableShareLink() {
     .eq("userId", userId);
 
   if (error) throw new Error(error.message);
+  revalidateTag("share-link");
 }
 
 async function fetchPublicShareLink(token: string) {
@@ -139,7 +142,7 @@ async function fetchPublicShareLink(token: string) {
 export const getPublicShareLink = unstable_cache(
   fetchPublicShareLink,
   ["share-link"],
-  { revalidate: 60 },
+  { revalidate: 60, tags: ["share-link"] },
 );
 
 export async function verifySharePassword(token: string, password: string) {
