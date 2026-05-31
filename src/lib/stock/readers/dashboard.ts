@@ -25,40 +25,62 @@ export async function getSalesMetricsForUser(userId: string) {
 
       const sevenDaysAgo = new Date(today);
       sevenDaysAgo.setDate(today.getDate() - 7);
+      const sevenDaysAgoIso = sevenDaysAgo.toISOString();
+
+      // For each window, fetch rows where dateSold is in range, OR dateSold is
+      // null and createdAt is in range (so we respect user-set sale dates).
+      const recentFilter = `dateSold.gte.${sevenDaysAgoIso},and(dateSold.is.null,createdAt.gte.${sevenDaysAgoIso})`;
 
       const [
         { data: recentSales, error },
         { data: lifetimeSales, error: lifetimeError },
+        { data: recentBundles, error: recentBundlesError },
+        { data: lifetimeBundles, error: lifetimeBundlesError },
       ] = await Promise.all([
         supabase
           .from("Sale")
-          .select("*, Product!inner(userId)")
+          .select(
+            "quantitySold, totalSalePrice, totalProfit, dateSold, createdAt, Product!inner(userId)",
+          )
           .eq("Product.userId", uid)
-          .gte("createdAt", sevenDaysAgo.toISOString()),
+          .or(recentFilter),
         supabase
           .from("Sale")
           .select("totalProfit, Product!inner(userId)")
           .eq("Product.userId", uid),
+        supabase
+          .from("Bundle")
+          .select("totalSellPrice, totalProfit, dateSold, createdAt")
+          .eq("userId", uid)
+          .or(recentFilter),
+        supabase.from("Bundle").select("totalProfit").eq("userId", uid),
       ]);
 
       if (error) throw new Error(error.message);
       if (lifetimeError) throw new Error(lifetimeError.message);
+      if (recentBundlesError) throw new Error(recentBundlesError.message);
+      if (lifetimeBundlesError) throw new Error(lifetimeBundlesError.message);
 
       let totalSalesToday = 0;
       let totalUnitsSoldWeek = 0;
       let netProfitWeek = 0;
 
       for (const sale of recentSales || []) {
-        const saleDate = new Date(sale.createdAt);
+        const effectiveDate = new Date(sale.dateSold ?? sale.createdAt);
         totalUnitsSoldWeek += sale.quantitySold;
         netProfitWeek += sale.totalProfit;
-        if (saleDate >= today) totalSalesToday += sale.totalSalePrice;
+        if (effectiveDate >= today) totalSalesToday += sale.totalSalePrice;
       }
 
-      const netProfitLifetime = (lifetimeSales || []).reduce(
-        (sum, s) => sum + s.totalProfit,
-        0,
-      );
+      for (const bundle of recentBundles || []) {
+        const effectiveDate = new Date(bundle.dateSold ?? bundle.createdAt);
+        netProfitWeek += bundle.totalProfit;
+        if (effectiveDate >= today) totalSalesToday += bundle.totalSellPrice;
+      }
+
+      const netProfitLifetime =
+        (lifetimeSales || []).reduce((sum, s) => sum + s.totalProfit, 0) +
+        (lifetimeBundles || []).reduce((sum, b) => sum + b.totalProfit, 0);
 
       return {
         totalSalesToday,
