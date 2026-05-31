@@ -143,6 +143,7 @@ export function Sidebar({ isOpenMobile, onCloseMobile, user }: SidebarProps) {
                 icon={item.icon}
                 label={item.label}
                 isCollapsed={isCollapsed}
+                onClick={onCloseMobile}
               />
             ))}
           </nav>

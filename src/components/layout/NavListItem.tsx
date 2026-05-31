@@ -8,6 +8,7 @@ interface NavListItemProps {
   icon: ComponentType<{ className?: string }>;
   label: string;
   isCollapsed: boolean;
+  onClick?: () => void;
 }
 
 export function NavListItem({
@@ -15,6 +16,7 @@ export function NavListItem({
   icon: Icon,
   label,
   isCollapsed,
+  onClick,
 }: NavListItemProps) {
   const pathname = usePathname();
   const isActive = pathname === href;
@@ -22,6 +24,7 @@ export function NavListItem({
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={cn(
         "flex items-center py-2.5 rounded-lg transition-colors group relative",
         isCollapsed ? "px-4 md:px-0 md:justify-center" : "gap-3 px-4",
