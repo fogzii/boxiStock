@@ -5,15 +5,6 @@ import { unstable_cache } from "next/cache";
 import type { DashboardMetricsRow, SalesByMonth } from "@/lib/stock/types";
 import { createClient } from "@/lib/supabase/server";
 
-const _VALID_SORTS = new Set([
-  "name_asc",
-  "name_desc",
-  "stock_asc",
-  "stock_desc",
-  "value_asc",
-  "value_desc",
-]);
-const _VALID_STATUSES = new Set(["all", "stocked", "pending"]);
 
 export async function getSalesMetricsForUser(userId: string) {
   return unstable_cache(
