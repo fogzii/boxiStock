@@ -133,7 +133,11 @@ export function SharingClient({
 
   return (
     <div className="flex flex-col gap-8">
-      <Tabs tabs={TABS} value={activeTab} onChange={setActiveTab} />
+      <Tabs
+        tabs={TABS}
+        value={activeTab}
+        onChange={(v) => setActiveTab(v as SharingTab)}
+      />
 
       {activeTab === "public" ? (
         <PublicLinkSection />
