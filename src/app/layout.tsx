@@ -27,6 +27,7 @@ export const metadata: Metadata = {
   },
 };
 
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Toaster } from "sonner";
 
 export default function RootLayout({
@@ -40,6 +41,7 @@ export default function RootLayout({
         <AIImportProvider>
           {children}
           <Toaster position="bottom-right" theme="dark" richColors />
+          <SpeedInsights />
         </AIImportProvider>
       </body>
     </html>
