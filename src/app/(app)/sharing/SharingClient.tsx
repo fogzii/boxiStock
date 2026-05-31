@@ -12,6 +12,8 @@ import {
 } from "@box-ds";
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Loader2,
   Mail,
@@ -47,6 +49,10 @@ const TABS = [
 
 type SharingTab = "invite" | "public";
 
+// "People I've invited" can grow without bound, so the list is paginated
+// client-side to keep the section compact.
+const OUTGOING_PAGE_SIZE = 5;
+
 const STATUS_META: Record<
   InviteStatus,
   { label: string; variant: "warning" | "positive" | "negative" }
@@ -67,6 +73,20 @@ export function SharingClient({
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [email, setEmail] = React.useState("");
   const [isSending, setIsSending] = React.useState(false);
+  const [outgoingPage, setOutgoingPage] = React.useState(1);
+
+  const outgoingTotalPages = Math.max(
+    1,
+    Math.ceil(outgoing.length / OUTGOING_PAGE_SIZE),
+  );
+  // Clamp on render so removing the last row on the final page (or the list
+  // shrinking after a refresh) never strands us on an empty page.
+  const currentOutgoingPage = Math.min(outgoingPage, outgoingTotalPages);
+  const outgoingStart = (currentOutgoingPage - 1) * OUTGOING_PAGE_SIZE;
+  const visibleOutgoing = outgoing.slice(
+    outgoingStart,
+    outgoingStart + OUTGOING_PAGE_SIZE,
+  );
 
   const runAction = async (id: string, action: () => Promise<unknown>) => {
     setBusyId(id);
@@ -233,7 +253,7 @@ export function SharingClient({
 
             {outgoing.length > 0 && (
               <div className="flex flex-col gap-3">
-                {outgoing.map((invite) => {
+                {visibleOutgoing.map((invite) => {
                   const rowBusy = busyId === invite.id;
                   const meta = STATUS_META[invite.status];
                   return (
@@ -267,6 +287,44 @@ export function SharingClient({
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {outgoingTotalPages > 1 && (
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-caption text-muted-foreground">
+                  {outgoingStart + 1}–{outgoingStart + visibleOutgoing.length}{" "}
+                  of {outgoing.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={currentOutgoingPage <= 1}
+                    onClick={() => setOutgoingPage((p) => Math.max(1, p - 1))}
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    Prev
+                  </Button>
+                  <span className="text-caption text-muted-foreground tabular-nums">
+                    {currentOutgoingPage} / {outgoingTotalPages}
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={currentOutgoingPage >= outgoingTotalPages}
+                    onClick={() =>
+                      setOutgoingPage((p) =>
+                        Math.min(outgoingTotalPages, p + 1),
+                      )
+                    }
+                    aria-label="Next page"
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             )}
           </section>
