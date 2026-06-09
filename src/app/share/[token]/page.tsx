@@ -65,6 +65,15 @@ export default async function SharePage({
   const sp = await searchParams;
   const stockPage = Math.max(1, parseInt(String(sp.stockPage ?? "1"), 10) || 1);
   const salesPage = Math.max(1, parseInt(String(sp.salesPage ?? "1"), 10) || 1);
+  const stockSearch =
+    typeof sp.stockSearch === "string" ? sp.stockSearch : undefined;
+  const stockSort = typeof sp.stockSort === "string" ? sp.stockSort : undefined;
+  const stockStatus =
+    typeof sp.stockStatus === "string" ? sp.stockStatus : undefined;
+  const salesSearch =
+    typeof sp.salesSearch === "string" ? sp.salesSearch : undefined;
+  const salesSort =
+    typeof sp.salesSort === "string" ? sp.salesSort : "date_desc";
 
   const link = await getPublicShareLink(token);
 
@@ -110,9 +119,26 @@ export default async function SharePage({
   ] = await Promise.all([
     has("dashboard") ? getDashboardMetricsForUser(uid) : null,
     has("dashboard") ? getProfitChartDataForUser(uid) : null,
-    has("stock") ? getInventoryPaginatedForUser(uid, stockPage, 10) : null,
+    has("stock")
+      ? getInventoryPaginatedForUser(
+          uid,
+          stockPage,
+          10,
+          stockSearch,
+          stockSort,
+          stockStatus,
+        )
+      : null,
     has("sales") ? getSalesMetricsForUser(uid) : null,
-    has("sales") ? getCombinedSalesGroupedForUser(uid, salesPage, 10) : null,
+    has("sales")
+      ? getCombinedSalesGroupedForUser(
+          uid,
+          salesPage,
+          10,
+          salesSearch,
+          salesSort,
+        )
+      : null,
   ]);
 
   return (
@@ -125,11 +151,14 @@ export default async function SharePage({
       inventoryCount={inventoryData?.totalCount ?? 0}
       stockCurrentPage={stockPage}
       stockTotalPages={inventoryData?.totalPages ?? 1}
+      stockSort={stockSort}
+      stockStatus={stockStatus}
       salesMetrics={salesMetrics}
       salesItems={salesCombined?.items ?? []}
       salesTotal={salesCombined?.total ?? 0}
       salesCurrentPage={salesPage}
       salesTotalPages={salesCombined?.totalPages ?? 1}
+      salesSort={salesSort}
     />
   );
 }

@@ -28,6 +28,10 @@ interface StockFiltersProps {
   onNavigate?: (url: string) => void;
   totalStockValue?: number;
   isPending?: boolean;
+  sortParamKey?: string;
+  statusParamKey?: string;
+  pageParamKey?: string;
+  showBundleSale?: boolean;
 }
 
 export function StockFilters({
@@ -36,6 +40,10 @@ export function StockFilters({
   onNavigate,
   totalStockValue,
   isPending = false,
+  sortParamKey = "sort",
+  statusParamKey = "status",
+  pageParamKey = "page",
+  showBundleSale = true,
 }: StockFiltersProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -58,7 +66,7 @@ export function StockFilters({
     key: string,
   ) {
     const params = new URLSearchParams(searchParams.toString());
-    params.delete("page");
+    params.delete(pageParamKey);
     for (const [k, val] of Object.entries(updates)) {
       if (!val || val === "" || val === "all") {
         params.delete(k);
@@ -71,7 +79,7 @@ export function StockFilters({
     if (onNavigate) {
       onNavigate(url);
     } else {
-      router.push(url);
+      router.push(url, { scroll: false });
     }
   }
 
@@ -105,7 +113,7 @@ export function StockFilters({
               })}
             </span>
           </div>
-          <BundleSaleButton />
+          {showBundleSale && <BundleSaleButton />}
         </div>
       )}
 
@@ -139,7 +147,10 @@ export function StockFilters({
                   key={opt.value}
                   type="button"
                   onClick={() => {
-                    pushParams({ sort: opt.value }, `sort-${opt.value}`);
+                    pushParams(
+                      { [sortParamKey]: opt.value },
+                      `sort-${opt.value}`,
+                    );
                     setSortOpen(false);
                   }}
                   disabled={isPending}
@@ -174,7 +185,10 @@ export function StockFilters({
               key={opt.value}
               type="button"
               onClick={() =>
-                pushParams({ status: opt.value }, `status-${opt.value}`)
+                pushParams(
+                  { [statusParamKey]: opt.value },
+                  `status-${opt.value}`,
+                )
               }
               disabled={isPending}
               className={cn(

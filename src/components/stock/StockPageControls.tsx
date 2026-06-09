@@ -34,7 +34,7 @@ export function StockPageControls({
 
   function handleNavigate(url: string) {
     startTransition(() => {
-      router.push(url);
+      router.push(url, { scroll: false });
     });
   }
 

@@ -33,7 +33,6 @@ import {
 import { AddLotModal } from "@/components/modals/addLotModal";
 import { SellAllModal } from "@/components/modals/sellAllModal";
 import { LotCard } from "@/components/stock/lotCard";
-import { ScrollRestorer } from "@/components/ui/ScrollRestorer";
 import { TablePagination } from "@/components/ui/TablePagination";
 import { useReadOnly } from "@/lib/context/readOnly";
 import type { ProductWithLots } from "@/lib/stock/types";
@@ -339,7 +338,7 @@ export function StockTable({
       } else {
         const params = new URLSearchParams(window.location.search);
         params.set("page", String(page));
-        router.push(`/stock?${params.toString()}`);
+        router.push(`/stock?${params.toString()}`, { scroll: false });
       }
     });
   };
@@ -409,7 +408,6 @@ export function StockTable({
         </TableBody>
       </Table>
 
-      <ScrollRestorer scrollKey="stock" />
       <TablePagination
         currentPage={currentPage}
         pageSize={pageSize}
@@ -418,7 +416,6 @@ export function StockTable({
         unitLabel="products"
         isPending={showSkeleton}
         onPageChange={handlePageChange}
-        scrollKey="stock"
         className="p-4 border-t border-primary/10"
       />
     </div>

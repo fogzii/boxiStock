@@ -21,7 +21,6 @@ import { deleteProductSales, deleteSale } from "@/actions/stock/sales";
 import { EditBundleModal } from "@/components/modals/editBundleModal";
 import { EditSaleModal } from "@/components/modals/editSaleModal";
 import { MergeSaleModal } from "@/components/modals/mergeSaleModal";
-import { ScrollRestorer } from "@/components/ui/ScrollRestorer";
 import { TablePagination } from "@/components/ui/TablePagination";
 import { useReadOnly } from "@/lib/context/readOnly";
 import { formatCurrency } from "@/lib/formatting";
@@ -44,6 +43,8 @@ interface SalesTableProps {
   pageSize: number;
   onPageChange?: (page: number) => void;
   sort?: string;
+  onSortChange?: (sort: string) => void;
+  isExternalPending?: boolean;
 }
 
 const SKELETON_ROW_KEYS = Array.from(
@@ -591,9 +592,12 @@ export function SalesTable({
   pageSize,
   onPageChange,
   sort: sortProp,
+  onSortChange,
+  isExternalPending = false,
 }: SalesTableProps) {
   const router = useRouter();
-  const [isPending, startTransition] = React.useTransition();
+  const [internalPending, startTransition] = React.useTransition();
+  const isPending = internalPending || isExternalPending;
   const isControlledSort = sortProp !== undefined;
   const controlled = parseSortParam(sortProp);
   const [localSortField, setLocalSortField] = React.useState<SortField | null>(
@@ -612,12 +616,19 @@ export function SalesTable({
             ? "desc"
             : "asc"
           : "asc";
-      startTransition(() => {
-        const params = new URLSearchParams(window.location.search);
-        params.set("sort", `${field}_${nextDir}`);
-        params.delete("page");
-        router.push(`/sales?${params.toString()}`);
-      });
+      const nextSort = `${field}_${nextDir}`;
+      if (onSortChange) {
+        startTransition(() => {
+          onSortChange(nextSort);
+        });
+      } else {
+        startTransition(() => {
+          const params = new URLSearchParams(window.location.search);
+          params.set("sort", nextSort);
+          params.delete("page");
+          router.push(`/sales?${params.toString()}`, { scroll: false });
+        });
+      }
       return;
     }
     if (localSortField === field) {
@@ -671,7 +682,7 @@ export function SalesTable({
       } else {
         const params = new URLSearchParams(window.location.search);
         params.set("page", String(page));
-        router.push(`/sales?${params.toString()}`);
+        router.push(`/sales?${params.toString()}`, { scroll: false });
       }
     });
   };
@@ -795,7 +806,6 @@ export function SalesTable({
         </div>
       </div>
 
-      <ScrollRestorer scrollKey="sales" />
       <TablePagination
         currentPage={currentPage}
         pageSize={pageSize}
@@ -804,7 +814,6 @@ export function SalesTable({
         unitLabel="entries"
         isPending={isPending}
         onPageChange={handlePageChange}
-        scrollKey="sales"
         className="mt-6 px-1"
       />
     </>
