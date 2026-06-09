@@ -551,39 +551,6 @@ function SortHeader({
   );
 }
 
-function getEffectiveDate(item: CombinedRow): string {
-  if (item.kind === "product") return item.data.latestDate ?? "";
-  return item.data.dateSold ?? item.data.createdAt ?? "";
-}
-
-function getItemName(item: CombinedRow): string {
-  return item.kind === "product"
-    ? item.data.productName.toLowerCase()
-    : item.data.bundleName.toLowerCase();
-}
-
-function getItemQty(item: CombinedRow): number {
-  return item.kind === "product"
-    ? item.data.totalQuantity
-    : item.data.products.reduce((s, p) => s + p.totalQuantity, 0);
-}
-
-function getItemBuy(item: CombinedRow): number {
-  return item.kind === "product"
-    ? item.data.totalSalePrice - item.data.totalProfit
-    : item.data.totalBuyCost;
-}
-
-function getItemSell(item: CombinedRow): number {
-  return item.kind === "product"
-    ? item.data.totalSalePrice
-    : item.data.totalSellPrice;
-}
-
-function getItemProfit(item: CombinedRow): number {
-  return item.data.totalProfit;
-}
-
 export function SalesTable({
   items,
   total,
@@ -598,82 +565,25 @@ export function SalesTable({
   const router = useRouter();
   const [internalPending, startTransition] = React.useTransition();
   const isPending = internalPending || isExternalPending;
-  const isControlledSort = sortProp !== undefined;
-  const controlled = parseSortParam(sortProp);
-  const [localSortField, setLocalSortField] = React.useState<SortField | null>(
-    "date",
-  );
-  const [localSortDir, setLocalSortDir] = React.useState<SortDir>("desc");
-
-  const sortField = isControlledSort ? controlled.field : localSortField;
-  const sortDir = isControlledSort ? controlled.dir : localSortDir;
+  const { field: sortField, dir: sortDir } = parseSortParam(sortProp);
 
   const handleSort = (field: SortField) => {
-    if (isControlledSort) {
-      const nextDir: SortDir =
-        controlled.field === field
-          ? controlled.dir === "asc"
-            ? "desc"
-            : "asc"
-          : "asc";
-      const nextSort = `${field}_${nextDir}`;
-      if (onSortChange) {
-        startTransition(() => {
-          onSortChange(nextSort);
-        });
-      } else {
-        startTransition(() => {
-          const params = new URLSearchParams(window.location.search);
-          params.set("sort", nextSort);
-          params.delete("page");
-          router.push(`/sales?${params.toString()}`, { scroll: false });
-        });
-      }
-      return;
-    }
-    if (localSortField === field) {
-      setLocalSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    const nextDir: SortDir =
+      sortField === field ? (sortDir === "asc" ? "desc" : "asc") : "asc";
+    const nextSort = `${field}_${nextDir}`;
+    if (onSortChange) {
+      startTransition(() => {
+        onSortChange(nextSort);
+      });
     } else {
-      setLocalSortField(field);
-      setLocalSortDir("asc");
+      startTransition(() => {
+        const params = new URLSearchParams(window.location.search);
+        params.set("sort", nextSort);
+        params.delete("page");
+        router.push(`/sales?${params.toString()}`, { scroll: false });
+      });
     }
   };
-
-  const sortedItems = React.useMemo(() => {
-    if (isControlledSort || !sortField) return items;
-    return [...items].sort((a, b) => {
-      let aVal: number | string;
-      let bVal: number | string;
-      switch (sortField) {
-        case "date":
-          aVal = getEffectiveDate(a);
-          bVal = getEffectiveDate(b);
-          break;
-        case "product":
-          aVal = getItemName(a);
-          bVal = getItemName(b);
-          break;
-        case "quantity":
-          aVal = getItemQty(a);
-          bVal = getItemQty(b);
-          break;
-        case "buy":
-          aVal = getItemBuy(a);
-          bVal = getItemBuy(b);
-          break;
-        case "sell":
-          aVal = getItemSell(a);
-          bVal = getItemSell(b);
-          break;
-        case "profit":
-          aVal = getItemProfit(a);
-          bVal = getItemProfit(b);
-          break;
-      }
-      const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-  }, [isControlledSort, items, sortField, sortDir]);
 
   const handlePageChange = (page: number) => {
     startTransition(() => {
@@ -777,8 +687,8 @@ export function SalesTable({
                     </td>
                   </tr>
                 ))
-              ) : sortedItems.length > 0 ? (
-                sortedItems.map((item) =>
+              ) : items.length > 0 ? (
+                items.map((item) =>
                   item.kind === "product" ? (
                     <ProductGroupRow
                       key={item.data.productId}
