@@ -8,16 +8,17 @@ import { StatCard } from "@/components/ui/StatCard";
 export default async function SalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; search?: string }>;
+  searchParams: Promise<{ page?: string; search?: string; sort?: string }>;
 }) {
   const unresolvedParams = await searchParams;
   const currentPage = Number(unresolvedParams?.page) || 1;
   const searchParamStr = unresolvedParams?.search;
+  const sortParam = unresolvedParams?.sort ?? "date_desc";
   const pageSize = 10;
 
   const [metrics, combined] = await Promise.all([
     getSalesMetrics(),
-    getCombinedSalesGrouped(currentPage, pageSize, searchParamStr),
+    getCombinedSalesGrouped(currentPage, pageSize, searchParamStr, sortParam),
   ]);
 
   const formatter = new Intl.NumberFormat("en-US", {
@@ -60,6 +61,7 @@ export default async function SalesPage({
         totalPages={combined.totalPages}
         currentPage={currentPage}
         pageSize={pageSize}
+        sort={sortParam}
       />
     </div>
   );

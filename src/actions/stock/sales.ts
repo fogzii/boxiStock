@@ -437,11 +437,12 @@ export async function getCombinedSalesGrouped(
   page: number = 1,
   pageSize: number = 10,
   search?: string,
+  sort?: string | null,
 ) {
   const {
     data: { user },
   } = await getAuthUser();
   const userId = user?.id;
   if (!userId) throw new Error("Unauthorized");
-  return getCombinedSalesGroupedForUser(userId, page, pageSize, search);
+  return getCombinedSalesGroupedForUser(userId, page, pageSize, search, sort);
 }

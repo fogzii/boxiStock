@@ -12,7 +12,6 @@ interface TablePaginationProps {
   isPending?: boolean;
   onPageChange: (page: number) => void;
   className?: string;
-  scrollKey?: string;
 }
 
 export function TablePagination({
@@ -24,13 +23,7 @@ export function TablePagination({
   isPending = false,
   onPageChange,
   className,
-  scrollKey,
 }: TablePaginationProps) {
-  function saveScroll() {
-    if (scrollKey) {
-      sessionStorage.setItem(`scroll-${scrollKey}`, String(window.scrollY));
-    }
-  }
   if (totalPages <= 1) return null;
 
   const from = (currentPage - 1) * pageSize + 1;
@@ -62,10 +55,7 @@ export function TablePagination({
       <div className="flex flex-row gap-2">
         <button
           type="button"
-          onClick={() => {
-            saveScroll();
-            onPageChange(currentPage - 1);
-          }}
+          onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1 || isPending}
           className="inline-flex items-center justify-center h-8 px-3 text-body-sm-strong rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors disabled:opacity-50 disabled:pointer-events-none"
         >
@@ -73,10 +63,7 @@ export function TablePagination({
         </button>
         <button
           type="button"
-          onClick={() => {
-            saveScroll();
-            onPageChange(currentPage + 1);
-          }}
+          onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages || isPending}
           className="inline-flex items-center justify-center h-8 px-3 text-body-sm-strong rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors disabled:opacity-50 disabled:pointer-events-none"
         >

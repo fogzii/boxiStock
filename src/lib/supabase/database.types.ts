@@ -307,6 +307,16 @@ export type Database = {
     };
     Functions: {
       find_user_id_by_email: { Args: { p_email: string }; Returns: string };
+      get_combined_sales_paginated: {
+        Args: {
+          p_page?: number;
+          p_page_size?: number;
+          p_search?: string;
+          p_sort?: string;
+          p_user_id: string;
+        };
+        Returns: Json;
+      };
       get_dashboard_metrics: { Args: { p_user_id: string }; Returns: Json };
       get_inventory_paginated:
         | {

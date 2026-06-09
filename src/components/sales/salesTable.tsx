@@ -21,7 +21,6 @@ import { deleteProductSales, deleteSale } from "@/actions/stock/sales";
 import { EditBundleModal } from "@/components/modals/editBundleModal";
 import { EditSaleModal } from "@/components/modals/editSaleModal";
 import { MergeSaleModal } from "@/components/modals/mergeSaleModal";
-import { ScrollRestorer } from "@/components/ui/ScrollRestorer";
 import { TablePagination } from "@/components/ui/TablePagination";
 import { useReadOnly } from "@/lib/context/readOnly";
 import { formatCurrency } from "@/lib/formatting";
@@ -43,6 +42,9 @@ interface SalesTableProps {
   currentPage: number;
   pageSize: number;
   onPageChange?: (page: number) => void;
+  sort?: string;
+  onSortChange?: (sort: string) => void;
+  isExternalPending?: boolean;
 }
 
 const SKELETON_ROW_KEYS = Array.from(
@@ -480,6 +482,35 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
 type SortField = "date" | "product" | "quantity" | "buy" | "sell" | "profit";
 type SortDir = "asc" | "desc";
 
+const VALID_SORT_FIELDS: ReadonlySet<SortField> = new Set([
+  "date",
+  "product",
+  "quantity",
+  "buy",
+  "sell",
+  "profit",
+]);
+
+function parseSortParam(raw: string | undefined): {
+  field: SortField;
+  dir: SortDir;
+} {
+  if (typeof raw === "string") {
+    const idx = raw.lastIndexOf("_");
+    if (idx > 0) {
+      const field = raw.slice(0, idx);
+      const dir = raw.slice(idx + 1);
+      if (
+        VALID_SORT_FIELDS.has(field as SortField) &&
+        (dir === "asc" || dir === "desc")
+      ) {
+        return { field: field as SortField, dir };
+      }
+    }
+  }
+  return { field: "date", dir: "desc" };
+}
+
 function SortHeader({
   label,
   field,
@@ -520,39 +551,6 @@ function SortHeader({
   );
 }
 
-function getEffectiveDate(item: CombinedRow): string {
-  if (item.kind === "product") return item.data.latestDate ?? "";
-  return item.data.dateSold ?? item.data.createdAt ?? "";
-}
-
-function getItemName(item: CombinedRow): string {
-  return item.kind === "product"
-    ? item.data.productName.toLowerCase()
-    : item.data.bundleName.toLowerCase();
-}
-
-function getItemQty(item: CombinedRow): number {
-  return item.kind === "product"
-    ? item.data.totalQuantity
-    : item.data.products.reduce((s, p) => s + p.totalQuantity, 0);
-}
-
-function getItemBuy(item: CombinedRow): number {
-  return item.kind === "product"
-    ? item.data.totalSalePrice - item.data.totalProfit
-    : item.data.totalBuyCost;
-}
-
-function getItemSell(item: CombinedRow): number {
-  return item.kind === "product"
-    ? item.data.totalSalePrice
-    : item.data.totalSellPrice;
-}
-
-function getItemProfit(item: CombinedRow): number {
-  return item.data.totalProfit;
-}
-
 export function SalesTable({
   items,
   total,
@@ -560,56 +558,32 @@ export function SalesTable({
   currentPage,
   pageSize,
   onPageChange,
+  sort: sortProp,
+  onSortChange,
+  isExternalPending = false,
 }: SalesTableProps) {
   const router = useRouter();
-  const [isPending, startTransition] = React.useTransition();
-  const [sortField, setSortField] = React.useState<SortField | null>("date");
-  const [sortDir, setSortDir] = React.useState<SortDir>("desc");
+  const [internalPending, startTransition] = React.useTransition();
+  const isPending = internalPending || isExternalPending;
+  const { field: sortField, dir: sortDir } = parseSortParam(sortProp);
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    const nextDir: SortDir =
+      sortField === field ? (sortDir === "asc" ? "desc" : "asc") : "asc";
+    const nextSort = `${field}_${nextDir}`;
+    if (onSortChange) {
+      startTransition(() => {
+        onSortChange(nextSort);
+      });
     } else {
-      setSortField(field);
-      setSortDir("asc");
+      startTransition(() => {
+        const params = new URLSearchParams(window.location.search);
+        params.set("sort", nextSort);
+        params.delete("page");
+        router.push(`/sales?${params.toString()}`, { scroll: false });
+      });
     }
   };
-
-  const sortedItems = React.useMemo(() => {
-    if (!sortField) return items;
-    return [...items].sort((a, b) => {
-      let aVal: number | string;
-      let bVal: number | string;
-      switch (sortField) {
-        case "date":
-          aVal = getEffectiveDate(a);
-          bVal = getEffectiveDate(b);
-          break;
-        case "product":
-          aVal = getItemName(a);
-          bVal = getItemName(b);
-          break;
-        case "quantity":
-          aVal = getItemQty(a);
-          bVal = getItemQty(b);
-          break;
-        case "buy":
-          aVal = getItemBuy(a);
-          bVal = getItemBuy(b);
-          break;
-        case "sell":
-          aVal = getItemSell(a);
-          bVal = getItemSell(b);
-          break;
-        case "profit":
-          aVal = getItemProfit(a);
-          bVal = getItemProfit(b);
-          break;
-      }
-      const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
-      return sortDir === "asc" ? cmp : -cmp;
-    });
-  }, [items, sortField, sortDir]);
 
   const handlePageChange = (page: number) => {
     startTransition(() => {
@@ -618,7 +592,7 @@ export function SalesTable({
       } else {
         const params = new URLSearchParams(window.location.search);
         params.set("page", String(page));
-        router.push(`/sales?${params.toString()}`);
+        router.push(`/sales?${params.toString()}`, { scroll: false });
       }
     });
   };
@@ -713,8 +687,8 @@ export function SalesTable({
                     </td>
                   </tr>
                 ))
-              ) : sortedItems.length > 0 ? (
-                sortedItems.map((item) =>
+              ) : items.length > 0 ? (
+                items.map((item) =>
                   item.kind === "product" ? (
                     <ProductGroupRow
                       key={item.data.productId}
@@ -742,7 +716,6 @@ export function SalesTable({
         </div>
       </div>
 
-      <ScrollRestorer scrollKey="sales" />
       <TablePagination
         currentPage={currentPage}
         pageSize={pageSize}
@@ -751,7 +724,6 @@ export function SalesTable({
         unitLabel="entries"
         isPending={isPending}
         onPageChange={handlePageChange}
-        scrollKey="sales"
         className="mt-6 px-1"
       />
     </>
