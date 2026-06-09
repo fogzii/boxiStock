@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5";
+    PostgrestVersion: "14.4";
   };
   public: {
     Tables: {
@@ -120,14 +120,14 @@ export type Database = {
         };
         Insert: {
           createdAt?: string;
-          id?: string;
+          id: string;
           lastSoldAt?: string | null;
           name: string;
           saleCount?: number;
           totalProfit?: number;
           totalRevenue?: number;
           totalUnitsSold?: number;
-          updatedAt?: string;
+          updatedAt: string;
           userId: string;
         };
         Update: {
@@ -158,7 +158,7 @@ export type Database = {
         Insert: {
           createdAt?: string;
           dateSold?: string;
-          id?: string;
+          id: string;
           notes?: string | null;
           productId: string;
           quantitySold: number;
@@ -269,14 +269,14 @@ export type Database = {
           buyPrice: number;
           createdAt?: string;
           dateAcquired?: string;
-          id?: string;
+          id: string;
           initialQuantity: number;
           isStocked?: boolean;
           lotIdentity?: string | null;
           notes?: string | null;
           productId: string;
           remainingQuantity: number;
-          updatedAt?: string;
+          updatedAt: string;
         };
         Update: {
           buyPrice?: number;
@@ -318,17 +318,27 @@ export type Database = {
         Returns: Json;
       };
       get_dashboard_metrics: { Args: { p_user_id: string }; Returns: Json };
-      get_inventory_paginated: {
-        Args: {
-          p_page?: number;
-          p_page_size?: number;
-          p_search?: string;
-          p_sort?: string;
-          p_status?: string;
-          p_user_id: string;
-        };
-        Returns: Json;
-      };
+      get_inventory_paginated:
+        | {
+            Args: {
+              p_page?: number;
+              p_page_size?: number;
+              p_search?: string;
+              p_user_id: string;
+            };
+            Returns: Json;
+          }
+        | {
+            Args: {
+              p_page?: number;
+              p_page_size?: number;
+              p_search?: string;
+              p_sort?: string;
+              p_status?: string;
+              p_user_id: string;
+            };
+            Returns: Json;
+          };
       get_inventory_value_by_status: {
         Args: { p_status?: string; p_user_id: string };
         Returns: number;
