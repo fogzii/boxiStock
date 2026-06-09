@@ -337,7 +337,9 @@ export function StockTable({
       if (onPageChange) {
         onPageChange(page);
       } else {
-        router.push(`/stock?page=${page}`);
+        const params = new URLSearchParams(window.location.search);
+        params.set("page", String(page));
+        router.push(`/stock?${params.toString()}`);
       }
     });
   };

@@ -43,6 +43,7 @@ interface SalesTableProps {
   currentPage: number;
   pageSize: number;
   onPageChange?: (page: number) => void;
+  sort?: string;
 }
 
 const SKELETON_ROW_KEYS = Array.from(
@@ -480,6 +481,35 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
 type SortField = "date" | "product" | "quantity" | "buy" | "sell" | "profit";
 type SortDir = "asc" | "desc";
 
+const VALID_SORT_FIELDS: ReadonlySet<SortField> = new Set([
+  "date",
+  "product",
+  "quantity",
+  "buy",
+  "sell",
+  "profit",
+]);
+
+function parseSortParam(raw: string | undefined): {
+  field: SortField;
+  dir: SortDir;
+} {
+  if (typeof raw === "string") {
+    const idx = raw.lastIndexOf("_");
+    if (idx > 0) {
+      const field = raw.slice(0, idx);
+      const dir = raw.slice(idx + 1);
+      if (
+        VALID_SORT_FIELDS.has(field as SortField) &&
+        (dir === "asc" || dir === "desc")
+      ) {
+        return { field: field as SortField, dir };
+      }
+    }
+  }
+  return { field: "date", dir: "desc" };
+}
+
 function SortHeader({
   label,
   field,
@@ -560,23 +590,46 @@ export function SalesTable({
   currentPage,
   pageSize,
   onPageChange,
+  sort: sortProp,
 }: SalesTableProps) {
   const router = useRouter();
   const [isPending, startTransition] = React.useTransition();
-  const [sortField, setSortField] = React.useState<SortField | null>("date");
-  const [sortDir, setSortDir] = React.useState<SortDir>("desc");
+  const isControlledSort = sortProp !== undefined;
+  const controlled = parseSortParam(sortProp);
+  const [localSortField, setLocalSortField] = React.useState<SortField | null>(
+    "date",
+  );
+  const [localSortDir, setLocalSortDir] = React.useState<SortDir>("desc");
+
+  const sortField = isControlledSort ? controlled.field : localSortField;
+  const sortDir = isControlledSort ? controlled.dir : localSortDir;
 
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    if (isControlledSort) {
+      const nextDir: SortDir =
+        controlled.field === field
+          ? controlled.dir === "asc"
+            ? "desc"
+            : "asc"
+          : "asc";
+      startTransition(() => {
+        const params = new URLSearchParams(window.location.search);
+        params.set("sort", `${field}_${nextDir}`);
+        params.delete("page");
+        router.push(`/sales?${params.toString()}`);
+      });
+      return;
+    }
+    if (localSortField === field) {
+      setLocalSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
-      setSortField(field);
-      setSortDir("asc");
+      setLocalSortField(field);
+      setLocalSortDir("asc");
     }
   };
 
   const sortedItems = React.useMemo(() => {
-    if (!sortField) return items;
+    if (isControlledSort || !sortField) return items;
     return [...items].sort((a, b) => {
       let aVal: number | string;
       let bVal: number | string;
@@ -609,7 +662,7 @@ export function SalesTable({
       const cmp = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
       return sortDir === "asc" ? cmp : -cmp;
     });
-  }, [items, sortField, sortDir]);
+  }, [isControlledSort, items, sortField, sortDir]);
 
   const handlePageChange = (page: number) => {
     startTransition(() => {

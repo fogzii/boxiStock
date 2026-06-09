@@ -1,16 +1,10 @@
 import "server-only";
 
-// Server-only read helpers for the sales page, including combined product and
-// bundle sale grouping.
+// Server-only read helpers for the sales page. Combined product+bundle
+// pagination/sort runs in Postgres via the get_combined_sales_paginated RPC.
 import { unstable_cache } from "next/cache";
-import type {
-  BundleHeaderRow,
-  BundleItemListRow,
-  ProductHeaderRow,
-  SaleListRow,
-} from "@/lib/stock/types";
+import type { BundleItemListRow, SaleListRow } from "@/lib/stock/types";
 import { createClient } from "@/lib/supabase/server";
-import { escapeLikePattern } from "@/lib/validation";
 
 const _VALID_SORTS = new Set([
   "name_asc",
@@ -22,11 +16,50 @@ const _VALID_SORTS = new Set([
 ]);
 const _VALID_STATUSES = new Set(["all", "stocked", "pending"]);
 
+type SalesSortField =
+  | "date"
+  | "product"
+  | "quantity"
+  | "buy"
+  | "sell"
+  | "profit";
+type SalesSortDir = "asc" | "desc";
+
+const VALID_SALES_SORT_FIELDS: ReadonlySet<SalesSortField> = new Set([
+  "date",
+  "product",
+  "quantity",
+  "buy",
+  "sell",
+  "profit",
+]);
+
+function parseSalesSort(sort: string | null | undefined): {
+  field: SalesSortField;
+  dir: SalesSortDir;
+} {
+  if (typeof sort === "string") {
+    const idx = sort.lastIndexOf("_");
+    if (idx > 0) {
+      const field = sort.slice(0, idx);
+      const dir = sort.slice(idx + 1);
+      if (
+        VALID_SALES_SORT_FIELDS.has(field as SalesSortField) &&
+        (dir === "asc" || dir === "desc")
+      ) {
+        return { field: field as SalesSortField, dir };
+      }
+    }
+  }
+  return { field: "date", dir: "desc" };
+}
+
 export async function getCombinedSalesGroupedForUser(
   userId: string,
   page: number = 1,
   pageSize: number = 10,
   search?: string,
+  sort?: string | null,
 ) {
   const safePage = Number.isInteger(page) && page > 0 ? page : 1;
   const safePageSize =
@@ -36,8 +69,11 @@ export async function getCombinedSalesGroupedForUser(
 
   const safeSearch =
     search && typeof search === "string" && search.trim() !== ""
-      ? escapeLikePattern(search.trim().slice(0, 200))
+      ? search.trim().slice(0, 200)
       : null;
+
+  const { field: sortField, dir: sortDir } = parseSalesSort(sort);
+  const safeSort = `${sortField}_${sortDir}`;
 
   return unstable_cache(
     async (
@@ -45,93 +81,55 @@ export async function getCombinedSalesGroupedForUser(
       safePage: number,
       safePageSize: number,
       safeSearch: string | null,
+      safeSort: string,
     ) => {
       const supabase = await createClient();
 
-      let productHeadersQuery = supabase
-        .from("Product")
-        .select(
-          "id, name, lastSoldAt, totalRevenue, totalProfit, totalUnitsSold, saleCount",
-        )
-        .eq("userId", userId)
-        .not("lastSoldAt", "is", null)
-        .order("lastSoldAt", { ascending: false });
-      if (safeSearch)
-        productHeadersQuery = productHeadersQuery.ilike(
-          "name",
-          `%${safeSearch}%`,
-        );
+      const { data: rpcData, error: rpcError } = await supabase.rpc(
+        "get_combined_sales_paginated",
+        {
+          p_user_id: userId,
+          p_page: safePage,
+          p_page_size: safePageSize,
+          p_search: safeSearch ?? undefined,
+          p_sort: safeSort,
+        },
+      );
+      if (rpcError) throw new Error(rpcError.message);
 
-      let bundleHeadersQuery = supabase
-        .from("Bundle")
-        .select(
-          "id, name, totalSellPrice, totalBuyCost, totalProfit, dateSold, createdAt",
-        )
-        .eq("userId", userId)
-        .order("createdAt", { ascending: false });
-      if (safeSearch)
-        bundleHeadersQuery = bundleHeadersQuery.ilike(
-          "name",
-          `%${safeSearch}%`,
-        );
+      type CombinedRpcRow = {
+        kind: "product" | "bundle";
+        id: string;
+        name: string;
+        effectiveDate: string | null;
+        dateSold: string | null;
+        createdAt: string | null;
+        totalQuantity: number | string;
+        totalBuy: number | string;
+        totalSell: number | string;
+        totalProfit: number | string;
+      };
 
-      const [
-        { data: allProducts, error: productsError },
-        { data: allBundles, error: bundlesError },
-      ] = await Promise.all([productHeadersQuery, bundleHeadersQuery]);
+      const payload = (rpcData ?? {}) as {
+        totalCount?: number;
+        items?: CombinedRpcRow[];
+      };
+      const total = payload.totalCount ?? 0;
+      const pageRows = payload.items ?? [];
 
-      if (productsError) throw new Error(productsError.message);
-      if (bundlesError) throw new Error(bundlesError.message);
+      // Postgres NUMERIC columns arrive as strings via PostgREST. Normalize.
+      const num = (v: number | string | null | undefined): number => {
+        if (v == null) return 0;
+        const n = typeof v === "number" ? v : parseFloat(v);
+        return Number.isFinite(n) ? n : 0;
+      };
 
-      type TaggedItem =
-        | { kind: "product"; effectiveDate: string; data: ProductHeaderRow }
-        | { kind: "bundle"; effectiveDate: string; data: BundleHeaderRow };
-
-      const tagged: TaggedItem[] = [
-        ...((allProducts as ProductHeaderRow[]) ?? []).map((p) => ({
-          kind: "product" as const,
-          effectiveDate: p.lastSoldAt,
-          data: p,
-        })),
-        ...((allBundles as BundleHeaderRow[]) ?? []).map((b) => ({
-          kind: "bundle" as const,
-          effectiveDate: b.dateSold ?? b.createdAt,
-          data: b,
-        })),
-      ];
-
-      tagged.sort((a, b) => {
-        if (a.effectiveDate > b.effectiveDate) return -1;
-        if (a.effectiveDate < b.effectiveDate) return 1;
-        return 0;
-      });
-
-      const total = tagged.length;
-      const start = (safePage - 1) * safePageSize;
-      const pageSlice = tagged.slice(start, start + safePageSize);
-
-      const productIds = pageSlice
-        .filter(
-          (
-            item,
-          ): item is {
-            kind: "product";
-            effectiveDate: string;
-            data: ProductHeaderRow;
-          } => item.kind === "product",
-        )
-        .map((item) => item.data.id);
-      const bundleIds = pageSlice
-        .filter(
-          (
-            item,
-          ): item is {
-            kind: "bundle";
-            effectiveDate: string;
-            data: BundleHeaderRow;
-          } => item.kind === "bundle",
-        )
-        .map((item) => item.data.id);
+      const productIds = pageRows
+        .filter((r) => r.kind === "product")
+        .map((r) => r.id);
+      const bundleIds = pageRows
+        .filter((r) => r.kind === "bundle")
+        .map((r) => r.id);
 
       const [salesResult, bundleItemsResult] = await Promise.all([
         productIds.length > 0
@@ -173,19 +171,18 @@ export async function getCombinedSalesGroupedForUser(
         itemsByBundle.get(item.bundleId)?.push(item);
       }
 
-      const items = pageSlice.map((tagged) => {
-        if (tagged.kind === "product") {
-          const p = tagged.data;
+      const items = pageRows.map((row) => {
+        if (row.kind === "product") {
           return {
             kind: "product" as const,
             data: {
-              productId: p.id,
-              productName: p.name,
-              latestDate: p.lastSoldAt,
-              totalQuantity: p.totalUnitsSold ?? 0,
-              totalSalePrice: p.totalRevenue ?? 0,
-              totalProfit: p.totalProfit ?? 0,
-              sales: (salesByProduct.get(p.id) ?? []).map((s) => ({
+              productId: row.id,
+              productName: row.name,
+              latestDate: row.effectiveDate ?? "",
+              totalQuantity: num(row.totalQuantity),
+              totalSalePrice: num(row.totalSell),
+              totalProfit: num(row.totalProfit),
+              sales: (salesByProduct.get(row.id) ?? []).map((s) => ({
                 id: s.id,
                 dateSold: s.dateSold,
                 createdAt: s.createdAt,
@@ -193,15 +190,13 @@ export async function getCombinedSalesGroupedForUser(
                 totalSalePrice: s.totalSalePrice,
                 totalProfit: s.totalProfit,
                 notes: s.notes,
-                Product: { name: p.name },
+                Product: { name: row.name },
               })),
             },
           };
         }
 
-        const b = tagged.data;
-        const bundleItems = itemsByBundle.get(b.id) ?? [];
-
+        const bundleItems = itemsByBundle.get(row.id) ?? [];
         const productMap = new Map<
           string,
           {
@@ -212,7 +207,6 @@ export async function getCombinedSalesGroupedForUser(
             hasRestorable: boolean;
           }
         >();
-
         for (const item of bundleItems) {
           const key = (item.productId as string | null) ?? item.productName;
           if (!productMap.has(key)) {
@@ -233,23 +227,22 @@ export async function getCombinedSalesGroupedForUser(
 
         const products = [...productMap.values()];
         const numDistinctProducts = products.length;
+        const bundleProfit = num(row.totalProfit);
         const allocatedProfitPerProduct =
           numDistinctProducts > 0
-            ? Math.round(
-                ((b.totalProfit as number) / numDistinctProducts) * 100,
-              ) / 100
+            ? Math.round((bundleProfit / numDistinctProducts) * 100) / 100
             : 0;
 
         return {
           kind: "bundle" as const,
           data: {
-            bundleId: b.id as string,
-            bundleName: b.name as string,
-            dateSold: b.dateSold as string | null,
-            createdAt: b.createdAt as string,
-            totalSellPrice: b.totalSellPrice as number,
-            totalBuyCost: b.totalBuyCost as number,
-            totalProfit: b.totalProfit as number,
+            bundleId: row.id,
+            bundleName: row.name,
+            dateSold: row.dateSold,
+            createdAt: row.createdAt ?? "",
+            totalSellPrice: num(row.totalSell),
+            totalBuyCost: num(row.totalBuy),
+            totalProfit: bundleProfit,
             products: products.map((p) => ({
               productId: p.productId,
               productName: p.productName,
@@ -274,5 +267,5 @@ export async function getCombinedSalesGroupedForUser(
     },
     [`sales-combined-${userId}`],
     { revalidate: 30 },
-  )(userId, safePage, safePageSize, safeSearch);
+  )(userId, safePage, safePageSize, safeSearch, safeSort);
 }
