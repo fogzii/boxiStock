@@ -13,7 +13,7 @@ export default async function SalesPage({
   const unresolvedParams = await searchParams;
   const currentPage = Number(unresolvedParams?.page) || 1;
   const searchParamStr = unresolvedParams?.search;
-  const sortParam = unresolvedParams?.sort;
+  const sortParam = unresolvedParams?.sort ?? "date_desc";
   const pageSize = 10;
 
   const [metrics, combined] = await Promise.all([
