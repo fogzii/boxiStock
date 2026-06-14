@@ -4,7 +4,7 @@
 // CSP notes:
 // - Google Fonts serves CSS from fonts.googleapis.com and woff2 from fonts.gstatic.com.
 // - Supabase REST/Realtime calls go to your project subdomain of supabase.co.
-// - Google Generative AI calls go to generativelanguage.googleapis.com from the server,
+// - Anthropic API calls go to api.anthropic.com from the server,
 //   so they don't need to be in the browser CSP.
 const isDev = process.env.NODE_ENV === "development";
 const isPreview = process.env.VERCEL_ENV === "preview";

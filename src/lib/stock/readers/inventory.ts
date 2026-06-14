@@ -76,7 +76,7 @@ export async function getInventoryPaginatedForUser(
       };
     },
     [`inventory-${userId}`],
-    { revalidate: 30 },
+    { revalidate: 30, tags: [`stock-data-${userId}`] },
   )(userId, safePage, safePageSize, safeSearch, safeSort, safeStatus);
 }
 

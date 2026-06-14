@@ -6,16 +6,6 @@ import { unstable_cache } from "next/cache";
 import type { BundleItemListRow, SaleListRow } from "@/lib/stock/types";
 import { createClient } from "@/lib/supabase/server";
 
-const _VALID_SORTS = new Set([
-  "name_asc",
-  "name_desc",
-  "stock_asc",
-  "stock_desc",
-  "value_asc",
-  "value_desc",
-]);
-const _VALID_STATUSES = new Set(["all", "stocked", "pending"]);
-
 type SalesSortField =
   | "date"
   | "product"
@@ -266,6 +256,6 @@ export async function getCombinedSalesGroupedForUser(
       };
     },
     [`sales-combined-${userId}`],
-    { revalidate: 30 },
+    { revalidate: 30, tags: [`stock-data-${userId}`] },
   )(userId, safePage, safePageSize, safeSearch, safeSort);
 }

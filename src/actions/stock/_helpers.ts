@@ -1,7 +1,16 @@
 // Shared server-action helpers for stock mutations, rate limits, and product
 // sales aggregate maintenance.
+import { revalidateTag } from "next/cache";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import type { createClient } from "@/lib/supabase/server";
+
+// Purges every unstable_cache read derived from this user's stock/sales/bundle
+// data (see the `stock-data-${userId}` tags in src/lib/stock/readers/*).
+// revalidatePath alone does NOT invalidate unstable_cache entries, so every
+// mutation must call this alongside its revalidatePath call.
+export function revalidateStockData(userId: string) {
+  revalidateTag(`stock-data-${userId}`, "max");
+}
 
 // Single shared bucket for all stock mutations (addProduct, sellLotUnits, ...).
 // Caps bursty activity per user; 60/min is generous for real UI use but

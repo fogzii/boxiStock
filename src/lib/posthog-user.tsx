@@ -7,13 +7,16 @@ import { createClient } from "@/lib/supabase/client";
 export function PostHogUserIdentifier() {
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) {
-        posthog.identify(user.id, {
-          email: user.email,
-          name: user.user_metadata?.full_name,
-        });
-      }
+    // getClaims() verifies the session JWT locally — no network round trip to
+    // the Supabase Auth server on every shell mount (unlike getUser()).
+    supabase.auth.getClaims().then(({ data, error }) => {
+      const claims = data?.claims;
+      if (error || !claims?.sub) return;
+      posthog.identify(claims.sub, {
+        email: claims.email,
+        name: (claims.user_metadata as Record<string, unknown> | undefined)
+          ?.full_name,
+      });
     });
   }, []);
 

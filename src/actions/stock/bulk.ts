@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import type { ProductSaleMatch } from "@/lib/stock/types";
-// Server actions for high-volume stock changes: mock seed data and AI-assisted
-// bulk imports for lots and sales.
+// Server actions for high-volume stock changes: AI-assisted bulk imports for
+// lots and sales.
 import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -17,91 +17,11 @@ import {
   MAX_LOT_NOTES_LENGTH,
   parseOptionalDate,
 } from "@/lib/validation";
-import { gateStockBulk, syncProductSalesStats } from "./_helpers";
-
-export async function seedMockData() {
-  const {
-    data: { user },
-  } = await getAuthUser();
-  const userId = user?.id;
-  if (!userId) throw new Error("Unauthorized");
-  await gateStockBulk(userId);
-
-  const supabase = await createClient();
-
-  await supabase.from("Product").delete().eq("userId", userId);
-
-  const { data: product1 } = await supabase
-    .from("Product")
-    .insert([
-      {
-        id: crypto.randomUUID(),
-        userId,
-        name: "Ergonomic Chair Pro",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ])
-    .select()
-    .single();
-
-  if (product1) {
-    await supabase.from("StockLot").insert([
-      {
-        id: crypto.randomUUID(),
-        productId: product1.id,
-        initialQuantity: 10,
-        remainingQuantity: 10,
-        buyPrice: 150.0,
-        isStocked: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      {
-        id: crypto.randomUUID(),
-        productId: product1.id,
-        initialQuantity: 5,
-        remainingQuantity: 5,
-        buyPrice: 145.0,
-        isStocked: false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ]);
-  }
-
-  const { data: product2 } = await supabase
-    .from("Product")
-    .insert([
-      {
-        id: crypto.randomUUID(),
-        userId,
-        name: "Mechanical Keyboard",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ])
-    .select()
-    .single();
-
-  if (product2) {
-    await supabase.from("StockLot").insert([
-      {
-        id: crypto.randomUUID(),
-        productId: product2.id,
-        initialQuantity: 20,
-        remainingQuantity: 12,
-        buyPrice: 85.0,
-        isStocked: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ]);
-  }
-
-  revalidatePath("/", "layout");
-  return { success: true };
-}
+import {
+  gateStockBulk,
+  revalidateStockData,
+  syncProductSalesStats,
+} from "./_helpers";
 
 export async function bulkAddLotsAndProducts(
   items: {
@@ -191,6 +111,7 @@ export async function bulkAddLotsAndProducts(
   }
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
   return { success: true };
 }
 
@@ -347,8 +268,10 @@ export async function bulkAddSales(
       if (remainingToSell <= 0) break;
 
       const qtyFromLot = Math.min(lot.remainingQuantity, remainingToSell);
-      const totalSalePrice = qtyFromLot * item.salePricePerUnit;
-      const totalProfit = totalSalePrice - qtyFromLot * lot.buyPrice;
+      const totalSalePrice =
+        Math.round(qtyFromLot * item.salePricePerUnit * 100) / 100;
+      const totalProfit =
+        Math.round((totalSalePrice - qtyFromLot * lot.buyPrice) * 100) / 100;
 
       await supabase
         .from("StockLot")
@@ -383,5 +306,6 @@ export async function bulkAddSales(
   );
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
   return { success: true };
 }

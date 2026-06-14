@@ -33,7 +33,7 @@ export type LimiterConfig = { limit: number; windowMs: number };
  *   bulk        – bulk imports / seed; expensive, so tighter.
  *   export      – CSV exports; cheap to run but heavy in Supabase egress.
  *   destructive – wipes / deletes-all-user-data; very tight ceiling.
- *   ai          – Gemini calls; gated separately in src/actions/ai.ts.
+ *   ai          – Anthropic API calls; gated separately in src/actions/ai.ts.
  */
 export const RATE_LIMITS = {
   mutation: { limit: 60, windowMs: 60 * 1000 },

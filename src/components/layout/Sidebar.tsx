@@ -77,11 +77,19 @@ export function Sidebar({ isOpenMobile, onCloseMobile, user }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false);
   const [pendingCount, setPendingCount] = React.useState(0);
   const pathname = usePathname();
+  const prevPathnameRef = React.useRef<string | null>(null);
 
-  // Re-fetch the badge on mount, on route change (pathname), and on window focus —
-  // so it reflects accept/decline actions taken on the /sharing page.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: pathname is the intended trigger
+  // Re-fetch the badge on mount, on window focus, and on route changes that
+  // involve /sharing (where accept/decline happens). Every refresh is a full
+  // server-action round trip, so we deliberately skip unrelated navigations.
   React.useEffect(() => {
+    const prev = prevPathnameRef.current;
+    prevPathnameRef.current = pathname;
+    const involvesSharing =
+      prev === null ||
+      prev.startsWith("/sharing") ||
+      pathname.startsWith("/sharing");
+
     let cancelled = false;
     const refresh = () => {
       getPendingInviteCount()
@@ -93,7 +101,7 @@ export function Sidebar({ isOpenMobile, onCloseMobile, user }: SidebarProps) {
         });
     };
 
-    refresh();
+    if (involvesSharing) refresh();
     window.addEventListener("focus", refresh);
     return () => {
       cancelled = true;

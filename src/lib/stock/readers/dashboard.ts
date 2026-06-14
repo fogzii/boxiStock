@@ -80,7 +80,7 @@ export async function getSalesMetricsForUser(userId: string) {
       };
     },
     [`sales-metrics-${userId}`],
-    { revalidate: 60 },
+    { revalidate: 60, tags: [`stock-data-${userId}`] },
   )(userId);
 }
 
@@ -107,7 +107,7 @@ export async function getDashboardMetricsForUser(userId: string) {
       };
     },
     [`dashboard-metrics-${userId}`],
-    { revalidate: 60 },
+    { revalidate: 60, tags: [`stock-data-${userId}`] },
   )(userId);
 }
 
@@ -245,6 +245,6 @@ export async function getProfitChartDataForUser(userId: string) {
       return { weeklyData, monthlyData, allTimeData };
     },
     [`profit-chart-${userId}`],
-    { revalidate: 60 },
+    { revalidate: 60, tags: [`stock-data-${userId}`] },
   )(userId);
 }

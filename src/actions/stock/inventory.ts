@@ -18,7 +18,11 @@ import {
   MAX_LOT_NOTES_LENGTH,
   parseOptionalDate,
 } from "@/lib/validation";
-import { gateStockMutation, syncProductSalesStats } from "./_helpers";
+import {
+  gateStockMutation,
+  revalidateStockData,
+  syncProductSalesStats,
+} from "./_helpers";
 
 export async function getRecentProducts(limit = 3) {
   const {
@@ -149,6 +153,7 @@ export async function addProduct(data: {
   if (lotError) throw new Error(lotError.message);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
   return { id: productId };
 }
 
@@ -219,6 +224,7 @@ export async function addStockLot(data: {
   await supabase.from("Product").update({ updatedAt: now }).eq("id", productId);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
   return lot;
 }
 
@@ -293,6 +299,7 @@ export async function updateLot(
     .eq("id", lot.productId);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }
 
 export async function markAsStocked(lotId: string) {
@@ -326,6 +333,7 @@ export async function markAsStocked(lotId: string) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
   return updatedLot;
 }
 
@@ -360,6 +368,7 @@ export async function updateLotNotes(lotId: string, notes: string | null) {
 
   if (error) throw new Error(error.message);
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }
 
 export async function updateProductName(productId: string, name: string) {
@@ -387,6 +396,7 @@ export async function updateProductName(productId: string, name: string) {
     throw new Error("Product not found or unauthorized");
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }
 
 export async function deleteLot(lotId: string) {
@@ -422,6 +432,7 @@ export async function deleteLot(lotId: string) {
   }
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }
 
 export async function deleteLotUnits(lotId: string, quantity: number) {
@@ -459,13 +470,20 @@ export async function deleteLotUnits(lotId: string, quantity: number) {
       await supabase.from("Product").delete().eq("id", lot.productId);
     }
   } else {
-    await supabase
+    // Conditional decrement: refuse if stock changed concurrently since the
+    // read above, so remainingQuantity can never go negative.
+    const { data: decremented } = await supabase
       .from("StockLot")
       .update({ remainingQuantity: lot.remainingQuantity - quantity })
-      .eq("id", cleanLotId);
+      .eq("id", cleanLotId)
+      .gte("remainingQuantity", quantity)
+      .select("id");
+    if (!decremented || decremented.length === 0)
+      throw new Error("Quantity exceeds stock");
   }
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }
 
 export async function sellLotUnits(
@@ -498,13 +516,21 @@ export async function sellLotUnits(
   if (lot.remainingQuantity < quantitySold)
     throw new Error("Quantity exceeds stock");
 
-  const totalSalePrice = quantitySold * salePricePerUnit;
-  const totalProfit = totalSalePrice - quantitySold * lot.buyPrice;
+  const totalSalePrice =
+    Math.round(quantitySold * salePricePerUnit * 100) / 100;
+  const totalProfit =
+    Math.round((totalSalePrice - quantitySold * lot.buyPrice) * 100) / 100;
 
-  await supabase
+  // Conditional decrement: refuse if stock changed concurrently since the read
+  // above, so remainingQuantity can never go negative.
+  const { data: decremented } = await supabase
     .from("StockLot")
     .update({ remainingQuantity: lot.remainingQuantity - quantitySold })
-    .eq("id", cleanLotId);
+    .eq("id", cleanLotId)
+    .gte("remainingQuantity", quantitySold)
+    .select("id");
+  if (!decremented || decremented.length === 0)
+    throw new Error("Quantity exceeds stock");
 
   const { error: saleError } = await supabase.from("Sale").insert([
     {
@@ -523,6 +549,7 @@ export async function sellLotUnits(
   await syncProductSalesStats(supabase, lot.productId);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }
 
 export async function sellAllLots(
@@ -598,4 +625,5 @@ export async function sellAllLots(
 
   await syncProductSalesStats(supabase, cleanProductId);
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }

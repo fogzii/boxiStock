@@ -17,7 +17,7 @@ import {
   escapeLikePattern,
   parseOptionalDate,
 } from "@/lib/validation";
-import { gateStockMutation } from "./_helpers";
+import { gateStockMutation, revalidateStockData } from "./_helpers";
 
 export async function createBundle(data: {
   name: string;
@@ -178,6 +178,7 @@ export async function createBundle(data: {
   }
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }
 
 export async function getBundlesGrouped(
@@ -368,6 +369,7 @@ export async function updateBundle(
   if (error) throw new Error(error.message);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }
 
 export async function deleteBundle(bundleId: string) {
@@ -415,4 +417,5 @@ export async function deleteBundle(bundleId: string) {
   await supabase.from("Bundle").delete().eq("id", cleanId);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }

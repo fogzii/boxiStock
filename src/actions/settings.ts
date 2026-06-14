@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateStockData } from "@/actions/stock/_helpers";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import type { InventoryCsvRow, SalesCsvRow } from "@/lib/stock/types";
 import { getAuthUser } from "@/lib/supabase/auth";
@@ -212,6 +213,7 @@ export async function importInventoryData(rows: CSVExportRow[]) {
   if (lotError) throw new Error(lotError.message);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
   return { success: true, count: lotsToInsert.length };
 }
 
@@ -320,6 +322,7 @@ export async function importSalesData(rows: CSVSalesExportRow[]) {
   if (saleError) throw new Error(saleError.message);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
   return { success: true, count: salesToInsert.length };
 }
 
@@ -342,14 +345,27 @@ export async function deleteAllUserData() {
     .select("id")
     .eq("userId", userId);
 
-  if (!products || products.length === 0) return { success: true };
+  const productIds = (products ?? []).map((p) => p.id);
 
-  const productIds = products.map((p) => p.id);
+  if (productIds.length > 0) {
+    await supabase.from("Sale").delete().in("productId", productIds);
+    await supabase.from("StockLot").delete().in("productId", productIds);
+    await supabase.from("Product").delete().in("id", productIds);
+  }
 
-  await supabase.from("Sale").delete().in("productId", productIds);
-  await supabase.from("StockLot").delete().in("productId", productIds);
-  await supabase.from("Product").delete().in("id", productIds);
+  // Bundles are keyed by userId directly (not via Product), so they must be
+  // deleted explicitly even when the user has no products left.
+  const { data: bundles } = await supabase
+    .from("Bundle")
+    .select("id")
+    .eq("userId", userId);
+  const bundleIds = (bundles ?? []).map((b) => b.id);
+  if (bundleIds.length > 0) {
+    await supabase.from("BundleItem").delete().in("bundleId", bundleIds);
+  }
+  await supabase.from("Bundle").delete().eq("userId", userId);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
   return { success: true };
 }

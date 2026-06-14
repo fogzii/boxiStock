@@ -45,22 +45,45 @@ async function resolveUser(
   return { name: fullName, email: u?.email ?? null };
 }
 
-/** Look up the owner's active, unexpired invite-only link token (or null). */
-async function getActiveInviteOnlyToken(
+/**
+ * Resolve many auth users at once: deduped ids, one parallel batch of admin
+ * lookups, results keyed by id. Avoids per-row sequential resolution in the
+ * invite list endpoints.
+ */
+async function resolveUsers(
   supabase: SupabaseServerClient,
-  ownerId: string,
-): Promise<string | null> {
+  ids: string[],
+): Promise<Map<string, { name: string | null; email: string | null }>> {
+  const unique = [...new Set(ids)];
+  const resolved = await Promise.all(
+    unique.map(async (id) => [id, await resolveUser(supabase, id)] as const),
+  );
+  return new Map(resolved);
+}
+
+/**
+ * Active, unexpired invite-only link tokens for a set of owners, in a single
+ * query. Owners without a usable link are absent from the map.
+ */
+async function getActiveInviteOnlyTokens(
+  supabase: SupabaseServerClient,
+  ownerIds: string[],
+): Promise<Map<string, string>> {
+  if (ownerIds.length === 0) return new Map();
   const { data } = await supabase
     .from("ShareLink")
-    .select("token, expiresAt")
-    .eq("userId", ownerId)
+    .select("userId, token, expiresAt")
+    .in("userId", ownerIds)
     .eq("visibility", "invite_only")
-    .eq("isActive", true)
-    .maybeSingle();
+    .eq("isActive", true);
 
-  if (!data) return null;
-  if (data.expiresAt && new Date(data.expiresAt) < new Date()) return null;
-  return data.token;
+  const now = new Date();
+  const tokens = new Map<string, string>();
+  for (const row of data ?? []) {
+    if (row.expiresAt && new Date(row.expiresAt) < now) continue;
+    tokens.set(row.userId, row.token);
+  }
+  return tokens;
 }
 
 /** Auto-create the caller's invite-only link (all sections) if absent. */
@@ -228,18 +251,18 @@ export async function getOutgoingInvites(): Promise<OutgoingInvite[]> {
   if (error) throw new Error(error.message);
   if (!data) return [];
 
-  return Promise.all(
-    data.map(async (row) => {
-      const { name } = await resolveUser(supabase, row.inviteeId);
-      return {
-        id: row.id,
-        inviteeEmail: row.inviteeEmail,
-        inviteeName: name,
-        status: row.status as InviteStatus,
-        createdAt: row.createdAt,
-      };
-    }),
+  const users = await resolveUsers(
+    supabase,
+    data.map((row) => row.inviteeId),
   );
+
+  return data.map((row) => ({
+    id: row.id,
+    inviteeEmail: row.inviteeEmail,
+    inviteeName: users.get(row.inviteeId)?.name ?? null,
+    status: row.status as InviteStatus,
+    createdAt: row.createdAt,
+  }));
 }
 
 /**
@@ -267,30 +290,40 @@ export async function getIncomingInvites(): Promise<{
   if (error) throw new Error(error.message);
   if (!data) return { pending: [], shared: [] };
 
+  const acceptedOwnerIds = data
+    .filter((row) => row.status === "accepted")
+    .map((row) => row.ownerId);
+
+  const [users, tokens] = await Promise.all([
+    resolveUsers(
+      supabase,
+      data.map((row) => row.ownerId),
+    ),
+    getActiveInviteOnlyTokens(supabase, acceptedOwnerIds),
+  ]);
+
   const pending: IncomingPendingInvite[] = [];
   const shared: SharedWithMe[] = [];
 
-  await Promise.all(
-    data.map(async (row) => {
-      const { name, email } = await resolveUser(supabase, row.ownerId);
-      if (row.status === "pending") {
-        pending.push({
-          id: row.id,
-          ownerName: name,
-          ownerEmail: email,
-          createdAt: row.createdAt,
-        });
-      } else {
-        const token = await getActiveInviteOnlyToken(supabase, row.ownerId);
-        shared.push({
-          id: row.id,
-          ownerName: name,
-          ownerEmail: email,
-          token,
-        });
-      }
-    }),
-  );
+  // Build from the original createdAt-desc rows so ordering is stable.
+  for (const row of data) {
+    const owner = users.get(row.ownerId);
+    if (row.status === "pending") {
+      pending.push({
+        id: row.id,
+        ownerName: owner?.name ?? null,
+        ownerEmail: owner?.email ?? null,
+        createdAt: row.createdAt,
+      });
+    } else {
+      shared.push({
+        id: row.id,
+        ownerName: owner?.name ?? null,
+        ownerEmail: owner?.email ?? null,
+        token: tokens.get(row.ownerId) ?? null,
+      });
+    }
+  }
 
   return { pending, shared };
 }

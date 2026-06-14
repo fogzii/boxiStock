@@ -20,7 +20,11 @@ import {
   MAX_LOT_NOTES_LENGTH,
   parseOptionalDate,
 } from "@/lib/validation";
-import { gateStockMutation, syncProductSalesStats } from "./_helpers";
+import {
+  gateStockMutation,
+  revalidateStockData,
+  syncProductSalesStats,
+} from "./_helpers";
 
 export async function getSalesHistory(
   page: number = 1,
@@ -260,6 +264,7 @@ export async function updateSale(
   await syncProductSalesStats(supabase, sale.productId);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }
 
 export async function deleteSale(saleId: string) {
@@ -290,6 +295,7 @@ export async function deleteSale(saleId: string) {
   await syncProductSalesStats(supabase, sale.productId);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }
 
 export async function deleteProductSales(productId: string) {
@@ -324,6 +330,7 @@ export async function deleteProductSales(productId: string) {
   await syncProductSalesStats(supabase, cleanId);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
 }
 
 export async function getProductGroupHeaders(
@@ -428,6 +435,7 @@ export async function mergeProductSales(
   await syncProductSalesStats(supabase, cleanTargetId);
 
   revalidatePath("/", "layout");
+  revalidateStockData(userId);
   return { success: true };
 }
 
