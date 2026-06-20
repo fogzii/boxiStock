@@ -43,6 +43,24 @@ export async function getRecentProducts(limit = 3) {
   return (data ?? []) as RecentProductRow[];
 }
 
+export async function getAllProductNames(): Promise<RecentProductRow[]> {
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("Product")
+    .select("id, name")
+    .eq("userId", userId)
+    .order("updatedAt", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as RecentProductRow[];
+}
+
 export async function getInventoryPaginated(
   page: number = 1,
   pageSize: number = 10,

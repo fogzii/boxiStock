@@ -16,7 +16,7 @@ import * as React from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { addProduct, getRecentProducts } from "@/actions/stock/inventory";
+import { addProduct, getAllProductNames } from "@/actions/stock/inventory";
 import { NotesField } from "@/components/ui/NotesField";
 import { StatusToggle } from "@/components/ui/StatusToggle";
 import { generateLotIdentity } from "@/lib/formatting";
@@ -27,6 +27,21 @@ import {
   quantitySchema,
 } from "@/lib/schemas";
 import type { DatePickerValue } from "@/lib/types";
+
+function fuzzyScore(query: string, target: string): number {
+  const q = query.toLowerCase();
+  const t = target.toLowerCase();
+  if (t === q) return 100;
+  if (t.startsWith(q)) return 80;
+  if (t.includes(q)) return 70;
+  let qi = 0;
+  for (let i = 0; i < t.length && qi < q.length; i++) {
+    if (t[i] === q[qi]) qi++;
+  }
+  return qi === q.length
+    ? Math.max(10, Math.floor(50 * (q.length / t.length)))
+    : -1;
+}
 
 const schema = z.object({
   name: z.string().min(1, "Product name is required"),
@@ -51,6 +66,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
   const [recentProducts, setRecentProducts] = React.useState<
     { id: string; name: string }[]
   >([]);
+  const [nameQuery, setNameQuery] = React.useState("");
   const router = useRouter();
 
   const {
@@ -75,10 +91,21 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
   });
 
   React.useEffect(() => {
-    getRecentProducts(3)
+    getAllProductNames()
       .then(setRecentProducts)
       .catch(() => {});
   }, []);
+
+  const suggestions = React.useMemo(() => {
+    const q = nameQuery.trim();
+    if (!q) return recentProducts.slice(0, 3);
+    return recentProducts
+      .map((p) => ({ p, score: fuzzyScore(q, p.name) }))
+      .filter(({ score }) => score >= 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5)
+      .map(({ p }) => p);
+  }, [nameQuery, recentProducts]);
 
   const resetForm = () => {
     reset({
@@ -90,6 +117,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
     });
     setIsStocked(true);
     setNotes("");
+    setNameQuery("");
   };
 
   const onSubmit = handleSubmit(async (data) => {
@@ -152,18 +180,23 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
                 type="text"
                 placeholder="Product Name"
                 error={!!errors.name}
-                {...register("name")}
+                {...register("name", {
+                  onChange: (e) => setNameQuery(e.target.value),
+                })}
               />
-              {recentProducts.length > 0 && (
+              {suggestions.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap pt-0.5">
                   <span className="text-caption text-muted-foreground/50 shrink-0 uppercase tracking-wide">
-                    Suggested:
+                    {nameQuery.trim() ? "Matches:" : "Suggested:"}
                   </span>
-                  {recentProducts.map((p) => (
+                  {suggestions.map((p) => (
                     <button
                       key={p.id}
                       type="button"
-                      onClick={() => setValue("name", p.name)}
+                      onClick={() => {
+                        setValue("name", p.name);
+                        setNameQuery(p.name);
+                      }}
                       className="inline-flex items-center px-2.5 py-0.5 rounded-full text-caption bg-primary/10 text-primary/80 border border-primary/20 hover:bg-primary/20 hover:text-primary hover:border-primary/40 transition-all cursor-pointer"
                     >
                       {p.name}
