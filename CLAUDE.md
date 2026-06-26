@@ -69,6 +69,12 @@ There are **two Supabase projects**, and a schema change applied to only one wil
 - After creating a **new table**, reload PostgREST so the REST API sees it: `NOTIFY pgrst, 'reload schema';`.
 - Regenerate types per env: **`npm run db:types:prod`** / **`npm run db:types:preview`** (or `SUPABASE_PROJECT_REF=<ref> npm run db:types`). The schema — and therefore the generated types — must match across both.
 
+## Deployment
+
+- **Staging:** `git push origin HEAD:staging` — triggers a Vercel deploy to **staging.boxistock.com**.
+- **Production:** `git push origin HEAD:main` (or merge staging → main) — only when the user explicitly asks to ship to prod.
+- **Never** use `vercel deploy` or `npx vercel deploy` from the CLI. Always go through git so the correct environment URL is used.
+
 ## Code quality
 
 - Keep changes scoped; follow existing naming, Tailwind conventions, and client/server boundaries.
