@@ -54,11 +54,11 @@ export function SellUnitsModal({
         dateSold: z.date({ error: "Date is required" }),
         perUnit: z
           .number({ error: "Enter a valid number" })
-          .positive("Must be greater than 0")
+          .nonnegative("Cannot be negative")
           .max(1_000_000_000, "Exceeds maximum"),
         total: z
           .number({ error: "Enter a valid number" })
-          .positive("Must be greater than 0")
+          .nonnegative("Cannot be negative")
           .max(1_000_000_000, "Exceeds maximum"),
       }),
     [lot.remainingQuantity],
@@ -73,6 +73,7 @@ export function SellUnitsModal({
     formState: { errors },
     reset,
     setValue,
+    clearErrors,
     watch,
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -117,6 +118,7 @@ export function SellUnitsModal({
     const qty = Number(watchedQty) || 0;
     if (!Number.isNaN(per) && qty > 0) {
       setValue("total", round2(qty * per));
+      clearErrors("total");
     }
   }
 
@@ -135,6 +137,7 @@ export function SellUnitsModal({
     const qty = Number(watchedQty) || 0;
     if (!Number.isNaN(tot) && qty > 0) {
       setValue("perUnit", round2(tot / qty));
+      clearErrors("perUnit");
     }
   }
 
@@ -243,7 +246,7 @@ export function SellUnitsModal({
                 <Input
                   id="perUnit"
                   type="number"
-                  min="0.01"
+                  min="0"
                   step="0.01"
                   error={!!errors.perUnit}
                   {...register("perUnit", {
@@ -265,7 +268,7 @@ export function SellUnitsModal({
                 <Input
                   id="total"
                   type="number"
-                  min="0.01"
+                  min="0"
                   step="0.01"
                   error={!!errors.total}
                   {...register("total", {
