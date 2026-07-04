@@ -53,6 +53,7 @@ interface ShareContentProps {
   salesCurrentPage: number;
   salesTotalPages: number;
   salesSort?: string;
+  hideStockAmounts?: boolean;
 }
 
 const TAB_CONFIG = [
@@ -78,6 +79,7 @@ export function ShareContent({
   salesCurrentPage,
   salesTotalPages,
   salesSort,
+  hideStockAmounts = false,
 }: ShareContentProps) {
   const tabs = TAB_CONFIG.filter((t) => sections.includes(t.key));
   const [activeTab, setActiveTab] = React.useState(tabs[0]?.key ?? "");
@@ -126,7 +128,7 @@ export function ShareContent({
   });
 
   return (
-    <ReadOnlyProvider>
+    <ReadOnlyProvider hideStockAmounts={hideStockAmounts}>
       <div className="px-4 sm:px-8 pt-6 sm:pt-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Tab bar — only shown when multiple sections */}
         {tabs.length > 1 && (
@@ -196,6 +198,7 @@ export function ShareContent({
                 statusParamKey="stockStatus"
                 pageParamKey="stockPage"
                 showBundleSale={false}
+                showValueSort={!hideStockAmounts}
               />
             </div>
             <StockTable

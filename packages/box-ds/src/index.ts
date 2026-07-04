@@ -13,6 +13,7 @@ export * from "./components/search-input";
 export * from "./components/skeleton";
 export * from "./components/table";
 export * from "./components/tabs";
+export * from "./components/toggle-switch";
 export * from "./components/tooltip";
 export * from "./tokens";
 export * from "./utils/cn";

@@ -2,6 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  ALLOWED_SECTIONS,
+  normalizeConfig,
+  type ShareConfig,
+} from "@/lib/sharing/config";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -13,6 +18,8 @@ export type OutgoingInvite = {
   inviteeName: string | null;
   status: InviteStatus;
   createdAt: string;
+  sections: string[];
+  showStockAmounts: boolean;
 };
 
 export type IncomingPendingInvite = {
@@ -31,8 +38,6 @@ export type SharedWithMe = {
 };
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
-
-const ALL_SECTIONS = ["dashboard", "stock", "sales"];
 
 /** Resolve an auth user's display name + email for invite rows. */
 async function resolveUser(
@@ -105,7 +110,7 @@ async function ensureInviteOnlyLink(
     userId,
     visibility: "invite_only",
     token,
-    sections: ALL_SECTIONS,
+    sections: [...ALLOWED_SECTIONS],
     passwordHash: null,
     expiresAt: null,
     isActive: true,
@@ -114,7 +119,9 @@ async function ensureInviteOnlyLink(
   if (error) throw new Error(error.message);
 }
 
-export async function sendInvite(email: string) {
+export async function sendInvite(email: string, config: ShareConfig) {
+  const normalized = normalizeConfig(config);
+
   const {
     data: { user },
   } = await getAuthUser();
@@ -154,7 +161,13 @@ export async function sendInvite(email: string) {
     // Re-invite a pending/declined relationship — reset to pending.
     const { error } = await supabase
       .from("ShareInvite")
-      .update({ status: "pending", respondedAt: null, inviteeEmail: cleaned })
+      .update({
+        status: "pending",
+        respondedAt: null,
+        inviteeEmail: cleaned,
+        sections: normalized.sections,
+        showStockAmounts: normalized.showStockAmounts,
+      })
       .eq("id", existing.id);
     if (error) throw new Error(error.message);
   } else {
@@ -163,12 +176,46 @@ export async function sendInvite(email: string) {
       inviteeId,
       inviteeEmail: cleaned,
       status: "pending",
+      sections: normalized.sections,
+      showStockAmounts: normalized.showStockAmounts,
     });
     if (error) throw new Error(error.message);
   }
 
   revalidatePath("/sharing");
   return { ok: true, alreadyAccepted: false, inviteeEmail: cleaned };
+}
+
+/** Owner-only: change what an invited person can see. */
+export async function updateInviteConfig(
+  inviteId: string,
+  config: ShareConfig,
+) {
+  const normalized = normalizeConfig(config);
+
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
+  if (!userId) throw new Error("Unauthorized");
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ShareInvite")
+    .update({
+      sections: normalized.sections,
+      showStockAmounts: normalized.showStockAmounts,
+    })
+    .eq("id", inviteId)
+    .eq("ownerId", userId)
+    .select("id");
+
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) throw new Error("Invite not found.");
+
+  // No cache tag needed: the share page reads the invite row per request.
+  revalidatePath("/sharing");
+  return { ok: true };
 }
 
 export async function respondToInvite(inviteId: string, accept: boolean) {
@@ -244,7 +291,9 @@ export async function getOutgoingInvites(): Promise<OutgoingInvite[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("ShareInvite")
-    .select("id, inviteeId, inviteeEmail, status, createdAt")
+    .select(
+      "id, inviteeId, inviteeEmail, status, createdAt, sections, showStockAmounts",
+    )
     .eq("ownerId", userId)
     .order("createdAt", { ascending: false });
 
@@ -262,6 +311,8 @@ export async function getOutgoingInvites(): Promise<OutgoingInvite[]> {
     inviteeName: users.get(row.inviteeId)?.name ?? null,
     status: row.status as InviteStatus,
     createdAt: row.createdAt,
+    sections: row.sections,
+    showStockAmounts: row.showStockAmounts,
   }));
 }
 

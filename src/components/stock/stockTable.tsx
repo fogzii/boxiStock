@@ -34,7 +34,7 @@ import { AddLotModal } from "@/components/modals/addLotModal";
 import { SellAllModal } from "@/components/modals/sellAllModal";
 import { LotCard } from "@/components/stock/lotCard";
 import { TablePagination } from "@/components/ui/TablePagination";
-import { useReadOnly } from "@/lib/context/readOnly";
+import { useHideStockAmounts, useReadOnly } from "@/lib/context/readOnly";
 import type { ProductWithLots } from "@/lib/stock/types";
 import { cn } from "@/lib/utils";
 import { StockStatusBadge } from "./StockStatusBadge";
@@ -58,6 +58,7 @@ const SKELETON_ROW_KEYS = Array.from(
 
 function ProductRow({ product }: { product: ProductWithLots }) {
   const isReadOnly = useReadOnly();
+  const hideAmounts = useHideStockAmounts();
   const [isOpen, setIsOpen] = React.useState(false);
   const [lots, setLots] = React.useState(product.lots);
   const [isUpdating, setIsUpdating] = React.useState<string | null>(null);
@@ -239,26 +240,28 @@ function ProductRow({ product }: { product: ProductWithLots }) {
         >
           {showPendingTotals ? pendingStock : totalStock} Units
         </TableCell>
-        <TableCell
-          className={cn(
-            "px-5 py-4 text-right text-body-sm-strong w-[250px]",
-            showPendingTotals ? "text-warning" : "text-foreground",
-          )}
-        >
-          ${(showPendingTotals ? pendingValue : totalValue).toFixed(2)}
-        </TableCell>
+        {!hideAmounts && (
+          <TableCell
+            className={cn(
+              "px-5 py-4 text-right text-body-sm-strong w-[250px]",
+              showPendingTotals ? "text-warning" : "text-foreground",
+            )}
+          >
+            ${(showPendingTotals ? pendingValue : totalValue).toFixed(2)}
+          </TableCell>
+        )}
       </TableRow>
 
       {/* Expanded Content below row */}
       {isOpen && (
         <TableRow className="bg-primary/[0.06]">
-          <TableCell colSpan={3} className="p-0">
+          <TableCell colSpan={hideAmounts ? 2 : 3} className="p-0">
             <div className="animate-in fade-in slide-in-from-top-2 duration-200 border-t border-primary/20">
               {/* Lot Sub-Header (desktop only) */}
               <div className="hidden md:flex md:items-center px-5 py-2 border-t border-primary/20 text-caption uppercase tracking-widest text-muted-foreground">
                 <span className="flex-1">Lot Identity</span>
                 <span className="w-[250px] text-right">
-                  Quantity & Unit Price
+                  {hideAmounts ? "Quantity" : "Quantity & Unit Price"}
                 </span>
                 <span className="w-[250px] text-right">Status & Actions</span>
               </div>
@@ -328,6 +331,7 @@ export function StockTable({
   isExternalPending = false,
 }: StockTableProps) {
   const router = useRouter();
+  const hideAmounts = useHideStockAmounts();
   const [isPending, startTransition] = React.useTransition();
   const showSkeleton = isPending || isExternalPending;
 
@@ -369,12 +373,14 @@ export function StockTable({
                 Total Stock
               </span>
             </TableHead>
-            <TableHead className="px-5 py-2 text-right w-[250px]">
-              <span className="inline-flex items-center justify-end gap-2 w-full">
-                <DollarSign className="w-4 h-4 text-primary" />
-                Total Value
-              </span>
-            </TableHead>
+            {!hideAmounts && (
+              <TableHead className="px-5 py-2 text-right w-[250px]">
+                <span className="inline-flex items-center justify-end gap-2 w-full">
+                  <DollarSign className="w-4 h-4 text-primary" />
+                  Total Value
+                </span>
+              </TableHead>
+            )}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -395,11 +401,13 @@ export function StockTable({
                       <Skeleton className="h-4 w-20" />
                     </div>
                   </TableCell>
-                  <TableCell className="px-5 py-4 w-[250px]">
-                    <div className="flex justify-end">
-                      <Skeleton className="h-4 w-24" />
-                    </div>
-                  </TableCell>
+                  {!hideAmounts && (
+                    <TableCell className="px-5 py-4 w-[250px]">
+                      <div className="flex justify-end">
+                        <Skeleton className="h-4 w-24" />
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))
             : products.map((product) => (

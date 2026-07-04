@@ -5,66 +5,166 @@ import { revalidateTag, unstable_cache } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
+import {
+  MAX_PUBLIC_LINKS,
+  normalizeConfig,
+  type ShareConfig,
+} from "@/lib/sharing/config";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 
-const ALLOWED_SECTIONS = ["dashboard", "stock", "sales"] as const;
+export type PublicShareLinkSummary = {
+  id: string;
+  token: string;
+  label: string | null;
+  sections: string[];
+  showStockAmounts: boolean;
+  hasPassword: boolean;
+  expiresAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+};
 
-export type ShareVisibility = "everyone" | "invite_only";
-
-function assertVisibility(
-  visibility: string,
-): asserts visibility is ShareVisibility {
-  if (visibility !== "everyone" && visibility !== "invite_only")
-    throw new Error(`Invalid visibility: ${visibility}`);
+function isExpired(expiresAt: string | null) {
+  return expiresAt != null && new Date(expiresAt) < new Date();
 }
 
-function assertSections(sections: unknown): asserts sections is string[] {
-  if (!Array.isArray(sections) || sections.length === 0)
-    throw new Error("At least one section is required");
-  for (const s of sections) {
-    if (!(ALLOWED_SECTIONS as readonly string[]).includes(s))
-      throw new Error(`Invalid section: ${s}`);
-  }
-}
-
-export async function getMyShareLink(visibility: ShareVisibility = "everyone") {
+async function requireUserId(): Promise<string> {
   const {
     data: { user },
   } = await getAuthUser();
-  const userId = user?.id;
-  if (!userId) throw new Error("Unauthorized");
+  if (!user?.id) throw new Error("Unauthorized");
+  return user.id;
+}
+
+/** The caller's public ("everyone") share links, oldest first. */
+export async function getMyPublicLinks(): Promise<PublicShareLinkSummary[]> {
+  const userId = await requireUserId();
 
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("ShareLink")
     .select(
-      "id, userId, token, sections, expiresAt, isActive, createdAt, visibility, passwordHash",
+      "id, token, label, sections, showStockAmounts, passwordHash, expiresAt, isActive, createdAt",
     )
     .eq("userId", userId)
-    .eq("visibility", visibility)
-    .maybeSingle();
+    .eq("visibility", "everyone")
+    .eq("isActive", true)
+    .order("createdAt", { ascending: true });
 
-  if (!data) return null;
-  const { passwordHash, ...rest } = data;
-  return { ...rest, hasPassword: !!passwordHash };
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).map(({ passwordHash, ...rest }) => ({
+    ...rest,
+    hasPassword: !!passwordHash,
+  }));
 }
 
-/** Convenience for the share modal, which manages both links at once. */
-export async function getMyShareLinks() {
-  const [everyone, inviteOnly] = await Promise.all([
-    getMyShareLink("everyone"),
-    getMyShareLink("invite_only"),
-  ]);
-  return { everyone, inviteOnly };
+export async function createPublicLink({
+  label,
+  sections,
+  showStockAmounts,
+  password,
+  expiresAt,
+}: ShareConfig & {
+  label?: string | null;
+  password?: string | null;
+  expiresAt?: string | null;
+}) {
+  const config = normalizeConfig({ sections, showStockAmounts });
+  const userId = await requireUserId();
+
+  const supabase = await createClient();
+
+  // Cap counts active AND unexpired links; expired ones free up a slot.
+  const { data: existing, error: countError } = await supabase
+    .from("ShareLink")
+    .select("id, expiresAt")
+    .eq("userId", userId)
+    .eq("visibility", "everyone")
+    .eq("isActive", true);
+  if (countError) throw new Error(countError.message);
+  const activeCount = (existing ?? []).filter(
+    (l) => !isExpired(l.expiresAt),
+  ).length;
+  if (activeCount >= MAX_PUBLIC_LINKS)
+    throw new Error(
+      `You can have at most ${MAX_PUBLIC_LINKS} active public links.`,
+    );
+
+  let passwordHash: string | null = null;
+  if (password?.trim()) {
+    passwordHash = await bcrypt.hash(password.trim(), 10);
+  }
+
+  const { error } = await supabase.from("ShareLink").insert({
+    userId,
+    visibility: "everyone",
+    token: crypto.randomUUID().replace(/-/g, ""),
+    label: label?.trim() || null,
+    sections: config.sections,
+    showStockAmounts: config.showStockAmounts,
+    passwordHash,
+    expiresAt: expiresAt ?? null,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+  });
+
+  if (error) throw new Error(error.message);
+  revalidateTag("share-link", "max");
 }
 
-export async function updateSharePassword(password: string | null) {
-  const {
-    data: { user },
-  } = await getAuthUser();
-  const userId = user?.id;
-  if (!userId) throw new Error("Unauthorized");
+/**
+ * Update a public link's label/config/expiry without rotating its token, so
+ * links already handed out keep working.
+ */
+export async function updatePublicLink(
+  linkId: string,
+  patch: {
+    label?: string | null;
+    sections?: string[];
+    showStockAmounts?: boolean;
+    expiresAt?: string | null;
+  },
+) {
+  const userId = await requireUserId();
+
+  const update: {
+    label?: string | null;
+    sections?: string[];
+    showStockAmounts?: boolean;
+    expiresAt?: string | null;
+  } = {};
+  if (patch.label !== undefined) update.label = patch.label?.trim() || null;
+  if (patch.sections !== undefined) {
+    const config = normalizeConfig({
+      sections: patch.sections,
+      showStockAmounts: patch.showStockAmounts ?? true,
+    });
+    update.sections = config.sections;
+    update.showStockAmounts = config.showStockAmounts;
+  }
+  if (patch.expiresAt !== undefined) update.expiresAt = patch.expiresAt;
+  if (Object.keys(update).length === 0) return;
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("ShareLink")
+    .update(update)
+    .eq("id", linkId)
+    .eq("userId", userId)
+    .eq("visibility", "everyone");
+
+  if (error) throw new Error(error.message);
+  revalidateTag("share-link", "max");
+}
+
+/** Set (non-empty string) or remove (null) a public link's password. */
+export async function updatePublicLinkPassword(
+  linkId: string,
+  password: string | null,
+) {
+  const userId = await requireUserId();
 
   let passwordHash: string | null = null;
   if (password?.trim()) {
@@ -75,6 +175,7 @@ export async function updateSharePassword(password: string | null) {
   const { error } = await supabase
     .from("ShareLink")
     .update({ passwordHash })
+    .eq("id", linkId)
     .eq("userId", userId)
     .eq("visibility", "everyone");
 
@@ -82,99 +183,17 @@ export async function updateSharePassword(password: string | null) {
   revalidateTag("share-link", "max");
 }
 
-export async function createShareLink({
-  sections,
-  password,
-  expiresAt,
-  visibility = "everyone",
-}: {
-  sections: string[];
-  password?: string;
-  expiresAt?: Date | null;
-  visibility?: ShareVisibility;
-}) {
-  assertVisibility(visibility);
-  assertSections(sections);
-
-  const {
-    data: { user },
-  } = await getAuthUser();
-  const userId = user?.id;
-  if (!userId) throw new Error("Unauthorized");
-
-  const token = crypto.randomUUID().replace(/-/g, "");
-
-  // Invite-only links are gated by invite acceptance + login, never a password.
-  let passwordHash: string | null = null;
-  if (visibility === "everyone" && password?.trim()) {
-    passwordHash = await bcrypt.hash(password.trim(), 10);
-  }
-
-  const supabase = await createClient();
-
-  const { error } = await supabase.from("ShareLink").upsert(
-    {
-      userId,
-      visibility,
-      token,
-      sections,
-      passwordHash,
-      expiresAt: expiresAt ? expiresAt.toISOString() : null,
-      isActive: true,
-      createdAt: new Date().toISOString(),
-    },
-    { onConflict: "userId,visibility" },
-  );
-
-  if (error) throw new Error(error.message);
-  revalidateTag("share-link", "max");
-}
-
-/**
- * Update which sections an existing link exposes without rotating its token,
- * so invitees' bookmarked/clicked links keep working.
- */
-export async function updateShareSections(
-  sections: string[],
-  visibility: ShareVisibility = "everyone",
-) {
-  assertVisibility(visibility);
-  assertSections(sections);
-
-  const {
-    data: { user },
-  } = await getAuthUser();
-  const userId = user?.id;
-  if (!userId) throw new Error("Unauthorized");
+/** Permanently delete a public link for everyone using it. */
+export async function deletePublicLink(linkId: string) {
+  const userId = await requireUserId();
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("ShareLink")
-    .update({ sections })
+    .delete()
+    .eq("id", linkId)
     .eq("userId", userId)
-    .eq("visibility", visibility);
-
-  if (error) throw new Error(error.message);
-  revalidateTag("share-link", "max");
-}
-
-export async function disableShareLink(
-  visibility: ShareVisibility = "everyone",
-) {
-  assertVisibility(visibility);
-
-  const {
-    data: { user },
-  } = await getAuthUser();
-  const userId = user?.id;
-  if (!userId) throw new Error("Unauthorized");
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("ShareLink")
-    .update({ isActive: false })
-    .eq("userId", userId)
-    .eq("visibility", visibility);
+    .eq("visibility", "everyone");
 
   if (error) throw new Error(error.message);
   revalidateTag("share-link", "max");
@@ -187,7 +206,7 @@ async function fetchPublicShareLink(token: string) {
   const { data } = await supabase
     .from("ShareLink")
     .select(
-      "id, userId, token, sections, expiresAt, isActive, createdAt, visibility, passwordHash",
+      "id, userId, token, label, sections, showStockAmounts, expiresAt, isActive, createdAt, visibility, passwordHash",
     )
     .eq("token", token)
     .eq("isActive", true)

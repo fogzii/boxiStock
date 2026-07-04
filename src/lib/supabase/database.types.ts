@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4";
+    PostgrestVersion: "14.5";
   };
   public: {
     Tables: {
@@ -193,6 +193,8 @@ export type Database = {
           inviteeId: string;
           ownerId: string;
           respondedAt: string | null;
+          sections: string[];
+          showStockAmounts: boolean;
           status: string;
         };
         Insert: {
@@ -202,6 +204,8 @@ export type Database = {
           inviteeId: string;
           ownerId: string;
           respondedAt?: string | null;
+          sections?: string[];
+          showStockAmounts?: boolean;
           status?: string;
         };
         Update: {
@@ -211,6 +215,8 @@ export type Database = {
           inviteeId?: string;
           ownerId?: string;
           respondedAt?: string | null;
+          sections?: string[];
+          showStockAmounts?: boolean;
           status?: string;
         };
         Relationships: [];
@@ -221,8 +227,10 @@ export type Database = {
           expiresAt: string | null;
           id: string;
           isActive: boolean;
+          label: string | null;
           passwordHash: string | null;
           sections: string[];
+          showStockAmounts: boolean;
           token: string;
           userId: string;
           visibility: string;
@@ -232,8 +240,10 @@ export type Database = {
           expiresAt?: string | null;
           id?: string;
           isActive?: boolean;
+          label?: string | null;
           passwordHash?: string | null;
           sections: string[];
+          showStockAmounts?: boolean;
           token: string;
           userId: string;
           visibility?: string;
@@ -243,8 +253,10 @@ export type Database = {
           expiresAt?: string | null;
           id?: string;
           isActive?: boolean;
+          label?: string | null;
           passwordHash?: string | null;
           sections?: string[];
+          showStockAmounts?: boolean;
           token?: string;
           userId?: string;
           visibility?: string;

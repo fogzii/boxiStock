@@ -23,7 +23,7 @@ import { DeleteUnitsModal } from "@/components/modals/deleteUnitsModal";
 import { EditLotModal } from "@/components/modals/editLotModal";
 import { SellUnitsModal } from "@/components/modals/sellUnitsModal";
 import { StockStatusBadge } from "@/components/stock/StockStatusBadge";
-import { useReadOnly } from "@/lib/context/readOnly";
+import { useHideStockAmounts, useReadOnly } from "@/lib/context/readOnly";
 import type { InventoryLot } from "@/lib/stock/types";
 
 export type StockLot = InventoryLot;
@@ -48,6 +48,7 @@ export function LotCard({
   isUpdating,
 }: LotCardProps) {
   const isReadOnly = useReadOnly();
+  const hideAmounts = useHideStockAmounts();
   const lotRef = lot.lotIdentity || lot.id.slice(-6).toUpperCase();
   const totalValue = lot.remainingQuantity * lot.buyPrice;
   const isProcessing = isUpdating === lot.id;
@@ -118,11 +119,15 @@ export function LotCard({
         {/* Quantity & Unit Price */}
         <div className="w-[250px] text-right flex flex-col gap-1">
           <p className="text-body-sm-strong text-foreground">
-            {lot.remainingQuantity} units @ ${lot.buyPrice.toFixed(2)}
+            {hideAmounts
+              ? `${lot.remainingQuantity} units`
+              : `${lot.remainingQuantity} units @ $${lot.buyPrice.toFixed(2)}`}
           </p>
-          <p className="text-caption text-muted-foreground">
-            ${totalValue.toFixed(2)} Total
-          </p>
+          {!hideAmounts && (
+            <p className="text-caption text-muted-foreground">
+              ${totalValue.toFixed(2)} Total
+            </p>
+          )}
         </div>
 
         {/* Status & Actions */}

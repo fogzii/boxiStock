@@ -32,6 +32,7 @@ interface StockFiltersProps {
   statusParamKey?: string;
   pageParamKey?: string;
   showBundleSale?: boolean;
+  showValueSort?: boolean;
 }
 
 export function StockFilters({
@@ -44,6 +45,7 @@ export function StockFilters({
   statusParamKey = "status",
   pageParamKey = "page",
   showBundleSale = true,
+  showValueSort = true,
 }: StockFiltersProps) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -56,10 +58,16 @@ export function StockFilters({
     if (!isPending) setPendingKey(null);
   }, [isPending]);
 
+  const sortOptions = showValueSort
+    ? SORT_OPTIONS
+    : SORT_OPTIONS.filter(
+        (o) => o.value !== "value_asc" && o.value !== "value_desc",
+      );
+
   const activeSort = currentSort ?? "";
   const activeStatus = currentStatus ?? "all";
   const activeSortLabel =
-    SORT_OPTIONS.find((o) => o.value === activeSort)?.label ?? "Recent first";
+    sortOptions.find((o) => o.value === activeSort)?.label ?? "Recent first";
 
   function pushParams(
     updates: Record<string, string | undefined>,
@@ -138,7 +146,7 @@ export function StockFilters({
 
         {sortOpen && (
           <div className="absolute top-full left-0 mt-1 z-50 w-full min-w-[190px] rounded-lg border border-primary/20 bg-card shadow-lg shadow-black/20 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100">
-            {SORT_OPTIONS.map((opt) => {
+            {sortOptions.map((opt) => {
               const isSelected = activeSort === opt.value;
               const isThisPending =
                 isPending && pendingKey === `sort-${opt.value}`;

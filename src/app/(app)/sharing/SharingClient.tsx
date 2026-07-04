@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
   Input,
+  Label,
   Tabs,
 } from "@box-ds";
 import {
@@ -17,6 +18,8 @@ import {
   ExternalLink,
   Loader2,
   Mail,
+  Pencil,
+  Plus,
   Trash2,
   UserPlus,
   Users,
@@ -33,8 +36,16 @@ import {
   respondToInvite,
   type SharedWithMe,
   sendInvite,
+  updateInviteConfig,
 } from "@/actions/sharing";
-import { InviteSectionsPanel, PublicLinkSection } from "./ShareLinksSection";
+import { EditInviteConfigModal } from "./EditInviteConfigModal";
+import {
+  ConfigSummary,
+  DEFAULT_SHARE_CONFIG,
+  ShareConfigFields,
+  type ShareConfigValue,
+} from "./ShareConfigFields";
+import { PublicLinksSection } from "./ShareLinksSection";
 
 interface SharingClientProps {
   pending: IncomingPendingInvite[];
@@ -62,6 +73,101 @@ const STATUS_META: Record<
   declined: { label: "Declined", variant: "negative" },
 };
 
+interface InviteCreateFormProps {
+  onSent: () => void;
+  onCancel: () => void;
+}
+
+function InviteCreateForm({ onSent, onCancel }: InviteCreateFormProps) {
+  const [email, setEmail] = React.useState("");
+  const [config, setConfig] =
+    React.useState<ShareConfigValue>(DEFAULT_SHARE_CONFIG);
+  const [isSending, setIsSending] = React.useState(false);
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = email.trim();
+    if (!cleaned) {
+      toast.error("Enter an email address.");
+      return;
+    }
+    if (config.sections.length === 0) {
+      toast.error("Select at least one section.");
+      return;
+    }
+    setIsSending(true);
+    try {
+      const res = await sendInvite(cleaned, config);
+      toast.success(
+        res.alreadyAccepted
+          ? "Already accepted"
+          : `Invite sent to ${res.inviteeEmail}'s account.`,
+      );
+      onSent();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={handleSend}
+      className="flex flex-col gap-6 rounded-xl border border-primary/10 bg-primary/5 p-4"
+    >
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="invite-email" className="font-bold">
+          Email
+        </Label>
+        <Input
+          id="invite-email"
+          type="email"
+          placeholder="name@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={isSending}
+        />
+      </div>
+
+      <ShareConfigFields
+        value={config}
+        onChange={setConfig}
+        disabled={isSending}
+      />
+
+      <div className="flex gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={isSending}
+          className="flex-1 h-12 cursor-pointer"
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={isSending || config.sections.length === 0}
+          className="flex-1 h-12 shadow-glow-primary cursor-pointer"
+        >
+          {isSending ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Sending…
+            </>
+          ) : (
+            <>
+              <UserPlus className="h-4 w-4 mr-2" />
+              Send invite
+            </>
+          )}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 export function SharingClient({
   pending,
   shared,
@@ -71,9 +177,13 @@ export function SharingClient({
   const [, startTransition] = React.useTransition();
   const [activeTab, setActiveTab] = React.useState<SharingTab>("invite");
   const [busyId, setBusyId] = React.useState<string | null>(null);
-  const [email, setEmail] = React.useState("");
-  const [isSending, setIsSending] = React.useState(false);
+  const [showCreateInvite, setShowCreateInvite] = React.useState(false);
   const [outgoingPage, setOutgoingPage] = React.useState(1);
+  const [editingInviteId, setEditingInviteId] = React.useState<string | null>(
+    null,
+  );
+
+  const editingInvite = outgoing.find((i) => i.id === editingInviteId) ?? null;
 
   const outgoingTotalPages = Math.max(
     1,
@@ -124,30 +234,6 @@ export function SharingClient({
       }
     });
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleaned = email.trim();
-    if (!cleaned) {
-      toast.error("Enter an email address.");
-      return;
-    }
-    setIsSending(true);
-    try {
-      const res = await sendInvite(cleaned);
-      toast.success(
-        res.alreadyAccepted
-          ? "Already accepted"
-          : `Invite sent to ${res.inviteeEmail}'s account.`,
-      );
-      setEmail("");
-      startTransition(() => router.refresh());
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Something went wrong.");
-    } finally {
-      setIsSending(false);
-    }
-  };
-
   const rowBase =
     "flex items-center justify-between gap-3 rounded-xl border border-primary/10 bg-primary/5 px-4 py-3";
 
@@ -160,7 +246,7 @@ export function SharingClient({
       />
 
       {activeTab === "public" ? (
-        <PublicLinkSection />
+        <PublicLinksSection />
       ) : (
         <>
           {/* Pending invites */}
@@ -216,8 +302,6 @@ export function SharingClient({
             </Card>
           )}
 
-          <InviteSectionsPanel />
-
           {/* People I've invited */}
           <section className="flex flex-col gap-4">
             <h2 className="flex items-center gap-2 font-display text-display-xs text-foreground">
@@ -225,31 +309,34 @@ export function SharingClient({
               People I&apos;ve invited
             </h2>
 
-            <form onSubmit={handleSend} className="flex items-center gap-3">
-              <Input
-                type="email"
-                placeholder="name@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isSending}
-                className="flex-1"
-                aria-label="Invitee email"
+            {showCreateInvite ? (
+              <InviteCreateForm
+                onSent={() => {
+                  setShowCreateInvite(false);
+                  startTransition(() => router.refresh());
+                }}
+                onCancel={() => setShowCreateInvite(false)}
               />
+            ) : (
               <Button
-                type="submit"
-                size="lg"
-                variant="default"
-                disabled={isSending}
-                className="h-12"
+                type="button"
+                onClick={() => setShowCreateInvite(true)}
+                className="h-11 w-full cursor-pointer"
               >
-                {isSending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <UserPlus className="h-4 w-4" />
-                )}
-                {isSending ? "Sending…" : "Send invite"}
+                <Plus className="w-4 h-4 mr-2" />
+                Create invite
               </Button>
-            </form>
+            )}
+
+            {outgoing.length === 0 && (
+              <div className="rounded-2xl border border-primary/10 bg-primary/5 py-12 text-center">
+                <UserPlus className="mx-auto mb-3 h-10 w-10 text-primary/40" />
+                <p className="mx-auto max-w-md text-body-sm text-muted-foreground">
+                  You haven&apos;t invited anyone yet. Create an invite to share
+                  your portfolio with someone.
+                </p>
+              </div>
+            )}
 
             {outgoing.length > 0 && (
               <div className="flex flex-col gap-3">
@@ -267,9 +354,24 @@ export function SharingClient({
                             {invite.inviteeEmail}
                           </span>
                         )}
+                        <ConfigSummary
+                          sections={invite.sections}
+                          showStockAmounts={invite.showStockAmounts}
+                          className="truncate text-caption text-muted-foreground"
+                        />
                       </div>
                       <div className="flex shrink-0 items-center gap-3">
                         <Badge variant={meta.variant}>{meta.label}</Badge>
+                        <Button
+                          size="icon-sm"
+                          variant="ghost"
+                          disabled={rowBusy}
+                          onClick={() => setEditingInviteId(invite.id)}
+                          aria-label="Edit access"
+                          className="cursor-pointer"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
                         <Button
                           size="icon-sm"
                           variant="destructive-ghost"
@@ -404,6 +506,23 @@ export function SharingClient({
               </div>
             )}
           </section>
+
+          {editingInvite && (
+            <EditInviteConfigModal
+              isOpen
+              onClose={() => setEditingInviteId(null)}
+              title={`Access for ${editingInvite.inviteeName ?? editingInvite.inviteeEmail}`}
+              initialValue={{
+                sections: editingInvite.sections,
+                showStockAmounts: editingInvite.showStockAmounts,
+              }}
+              onSave={async (value) => {
+                await updateInviteConfig(editingInvite.id, value);
+                toast.success("Access updated.");
+                startTransition(() => router.refresh());
+              }}
+            />
+          )}
         </>
       )}
     </div>

@@ -2,7 +2,9 @@ import { LinkIcon, Lock } from "lucide-react";
 import { cookies } from "next/headers";
 import Link from "next/link";
 import { getPublicShareLink } from "@/actions/share";
-import { isAcceptedInvitee } from "@/lib/sharing/access";
+import { getInviteAccess } from "@/lib/sharing/access";
+import { ALLOWED_SECTIONS } from "@/lib/sharing/config";
+import { sanitizeStockAmounts } from "@/lib/sharing/sanitize";
 import {
   getCombinedSalesGroupedForUser,
   getDashboardMetricsForUser,
@@ -81,6 +83,11 @@ export default async function SharePage({
     return <NotFoundState />;
   }
 
+  // Effective config: what this viewer may see. Public links carry it on the
+  // link row; invite-only viewers get their per-person ShareInvite config.
+  let sections = link.sections;
+  let showStockAmounts = link.showStockAmounts;
+
   // Invite-only links require login + an accepted invite (or being the owner).
   if (link.visibility === "invite_only") {
     const {
@@ -90,12 +97,18 @@ export default async function SharePage({
     if (!user) {
       return <InviteOnlyGate />;
     }
-    if (
-      user.id !== link.userId &&
-      !(await isAcceptedInvitee(link.userId, user.id))
-    ) {
-      // Don't reveal that the link exists to non-invitees.
-      return <NotFoundState />;
+    if (user.id === link.userId) {
+      // Owner previewing their own link sees everything.
+      sections = [...ALLOWED_SECTIONS];
+      showStockAmounts = true;
+    } else {
+      const access = await getInviteAccess(link.userId, user.id);
+      if (!access) {
+        // Don't reveal that the link exists to non-invitees.
+        return <NotFoundState />;
+      }
+      sections = access.sections;
+      showStockAmounts = access.showStockAmounts;
     }
     // Authorized invitee — no password gate.
   } else if (link.hasPassword) {
@@ -108,7 +121,16 @@ export default async function SharePage({
   }
 
   const uid = link.userId;
-  const has = (s: string) => link.sections.includes(s);
+  const has = (s: string) => sections.includes(s);
+  const hideStockAmounts = !showStockAmounts;
+
+  // Value sorts leak relative stock worth — ignore them when amounts are
+  // hidden, matching the sort options removed from the UI.
+  const effectiveStockSort =
+    hideStockAmounts &&
+    (stockSort === "value_asc" || stockSort === "value_desc")
+      ? undefined
+      : stockSort;
 
   const [
     dashboardMetrics,
@@ -125,7 +147,7 @@ export default async function SharePage({
           stockPage,
           10,
           stockSearch,
-          stockSort,
+          effectiveStockSort,
           stockStatus,
         )
       : null,
@@ -141,17 +163,23 @@ export default async function SharePage({
       : null,
   ]);
 
+  const inventoryProducts = inventoryData?.products ?? [];
+
   return (
     <ShareContent
       token={token}
-      sections={link.sections}
+      sections={sections}
       dashboardMetrics={dashboardMetrics}
       chartData={chartData}
-      inventoryProducts={inventoryData?.products ?? []}
+      inventoryProducts={
+        hideStockAmounts
+          ? sanitizeStockAmounts(inventoryProducts)
+          : inventoryProducts
+      }
       inventoryCount={inventoryData?.totalCount ?? 0}
       stockCurrentPage={stockPage}
       stockTotalPages={inventoryData?.totalPages ?? 1}
-      stockSort={stockSort}
+      stockSort={effectiveStockSort}
       stockStatus={stockStatus}
       salesMetrics={salesMetrics}
       salesItems={salesCombined?.items ?? []}
@@ -159,6 +187,7 @@ export default async function SharePage({
       salesCurrentPage={salesPage}
       salesTotalPages={salesCombined?.totalPages ?? 1}
       salesSort={salesSort}
+      hideStockAmounts={hideStockAmounts}
     />
   );
 }
