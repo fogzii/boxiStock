@@ -257,7 +257,7 @@ export function renderShareInviteEmail(vars: ShareInviteEmailVars): string {
     preheader: `${name} shared their boxiStock portfolio with you.`,
     heading: "You've been shared a portfolio",
     bodyHtml: `<strong style="color:${t.ink};">${name}</strong> has shared their boxiStock inventory with you. Click below to check it out.`,
-    ctaLabel: "View portfolio",
+    ctaLabel: "View invite",
     confirmationUrl: `${vars.siteUrl}/sharing`,
     siteUrl: vars.siteUrl,
     footnoteHtml:
