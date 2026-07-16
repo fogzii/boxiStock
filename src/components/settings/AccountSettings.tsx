@@ -159,7 +159,12 @@ export function AccountSettings() {
     try {
       setIsDeletingAccount(true);
       setDeleteMessage(null);
-      await deleteAccount();
+      const res = await deleteAccount();
+      if (!res.ok) {
+        setDeleteMessage({ type: "error", text: res.error });
+        setIsDeletingAccount(false);
+        return;
+      }
       window.location.href = "/sign-in";
     } catch (err) {
       setDeleteMessage({

@@ -60,6 +60,8 @@ export async function getMyPublicLinks(): Promise<PublicShareLinkSummary[]> {
   }));
 }
 
+export type ShareLinkActionResult = { ok: true } | { ok: false; error: string };
+
 export async function createPublicLink({
   label,
   sections,
@@ -70,48 +72,57 @@ export async function createPublicLink({
   label?: string | null;
   password?: string | null;
   expiresAt?: string | null;
-}) {
-  const config = normalizeConfig({ sections, showStockAmounts });
-  const userId = await requireUserId();
+}): Promise<ShareLinkActionResult> {
+  try {
+    const config = normalizeConfig({ sections, showStockAmounts });
+    const userId = await requireUserId();
 
-  const supabase = await createClient();
+    const supabase = await createClient();
 
-  // Cap counts active AND unexpired links; expired ones free up a slot.
-  const { data: existing, error: countError } = await supabase
-    .from("ShareLink")
-    .select("id, expiresAt")
-    .eq("userId", userId)
-    .eq("visibility", "everyone")
-    .eq("isActive", true);
-  if (countError) throw new Error(countError.message);
-  const activeCount = (existing ?? []).filter(
-    (l) => !isExpired(l.expiresAt),
-  ).length;
-  if (activeCount >= MAX_PUBLIC_LINKS)
-    throw new Error(
-      `You can have at most ${MAX_PUBLIC_LINKS} active public links.`,
-    );
+    // Cap counts active AND unexpired links; expired ones free up a slot.
+    const { data: existing, error: countError } = await supabase
+      .from("ShareLink")
+      .select("id, expiresAt")
+      .eq("userId", userId)
+      .eq("visibility", "everyone")
+      .eq("isActive", true);
+    if (countError) throw new Error(countError.message);
+    const activeCount = (existing ?? []).filter(
+      (l) => !isExpired(l.expiresAt),
+    ).length;
+    if (activeCount >= MAX_PUBLIC_LINKS)
+      throw new Error(
+        `You can have at most ${MAX_PUBLIC_LINKS} active public links.`,
+      );
 
-  let passwordHash: string | null = null;
-  if (password?.trim()) {
-    passwordHash = await bcrypt.hash(password.trim(), 10);
+    let passwordHash: string | null = null;
+    if (password?.trim()) {
+      passwordHash = await bcrypt.hash(password.trim(), 10);
+    }
+
+    const { error } = await supabase.from("ShareLink").insert({
+      userId,
+      visibility: "everyone",
+      token: crypto.randomUUID().replace(/-/g, ""),
+      label: label?.trim() || null,
+      sections: config.sections,
+      showStockAmounts: config.showStockAmounts,
+      passwordHash,
+      expiresAt: expiresAt ?? null,
+      isActive: true,
+      createdAt: new Date().toISOString(),
+    });
+
+    if (error) throw new Error(error.message);
+    revalidateTag("share-link", "max");
+    return { ok: true };
+  } catch (error) {
+    console.error("createPublicLink failed:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
   }
-
-  const { error } = await supabase.from("ShareLink").insert({
-    userId,
-    visibility: "everyone",
-    token: crypto.randomUUID().replace(/-/g, ""),
-    label: label?.trim() || null,
-    sections: config.sections,
-    showStockAmounts: config.showStockAmounts,
-    passwordHash,
-    expiresAt: expiresAt ?? null,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-  });
-
-  if (error) throw new Error(error.message);
-  revalidateTag("share-link", "max");
 }
 
 /**
@@ -126,77 +137,106 @@ export async function updatePublicLink(
     showStockAmounts?: boolean;
     expiresAt?: string | null;
   },
-) {
-  const userId = await requireUserId();
+): Promise<ShareLinkActionResult> {
+  try {
+    const userId = await requireUserId();
 
-  const update: {
-    label?: string | null;
-    sections?: string[];
-    showStockAmounts?: boolean;
-    expiresAt?: string | null;
-  } = {};
-  if (patch.label !== undefined) update.label = patch.label?.trim() || null;
-  if (patch.sections !== undefined) {
-    const config = normalizeConfig({
-      sections: patch.sections,
-      showStockAmounts: patch.showStockAmounts ?? true,
-    });
-    update.sections = config.sections;
-    update.showStockAmounts = config.showStockAmounts;
+    const update: {
+      label?: string | null;
+      sections?: string[];
+      showStockAmounts?: boolean;
+      expiresAt?: string | null;
+    } = {};
+    if (patch.label !== undefined) update.label = patch.label?.trim() || null;
+    if (patch.sections !== undefined) {
+      const config = normalizeConfig({
+        sections: patch.sections,
+        showStockAmounts: patch.showStockAmounts ?? true,
+      });
+      update.sections = config.sections;
+      update.showStockAmounts = config.showStockAmounts;
+    }
+    if (patch.expiresAt !== undefined) update.expiresAt = patch.expiresAt;
+    if (Object.keys(update).length === 0) return { ok: true };
+
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("ShareLink")
+      .update(update)
+      .eq("id", linkId)
+      .eq("userId", userId)
+      .eq("visibility", "everyone");
+
+    if (error) throw new Error(error.message);
+    revalidateTag("share-link", "max");
+    return { ok: true };
+  } catch (error) {
+    console.error("updatePublicLink failed:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
   }
-  if (patch.expiresAt !== undefined) update.expiresAt = patch.expiresAt;
-  if (Object.keys(update).length === 0) return;
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("ShareLink")
-    .update(update)
-    .eq("id", linkId)
-    .eq("userId", userId)
-    .eq("visibility", "everyone");
-
-  if (error) throw new Error(error.message);
-  revalidateTag("share-link", "max");
 }
 
 /** Set (non-empty string) or remove (null) a public link's password. */
 export async function updatePublicLinkPassword(
   linkId: string,
   password: string | null,
-) {
-  const userId = await requireUserId();
+): Promise<ShareLinkActionResult> {
+  try {
+    const userId = await requireUserId();
 
-  let passwordHash: string | null = null;
-  if (password?.trim()) {
-    passwordHash = await bcrypt.hash(password.trim(), 10);
+    let passwordHash: string | null = null;
+    if (password?.trim()) {
+      passwordHash = await bcrypt.hash(password.trim(), 10);
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("ShareLink")
+      .update({ passwordHash })
+      .eq("id", linkId)
+      .eq("userId", userId)
+      .eq("visibility", "everyone");
+
+    if (error) throw new Error(error.message);
+    revalidateTag("share-link", "max");
+    return { ok: true };
+  } catch (error) {
+    console.error("updatePublicLinkPassword failed:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
   }
-
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("ShareLink")
-    .update({ passwordHash })
-    .eq("id", linkId)
-    .eq("userId", userId)
-    .eq("visibility", "everyone");
-
-  if (error) throw new Error(error.message);
-  revalidateTag("share-link", "max");
 }
 
 /** Permanently delete a public link for everyone using it. */
-export async function deletePublicLink(linkId: string) {
-  const userId = await requireUserId();
+export async function deletePublicLink(
+  linkId: string,
+): Promise<ShareLinkActionResult> {
+  try {
+    const userId = await requireUserId();
 
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("ShareLink")
-    .delete()
-    .eq("id", linkId)
-    .eq("userId", userId)
-    .eq("visibility", "everyone");
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("ShareLink")
+      .delete()
+      .eq("id", linkId)
+      .eq("userId", userId)
+      .eq("visibility", "everyone");
 
-  if (error) throw new Error(error.message);
-  revalidateTag("share-link", "max");
+    if (error) throw new Error(error.message);
+    revalidateTag("share-link", "max");
+    return { ok: true };
+  } catch (error) {
+    console.error("deletePublicLink failed:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
+  }
 }
 
 async function fetchPublicShareLink(token: string) {
@@ -228,11 +268,25 @@ export const getPublicShareLink = unstable_cache(
 export async function verifySharePassword(token: string, password: string) {
   if (!token || !password) return { error: "Invalid request" };
 
-  await enforceRateLimit(
-    `share:pw:${token}`,
-    RATE_LIMITS.sharePassword,
-    "password attempt",
-  );
+  // enforceRateLimit throws — caught and returned here (rather than left to
+  // propagate) so it flows through the same { error } path as every other
+  // failure in this function. The caller's catch block only expects to see
+  // redirect()'s internal throw below; letting any other exception through
+  // would get silently swallowed as if it were that redirect.
+  try {
+    await enforceRateLimit(
+      `share:pw:${token}`,
+      RATE_LIMITS.sharePassword,
+      "password attempt",
+    );
+  } catch (error) {
+    return {
+      error:
+        error instanceof Error
+          ? error.message
+          : "Too many attempts. Please wait and try again.",
+    };
+  }
 
   const supabase = await createClient();
   const { data: link } = await supabase

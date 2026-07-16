@@ -334,13 +334,17 @@ function PublicLinkCreateForm({
     }
     setIsCreating(true);
     try {
-      await createPublicLink({
+      const res = await createPublicLink({
         label: label.trim() || null,
         sections: config.sections,
         showStockAmounts: config.showStockAmounts,
         password: showPasswordField ? password : null,
         expiresAt: resolveExpiresAt(expiryDays, customExpiryDate),
       });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
       await onCreate();
       toast.success("Share link created!");
     } catch (err) {
@@ -487,18 +491,30 @@ function EditPublicLinkModal({
     }
     setIsSaving(true);
     try {
-      await updatePublicLink(link.id, {
+      const res = await updatePublicLink(link.id, {
         label: label.trim() || null,
         sections: config.sections,
         showStockAmounts: config.showStockAmounts,
         expiresAt: resolveExpiresAt(expiryDays, customExpiryDate),
       });
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
       if (passwordEnabled && password.trim()) {
         // Set or replace the password.
-        await updatePublicLinkPassword(link.id, password);
+        const pwRes = await updatePublicLinkPassword(link.id, password);
+        if (!pwRes.ok) {
+          toast.error(pwRes.error);
+          return;
+        }
       } else if (!passwordEnabled && link.hasPassword) {
         // Toggled off — remove the existing password.
-        await updatePublicLinkPassword(link.id, null);
+        const pwRes = await updatePublicLinkPassword(link.id, null);
+        if (!pwRes.ok) {
+          toast.error(pwRes.error);
+          return;
+        }
       }
       await onSave();
       toast.success("Link updated.");
@@ -621,7 +637,11 @@ export function PublicLinksSection() {
 
   const handleDelete = async (id: string) => {
     try {
-      await deletePublicLink(id);
+      const res = await deletePublicLink(id);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
       await reloadLinks();
       toast.success("Link deleted.");
     } catch (err) {

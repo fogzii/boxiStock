@@ -152,171 +152,224 @@ async function ensureInviteOnlyLink(
   if (error) throw new Error(error.message);
 }
 
-export async function sendInvite(email: string, config: ShareConfig) {
-  const normalized = normalizeConfig(config);
+export type SendInviteResult =
+  | { ok: true; alreadyAccepted: boolean; inviteeEmail: string }
+  | { ok: false; error: string };
 
-  const {
-    data: { user },
-  } = await getAuthUser();
-  const userId = user?.id;
-  if (!userId) throw new Error("Unauthorized");
+/**
+ * Errors thrown inside a Server Action have their message stripped by Next.js
+ * in production builds (replaced with a generic digest-only message) — only
+ * the return value is sent to the client untouched. So every failure path
+ * here is caught and returned as data instead of left to propagate as a
+ * rejected action call.
+ */
+export async function sendInvite(
+  email: string,
+  config: ShareConfig,
+): Promise<SendInviteResult> {
+  try {
+    const normalized = normalizeConfig(config);
 
-  await enforceRateLimit(`invite:${userId}`, RATE_LIMITS.invite, "invite");
+    const {
+      data: { user },
+    } = await getAuthUser();
+    const userId = user?.id;
+    if (!userId) throw new Error("Unauthorized");
 
-  const cleaned = (email ?? "").trim();
-  if (!cleaned) throw new Error("Enter an email address.");
+    await enforceRateLimit(`invite:${userId}`, RATE_LIMITS.invite, "invite");
 
-  const supabase = await createClient();
+    const cleaned = (email ?? "").trim();
+    if (!cleaned) throw new Error("Enter an email address.");
 
-  const { data: inviteeId, error: lookupError } = await supabase.rpc(
-    "find_user_id_by_email",
-    { p_email: cleaned },
-  );
-  if (lookupError) throw new Error(lookupError.message);
-  if (!inviteeId) throw new Error("No boxiStock user with that email.");
-  if (inviteeId === userId) throw new Error("You can't invite yourself.");
+    const supabase = await createClient();
 
-  // Make sure there's something to grant access to.
-  await ensureInviteOnlyLink(supabase, userId);
+    const { data: inviteeId, error: lookupError } = await supabase.rpc(
+      "find_user_id_by_email",
+      { p_email: cleaned },
+    );
+    if (lookupError) throw new Error(lookupError.message);
+    if (!inviteeId) throw new Error("No boxiStock user with that email.");
+    if (inviteeId === userId) throw new Error("You can't invite yourself.");
 
-  const { data: existing } = await supabase
-    .from("ShareInvite")
-    .select("id, status")
-    .eq("ownerId", userId)
-    .eq("inviteeId", inviteeId)
-    .maybeSingle();
+    // Make sure there's something to grant access to.
+    await ensureInviteOnlyLink(supabase, userId);
 
-  if (existing?.status === "accepted") {
-    return { ok: true, alreadyAccepted: true, inviteeEmail: cleaned };
-  }
-
-  if (existing) {
-    // Re-invite a pending/declined relationship — reset to pending.
-    const { error } = await supabase
+    const { data: existing } = await supabase
       .from("ShareInvite")
-      .update({
-        status: "pending",
-        respondedAt: null,
+      .select("id, status")
+      .eq("ownerId", userId)
+      .eq("inviteeId", inviteeId)
+      .maybeSingle();
+
+    if (existing?.status === "accepted") {
+      return { ok: true, alreadyAccepted: true, inviteeEmail: cleaned };
+    }
+
+    if (existing) {
+      // Re-invite a pending/declined relationship — reset to pending.
+      const { error } = await supabase
+        .from("ShareInvite")
+        .update({
+          status: "pending",
+          respondedAt: null,
+          inviteeEmail: cleaned,
+          sections: normalized.sections,
+          showStockAmounts: normalized.showStockAmounts,
+        })
+        .eq("id", existing.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase.from("ShareInvite").insert({
+        ownerId: userId,
+        inviteeId,
         inviteeEmail: cleaned,
+        status: "pending",
         sections: normalized.sections,
         showStockAmounts: normalized.showStockAmounts,
-      })
-      .eq("id", existing.id);
-    if (error) throw new Error(error.message);
-  } else {
-    const { error } = await supabase.from("ShareInvite").insert({
-      ownerId: userId,
-      inviteeId,
-      inviteeEmail: cleaned,
-      status: "pending",
-      sections: normalized.sections,
-      showStockAmounts: normalized.showStockAmounts,
-    });
-    if (error) throw new Error(error.message);
+      });
+      if (error) throw new Error(error.message);
+    }
+
+    const inviterName =
+      (user.user_metadata?.full_name as string | undefined) ??
+      user.email ??
+      "Someone";
+    await sendInviteEmail(inviterName, cleaned);
+
+    revalidatePath("/sharing");
+    return { ok: true, alreadyAccepted: false, inviteeEmail: cleaned };
+  } catch (error) {
+    console.error("sendInvite failed:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
   }
-
-  const inviterName =
-    (user.user_metadata?.full_name as string | undefined) ??
-    user.email ??
-    "Someone";
-  await sendInviteEmail(inviterName, cleaned);
-
-  revalidatePath("/sharing");
-  return { ok: true, alreadyAccepted: false, inviteeEmail: cleaned };
 }
+
+export type InviteActionResult = { ok: true } | { ok: false; error: string };
 
 /** Owner-only: change what an invited person can see. */
 export async function updateInviteConfig(
   inviteId: string,
   config: ShareConfig,
-) {
-  const normalized = normalizeConfig(config);
+): Promise<InviteActionResult> {
+  try {
+    const normalized = normalizeConfig(config);
 
-  const {
-    data: { user },
-  } = await getAuthUser();
-  const userId = user?.id;
-  if (!userId) throw new Error("Unauthorized");
+    const {
+      data: { user },
+    } = await getAuthUser();
+    const userId = user?.id;
+    if (!userId) throw new Error("Unauthorized");
 
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("ShareInvite")
-    .update({
-      sections: normalized.sections,
-      showStockAmounts: normalized.showStockAmounts,
-    })
-    .eq("id", inviteId)
-    .eq("ownerId", userId)
-    .select("id");
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("ShareInvite")
+      .update({
+        sections: normalized.sections,
+        showStockAmounts: normalized.showStockAmounts,
+      })
+      .eq("id", inviteId)
+      .eq("ownerId", userId)
+      .select("id");
 
-  if (error) throw new Error(error.message);
-  if (!data || data.length === 0) throw new Error("Invite not found.");
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) throw new Error("Invite not found.");
 
-  // No cache tag needed: the share page reads the invite row per request.
-  revalidatePath("/sharing");
-  return { ok: true };
+    // No cache tag needed: the share page reads the invite row per request.
+    revalidatePath("/sharing");
+    return { ok: true };
+  } catch (error) {
+    console.error("updateInviteConfig failed:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
+  }
 }
 
-export async function respondToInvite(inviteId: string, accept: boolean) {
-  const {
-    data: { user },
-  } = await getAuthUser();
-  const userId = user?.id;
-  if (!userId) throw new Error("Unauthorized");
+export async function respondToInvite(
+  inviteId: string,
+  accept: boolean,
+): Promise<InviteActionResult> {
+  try {
+    const {
+      data: { user },
+    } = await getAuthUser();
+    const userId = user?.id;
+    if (!userId) throw new Error("Unauthorized");
 
-  const supabase = await createClient();
+    const supabase = await createClient();
 
-  const { data: invite } = await supabase
-    .from("ShareInvite")
-    .select("id, inviteeId, status")
-    .eq("id", inviteId)
-    .maybeSingle();
+    const { data: invite } = await supabase
+      .from("ShareInvite")
+      .select("id, inviteeId, status")
+      .eq("id", inviteId)
+      .maybeSingle();
 
-  if (!invite || invite.inviteeId !== userId)
-    throw new Error("Invite not found.");
-  if (invite.status !== "pending")
-    throw new Error("This invite has already been answered.");
+    if (!invite || invite.inviteeId !== userId)
+      throw new Error("Invite not found.");
+    if (invite.status !== "pending")
+      throw new Error("This invite has already been answered.");
 
-  const { error } = await supabase
-    .from("ShareInvite")
-    .update({
-      status: accept ? "accepted" : "declined",
-      respondedAt: new Date().toISOString(),
-    })
-    .eq("id", inviteId);
-  if (error) throw new Error(error.message);
+    const { error } = await supabase
+      .from("ShareInvite")
+      .update({
+        status: accept ? "accepted" : "declined",
+        respondedAt: new Date().toISOString(),
+      })
+      .eq("id", inviteId);
+    if (error) throw new Error(error.message);
 
-  revalidatePath("/sharing");
-  return { ok: true };
+    revalidatePath("/sharing");
+    return { ok: true };
+  } catch (error) {
+    console.error("respondToInvite failed:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
+  }
 }
 
 /** Remove a relationship — allowed for either the owner or the invitee. */
-export async function removeInvite(inviteId: string) {
-  const {
-    data: { user },
-  } = await getAuthUser();
-  const userId = user?.id;
-  if (!userId) throw new Error("Unauthorized");
+export async function removeInvite(
+  inviteId: string,
+): Promise<InviteActionResult> {
+  try {
+    const {
+      data: { user },
+    } = await getAuthUser();
+    const userId = user?.id;
+    if (!userId) throw new Error("Unauthorized");
 
-  const supabase = await createClient();
+    const supabase = await createClient();
 
-  const { data: invite } = await supabase
-    .from("ShareInvite")
-    .select("id, ownerId, inviteeId")
-    .eq("id", inviteId)
-    .maybeSingle();
+    const { data: invite } = await supabase
+      .from("ShareInvite")
+      .select("id, ownerId, inviteeId")
+      .eq("id", inviteId)
+      .maybeSingle();
 
-  if (!invite || (invite.ownerId !== userId && invite.inviteeId !== userId))
-    throw new Error("Invite not found.");
+    if (!invite || (invite.ownerId !== userId && invite.inviteeId !== userId))
+      throw new Error("Invite not found.");
 
-  const { error } = await supabase
-    .from("ShareInvite")
-    .delete()
-    .eq("id", inviteId);
-  if (error) throw new Error(error.message);
+    const { error } = await supabase
+      .from("ShareInvite")
+      .delete()
+      .eq("id", inviteId);
+    if (error) throw new Error(error.message);
 
-  revalidatePath("/sharing");
-  return { ok: true };
+    revalidatePath("/sharing");
+    return { ok: true };
+  } catch (error) {
+    console.error("removeInvite failed:", error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Something went wrong.",
+    };
+  }
 }
 
 /** People the current user has invited to view their portfolio. */

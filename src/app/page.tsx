@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Footer } from "@/components/layout/Footer";
@@ -18,9 +19,18 @@ export default async function Home() {
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-12">
         <div className="w-full max-w-4xl space-y-12 text-center">
           <div className="space-y-4">
-            <p className="font-display text-display-sm font-extrabold tracking-tight text-primary">
-              BoxiStock
-            </p>
+            <div className="flex items-center justify-center gap-3">
+              <Image
+                src="/boxistock-logo-ondark.svg"
+                alt="BoxiStock"
+                width={40}
+                height={40}
+                className="h-10 w-10"
+              />
+              <p className="font-display text-display-sm font-extrabold tracking-tight text-ink-deep">
+                BoxiStock
+              </p>
+            </div>
             <h1 className="font-display text-display-lg tracking-tighter text-ink-deep md:text-display-xxl">
               Scale Faster. <br />
               <span className="text-primary">Track Less.</span>

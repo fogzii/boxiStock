@@ -25,7 +25,11 @@ export function ContactForm() {
     e.preventDefault();
     startTransition(async () => {
       try {
-        await sendContactEmail(form);
+        const res = await sendContactEmail(form);
+        if (!res.ok) {
+          toast.error(res.error);
+          return;
+        }
         posthog.capture("contact_form_submitted", {
           subject: form.subject,
         });

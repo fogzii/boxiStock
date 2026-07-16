@@ -7,8 +7,8 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  FormField,
   Input,
-  Label,
   Tabs,
 } from "@box-ds";
 import {
@@ -78,17 +78,25 @@ interface InviteCreateFormProps {
   onCancel: () => void;
 }
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 function InviteCreateForm({ onSent, onCancel }: InviteCreateFormProps) {
   const [email, setEmail] = React.useState("");
+  const [emailError, setEmailError] = React.useState("");
   const [config, setConfig] =
     React.useState<ShareConfigValue>(DEFAULT_SHARE_CONFIG);
   const [isSending, setIsSending] = React.useState(false);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    setEmailError("");
     const cleaned = email.trim();
     if (!cleaned) {
-      toast.error("Enter an email address.");
+      setEmailError("Email is required.");
+      return;
+    }
+    if (!EMAIL_PATTERN.test(cleaned)) {
+      setEmailError("Enter a valid email address.");
       return;
     }
     if (config.sections.length === 0) {
@@ -98,6 +106,10 @@ function InviteCreateForm({ onSent, onCancel }: InviteCreateFormProps) {
     setIsSending(true);
     try {
       const res = await sendInvite(cleaned, config);
+      if (!res.ok) {
+        toast.error(res.error);
+        return;
+      }
       toast.success(
         res.alreadyAccepted
           ? "Already accepted"
@@ -114,21 +126,20 @@ function InviteCreateForm({ onSent, onCancel }: InviteCreateFormProps) {
   return (
     <form
       onSubmit={handleSend}
+      noValidate
       className="flex flex-col gap-6 rounded-xl border border-primary/10 bg-primary/5 p-4"
     >
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="invite-email" className="font-bold">
-          Email
-        </Label>
+      <FormField label="Email" htmlFor="invite-email" error={emailError}>
         <Input
           id="invite-email"
           type="email"
           placeholder="name@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          error={!!emailError}
           disabled={isSending}
         />
-      </div>
+      </FormField>
 
       <ShareConfigFields
         value={config}
@@ -210,28 +221,22 @@ export function SharingClient({
 
   const handleRespond = (id: string, accept: boolean) =>
     runAction(id, async () => {
-      try {
-        await respondToInvite(id, accept);
-        toast.success(accept ? "Invite accepted." : "Invite declined.");
-      } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : "Something went wrong.",
-        );
-        throw err;
+      const res = await respondToInvite(id, accept);
+      if (!res.ok) {
+        toast.error(res.error);
+        throw new Error(res.error);
       }
+      toast.success(accept ? "Invite accepted." : "Invite declined.");
     });
 
   const handleRemove = (id: string) =>
     runAction(id, async () => {
-      try {
-        await removeInvite(id);
-        toast.success("Removed.");
-      } catch (err) {
-        toast.error(
-          err instanceof Error ? err.message : "Something went wrong.",
-        );
-        throw err;
+      const res = await removeInvite(id);
+      if (!res.ok) {
+        toast.error(res.error);
+        throw new Error(res.error);
       }
+      toast.success("Removed.");
     });
 
   const rowBase =
@@ -517,7 +522,11 @@ export function SharingClient({
                 showStockAmounts: editingInvite.showStockAmounts,
               }}
               onSave={async (value) => {
-                await updateInviteConfig(editingInvite.id, value);
+                const res = await updateInviteConfig(editingInvite.id, value);
+                if (!res.ok) {
+                  toast.error(res.error);
+                  throw new Error(res.error);
+                }
                 toast.success("Access updated.");
                 startTransition(() => router.refresh());
               }}

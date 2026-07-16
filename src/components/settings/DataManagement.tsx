@@ -56,9 +56,13 @@ export function DataManagement() {
     try {
       setIsExportingInv(true);
       setMessage(null);
-      const data = await exportInventoryData();
+      const res = await exportInventoryData();
+      if (!res.ok) {
+        setMessage({ type: "error", text: res.error });
+        return;
+      }
       const dateStr = new Date().toISOString().split("T")[0];
-      const success = downloadCSV(data, `inventory_export_${dateStr}.csv`);
+      const success = downloadCSV(res.data, `inventory_export_${dateStr}.csv`);
       if (!success) {
         setMessage({
           type: "error",
@@ -66,7 +70,7 @@ export function DataManagement() {
         });
       } else {
         posthog.capture("data_exported", {
-          inventory_rows: data.length,
+          inventory_rows: res.data.length,
           sales_rows: 0,
         });
         setMessage({
@@ -92,15 +96,19 @@ export function DataManagement() {
     try {
       setIsExportingSales(true);
       setMessage(null);
-      const data = await exportSalesData();
+      const res = await exportSalesData();
+      if (!res.ok) {
+        setMessage({ type: "error", text: res.error });
+        return;
+      }
       const dateStr = new Date().toISOString().split("T")[0];
-      const success = downloadCSV(data, `sales_export_${dateStr}.csv`);
+      const success = downloadCSV(res.data, `sales_export_${dateStr}.csv`);
       if (!success) {
         setMessage({ type: "error", text: "No sales data found to export." });
       } else {
         posthog.capture("data_exported", {
           inventory_rows: 0,
-          sales_rows: data.length,
+          sales_rows: res.data.length,
         });
         setMessage({ type: "success", text: "Sales exported successfully." });
       }
@@ -144,6 +152,10 @@ export function DataManagement() {
             }
             const rows = rawRows as unknown as CSVExportRow[];
             const response = await importInventoryData(rows);
+            if (!response.ok) {
+              setMessage({ type: "error", text: response.error });
+              return;
+            }
             posthog.capture("inventory_imported", {
               rows_imported: response.count,
             });
@@ -202,6 +214,10 @@ export function DataManagement() {
               return;
             }
             const response = await importSalesData(rows);
+            if (!response.ok) {
+              setMessage({ type: "error", text: response.error });
+              return;
+            }
             posthog.capture("sales_imported", {
               rows_imported: response.count,
             });
@@ -242,7 +258,11 @@ export function DataManagement() {
     try {
       setIsDeleting(true);
       setMessage(null);
-      await deleteAllUserData();
+      const res = await deleteAllUserData();
+      if (!res.ok) {
+        setMessage({ type: "error", text: res.error });
+        return;
+      }
       posthog.capture("all_data_deleted");
       setMessage({ type: "success", text: "All data successfully deleted." });
       setIsModalOpen(false);

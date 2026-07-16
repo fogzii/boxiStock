@@ -95,7 +95,7 @@ export default function SignUpPage() {
       {loading && <FullScreenLoading />}
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="flex w-full max-w-sm flex-col items-center gap-8">
-          <div className="flex flex-col items-center gap-3">
+          <div className="flex items-center gap-3">
             <Image
               src="/boxistock-logo-ondark.svg"
               alt="BoxiStock"
