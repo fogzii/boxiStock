@@ -245,6 +245,26 @@ export function renderChangeEmailEmail(vars: EmailTemplateVars): string {
   });
 }
 
+export type ShareInviteEmailVars = {
+  inviterName: string;
+  siteUrl: string;
+};
+
+export function renderShareInviteEmail(vars: ShareInviteEmailVars): string {
+  const name = escapeAttr(vars.inviterName || "Someone");
+
+  return renderEmailShell({
+    preheader: `${name} shared their boxiStock portfolio with you.`,
+    heading: "You've been shared a portfolio",
+    bodyHtml: `<strong style="color:${t.ink};">${name}</strong> has shared their boxiStock inventory with you. Click below to check it out.`,
+    ctaLabel: "View portfolio",
+    confirmationUrl: `${vars.siteUrl}/sharing`,
+    siteUrl: vars.siteUrl,
+    footnoteHtml:
+      "If you don’t recognize this, you can safely ignore this email.",
+  });
+}
+
 export function renderEmailTemplate(
   kind: EmailTemplateKind,
   vars: EmailTemplateVars,

@@ -1,6 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
+import { Resend } from "resend";
+import { renderShareInviteEmail } from "@/lib/email-templates";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import {
   ALLOWED_SECTIONS,
@@ -9,6 +12,36 @@ import {
 } from "@/lib/sharing/config";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
+
+/** Best-effort absolute site origin for the current request (dev falls back to http). */
+async function getSiteUrl(): Promise<string> {
+  const hdrs = await headers();
+  const host = hdrs.get("host");
+  if (!host) return "https://boxistock.au";
+  const proto =
+    hdrs.get("x-forwarded-proto") ??
+    (host.includes("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+/** Notify the invitee by email that they've been shared a portfolio. Never throws. */
+async function sendInviteEmail(inviterName: string, inviteeEmail: string) {
+  try {
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const from = process.env.RESEND_FROM_EMAIL ?? "onboarding@resend.dev";
+    const siteUrl = await getSiteUrl();
+
+    const { error } = await resend.emails.send({
+      from: `BoxiStock <${from}>`,
+      to: inviteeEmail,
+      subject: `${inviterName} shared their BoxiStock portfolio with you`,
+      html: renderShareInviteEmail({ inviterName, siteUrl }),
+    });
+    if (error) throw new Error(error.message);
+  } catch (error) {
+    console.error("Share invite email failed:", error);
+  }
+}
 
 export type InviteStatus = "pending" | "accepted" | "declined";
 
@@ -181,6 +214,12 @@ export async function sendInvite(email: string, config: ShareConfig) {
     });
     if (error) throw new Error(error.message);
   }
+
+  const inviterName =
+    (user.user_metadata?.full_name as string | undefined) ??
+    user.email ??
+    "Someone";
+  await sendInviteEmail(inviterName, cleaned);
 
   revalidatePath("/sharing");
   return { ok: true, alreadyAccepted: false, inviteeEmail: cleaned };
