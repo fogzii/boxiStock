@@ -12,6 +12,7 @@ import {
   Users,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 import { getPendingInviteCount } from "@/actions/sharing";
@@ -142,9 +143,13 @@ export function Sidebar({ isOpenMobile, onCloseMobile, user }: SidebarProps) {
                 isCollapsed && "md:justify-center",
               )}
             >
-              <div className="w-10 h-10 min-w-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground shrink-0">
-                <Package className="w-6 h-6" />
-              </div>
+              <Image
+                src="/boxistock-logo-ondark.svg"
+                alt="boxiStock"
+                width={40}
+                height={40}
+                className="w-10 h-10 min-w-10 shrink-0"
+              />
               <h1
                 className={cn(
                   "font-display text-display-xs transition-opacity duration-300",

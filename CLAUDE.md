@@ -71,8 +71,8 @@ There are **two Supabase projects**, and a schema change applied to only one wil
 
 ## Deployment
 
-- **Staging:** `git push origin HEAD:staging` — triggers a Vercel deploy to **staging.boxistock.com**.
-- **Production:** `git push origin HEAD:main` (or merge staging → main) — only when the user explicitly asks to ship to prod.
+- **Staging:** `git push origin HEAD:staging` — triggers a Vercel deploy to **staging.boxistock.au**.
+- **Production:** `git push origin HEAD:main` (or merge staging → main) — only when the user explicitly asks to ship to prod. Production is **boxistock.au**.
 - **Never** use `vercel deploy` or `npx vercel deploy` from the CLI. Always go through git so the correct environment URL is used.
 
 ## Code quality

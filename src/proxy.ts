@@ -11,6 +11,7 @@ const PUBLIC_PREFIXES = [
   "/auth/callback",
   "/auth/confirm",
   "/contact",
+  "/dev",
   "/forgot-password",
   "/ingest",
   "/privacy",

@@ -1,7 +1,8 @@
 "use client";
 
 import { Button, FormField, Input } from "@box-ds";
-import { Loader2, Package } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -95,9 +96,13 @@ export default function SignUpPage() {
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="flex w-full max-w-sm flex-col items-center gap-8">
           <div className="flex flex-col items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Package className="h-6 w-6" />
-            </div>
+            <Image
+              src="/boxistock-logo-ondark.svg"
+              alt="BoxiStock"
+              width={48}
+              height={48}
+              className="h-12 w-12"
+            />
             <span className="font-display text-xl font-semibold text-foreground">
               BoxiStock
             </span>

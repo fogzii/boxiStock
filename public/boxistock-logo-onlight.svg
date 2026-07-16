@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="46 4 228 262" role="img" aria-label="boxiStock">
+  <title>boxiStock</title>
+  <path d="M70,120 L160,170 L160,246 L70,196 Z" fill="#8E7CA6"></path>
+  <path d="M160,170 L250,120 L250,196 L160,246 Z" fill="#5E4F77"></path>
+  <path d="M160,70 L250,120 L160,170 L70,120 Z" fill="#241F2E"></path>
+  <path d="M70,74 L160,124 L160,150 L70,100 Z" fill="#6E5E86"></path>
+  <path d="M160,124 L250,74 L250,100 L160,150 Z" fill="#5A4C72"></path>
+  <path d="M160,24 L250,74 L160,124 L70,74 Z" fill="#C5B8D9"></path>
+</svg>

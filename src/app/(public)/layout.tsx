@@ -1,4 +1,4 @@
-import { Package } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { DashboardShell } from "@/components/layout/DashboardShell";
 import { getAuthUser } from "@/lib/supabase/auth";
@@ -23,9 +23,13 @@ export default async function PublicLayout({
           href="/"
           className="inline-flex items-center gap-3 text-foreground hover:opacity-80 transition-opacity"
         >
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-            <Package className="w-5 h-5" />
-          </div>
+          <Image
+            src="/boxistock-logo-ondark.svg"
+            alt="BoxiStock"
+            width={32}
+            height={32}
+            className="w-8 h-8"
+          />
           <span className="font-display text-body-lg">BoxiStock</span>
         </Link>
       </header>
