@@ -4,8 +4,7 @@ import { supabaseAnonKey, supabaseUrl } from "./lib/supabase/env";
 
 // Routes reachable without a session. "/" must be exact-matched (every path
 // starts with "/"); the rest are prefix-matched against their own segment
-// boundary. "/ingest" is the PostHog reverse proxy (middleware runs before
-// next.config rewrites, so logged-out pages still need it).
+// boundary.
 const PUBLIC_EXACT = ["/"];
 const PUBLIC_PREFIXES = [
   "/auth/callback",
@@ -13,7 +12,6 @@ const PUBLIC_PREFIXES = [
   "/contact",
   "/dev",
   "/forgot-password",
-  "/ingest",
   "/privacy",
   "/reset-password",
   "/share",

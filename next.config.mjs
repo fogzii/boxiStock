@@ -6,6 +6,7 @@
 // - Supabase REST/Realtime calls go to your project subdomain of supabase.co.
 // - Anthropic API calls go to api.anthropic.com from the server,
 //   so they don't need to be in the browser CSP.
+// - PostHog events go through the managed reverse proxy at check.boxistock.au.
 const isDev = process.env.NODE_ENV === "development";
 const isPreview = process.env.VERCEL_ENV === "preview";
 
@@ -20,7 +21,7 @@ const ContentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   // React dev mode requires 'unsafe-eval' for call stack reconstruction
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}${isPreview ? " https://vercel.live https://vercel.com" : ""} https://challenges.cloudflare.com`,
-  `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://us.i.posthog.com https://us-assets.i.posthog.com${isPreview ? " https://vercel.live wss://ws-us3.pusher.com https://*.pusher.com" : ""}`,
+  `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://check.boxistock.au${isPreview ? " https://vercel.live wss://ws-us3.pusher.com https://*.pusher.com" : ""}`,
   "worker-src 'self' blob:",
   "frame-src 'self' https://challenges.cloudflare.com",
   "upgrade-insecure-requests",
@@ -50,22 +51,6 @@ const nextConfig = {
       {
         source: "/:path*",
         headers: securityHeaders,
-      },
-    ];
-  },
-  async rewrites() {
-    return [
-      {
-        source: "/ingest/static/:path*",
-        destination: "https://us-assets.i.posthog.com/static/:path*",
-      },
-      {
-        source: "/ingest/array/:path*",
-        destination: "https://us-assets.i.posthog.com/array/:path*",
-      },
-      {
-        source: "/ingest/:path*",
-        destination: "https://us.i.posthog.com/:path*",
       },
     ];
   },
