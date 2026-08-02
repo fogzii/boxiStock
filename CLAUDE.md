@@ -57,10 +57,12 @@ When building or modifying any UI, resolve tokens from DESIGN.md rather than har
 
 There are **two Supabase projects**, and a schema change applied to only one will break the other (e.g. PostgREST `Could not find the table 'public.X' in the schema cache`):
 
-| Env | Name | Project ref |
-| --- | --- | --- |
-| Production | `boxiStock` | `idgpprtyleutgqinrouo` |
-| Preview/staging | `boxistock-preview` | `uzsijodyaiooiroscfdx` |
+| Env | Name | Project ref | Region |
+| --- | --- | --- | --- |
+| Production | `boxiStock-sydney` | `euduypcktlvwvzoiomlv` | `ap-southeast-2` (Sydney) |
+| Preview/staging | `boxistock-preview` | `uzsijodyaiooiroscfdx` | `ap-northeast-1` (Tokyo) |
+
+Production moved from Tokyo (`idgpprtyleutgqinrouo`, now paused, kept for rollback) to Sydney on 2026-08-02, to co-locate with Vercel's `syd1` region. Preview/staging is still in Tokyo — that mismatch is a known follow-up, not yet scheduled.
 
 - **`.env.local` (local dev) points at PREVIEW.** The `mcp__supabase__*` tools and the default `npm run db:types` point at **PRODUCTION**. This mismatch is easy to miss — a migration applied only via MCP lands on prod, not the DB your local app uses.
 - **Every** schema change (table, column, RPC, constraint, enum, view) MUST be applied to **both** refs. Write it as **idempotent SQL** (`IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS`, `CREATE OR REPLACE`) so it's safe to run on each.
