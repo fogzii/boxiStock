@@ -40,3 +40,4 @@ next-env.d.ts
 
 # supabase CLI temp files (linked project, version cache)
 supabase/.temp/
+.env*
