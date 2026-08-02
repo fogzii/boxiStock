@@ -36,6 +36,11 @@ async function sendInviteEmail(inviterName: string, inviteeEmail: string) {
       to: inviteeEmail,
       subject: `${inviterName} shared their BoxiStock portfolio with you`,
       html: renderShareInviteEmail({ inviterName, siteUrl }),
+      // Without this, clients with no distinct plain-text part (notably
+      // Gmail's Android push notification) fall back to reading the visible
+      // HTML body text-node by text-node, concatenating the logo text,
+      // heading, and body into one redundant string alongside the subject.
+      text: `${inviterName} shared their BoxiStock portfolio with you. View it at ${siteUrl}/sharing`,
     });
     if (error) throw new Error(error.message);
   } catch (error) {
