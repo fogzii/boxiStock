@@ -1,4 +1,5 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { headers } from "next/headers";
 import type { Database } from "./database.types";
 
 /**
@@ -24,10 +25,18 @@ export async function createClient() {
     );
   }
 
+  // Forwards the real end-user IP so Supabase Auth's rate limiting keys off
+  // the caller rather than Vercel's shared egress IP. Requires "Enable IP
+  // address forwarding" under Auth > Rate Limits in the Supabase dashboard.
+  const forwardedFor = (await headers()).get("x-forwarded-for");
+
   return createSupabaseClient<Database>(url, secretKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
     },
+    global: forwardedFor
+      ? { headers: { "sb-forwarded-for": forwardedFor } }
+      : undefined,
   });
 }
