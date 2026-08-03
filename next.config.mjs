@@ -6,7 +6,8 @@
 // - Supabase REST/Realtime calls go to your project subdomain of supabase.co.
 // - Anthropic API calls go to api.anthropic.com from the server,
 //   so they don't need to be in the browser CSP.
-// - PostHog events go through the managed reverse proxy at check.boxistock.au.
+// - PostHog events and JS assets (web-vitals, toolbar, surveys, etc.) go through
+//   the managed reverse proxy at check.boxistock.au — needs both script-src and connect-src.
 const isDev = process.env.NODE_ENV === "development";
 const isPreview = process.env.VERCEL_ENV === "preview";
 
@@ -20,7 +21,7 @@ const ContentSecurityPolicy = [
   "font-src 'self' data: https://fonts.gstatic.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   // React dev mode requires 'unsafe-eval' for call stack reconstruction
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}${isPreview ? " https://vercel.live https://vercel.com" : ""} https://challenges.cloudflare.com`,
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}${isPreview ? " https://vercel.live https://vercel.com" : ""} https://challenges.cloudflare.com https://check.boxistock.au`,
   `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://check.boxistock.au${isPreview ? " https://vercel.live wss://ws-us3.pusher.com https://*.pusher.com" : ""}`,
   "worker-src 'self' blob:",
   "frame-src 'self' https://challenges.cloudflare.com",
