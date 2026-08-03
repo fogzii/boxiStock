@@ -4,7 +4,7 @@ import "server-only";
 // inventory value totals.
 import { unstable_cache } from "next/cache";
 import type { PaginatedInventoryProduct } from "@/lib/stock/types";
-import { createClient } from "@/lib/supabase/server";
+import { createCachedClient, createClient } from "@/lib/supabase/server";
 
 const VALID_SORTS = new Set([
   "name_asc",
@@ -49,7 +49,7 @@ export async function getInventoryPaginatedForUser(
       sort: string | undefined,
       status: string,
     ) => {
-      const supabase = await createClient();
+      const supabase = await createCachedClient();
 
       const { data, error } = await supabase.rpc("get_inventory_paginated", {
         p_user_id: uid,

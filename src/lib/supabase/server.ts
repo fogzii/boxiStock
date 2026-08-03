@@ -40,3 +40,29 @@ export async function createClient() {
       : undefined,
   });
 }
+
+/**
+ * Supabase client for use inside `unstable_cache()`-wrapped functions, where
+ * Next.js forbids calling `headers()`/`cookies()` (dynamic data sources
+ * can't be read inside a cache scope). Skips the x-forwarded-for forwarding
+ * that `createClient()` does: that header only affects Supabase Auth's IP
+ * rate limiting, and cached readers never call Auth endpoints, only
+ * RPC/select reads via the secret key.
+ */
+export async function createCachedClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+
+  if (!url || !secretKey) {
+    throw new Error(
+      "Supabase server client is misconfigured: missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY.",
+    );
+  }
+
+  return createSupabaseClient<Database>(url, secretKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
