@@ -53,27 +53,26 @@ When building or modifying any UI, resolve tokens from DESIGN.md rather than har
 - Generated types: **`src/lib/supabase/database.types.ts`**, consumed by **`src/lib/supabase/server.ts`**.
 - **Run `npm run db:types` after any schema change** (table, column, RPC, enum, or view). Do not hand-edit the file.
 
-## Database migrations — ALWAYS apply to BOTH environments
+## Database migrations — PRODUCTION only for now (staging deprecated)
 
-There are **two Supabase projects**, and a schema change applied to only one will break the other (e.g. PostgREST `Could not find the table 'public.X' in the schema cache`):
+**Preview/staging Supabase is currently deprecated/paused** (as of 2026-08-04) — the free plan only allows two Supabase projects at a time, and that slot is now used by relistr instead. Only the production project is live:
 
 | Env | Name | Project ref | Region |
 | --- | --- | --- | --- |
 | Production | `boxiStock-sydney` | `euduypcktlvwvzoiomlv` | `ap-southeast-2` (Sydney) |
-| Preview/staging | `boxistock-preview` | `uzsijodyaiooiroscfdx` | `ap-northeast-1` (Tokyo) |
+| ~~Preview/staging~~ (deprecated) | `boxistock-preview` | `uzsijodyaiooiroscfdx` | `ap-northeast-1` (Tokyo) |
 
-Production moved from Tokyo (`idgpprtyleutgqinrouo`, now paused, kept for rollback) to Sydney on 2026-08-02, to co-locate with Vercel's `syd1` region. Preview/staging is still in Tokyo — that mismatch is a known follow-up, not yet scheduled.
+Production moved from Tokyo (`idgpprtyleutgqinrouo`, now paused, kept for rollback) to Sydney on 2026-08-02, to co-locate with Vercel's `syd1` region.
 
-- **`.env.local` (local dev) points at PREVIEW.** The `mcp__supabase__*` tools and the default `npm run db:types` point at **PRODUCTION**. This mismatch is easy to miss — a migration applied only via MCP lands on prod, not the DB your local app uses.
-- **Every** schema change (table, column, RPC, constraint, enum, view) MUST be applied to **both** refs. Write it as **idempotent SQL** (`IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS`, `CREATE OR REPLACE`) so it's safe to run on each.
-- Apply to **preview** with the CLI: `npx supabase link --project-ref uzsijodyaiooiroscfdx` then `npx supabase db query --linked --dns-resolver https -f migration.sql` (the `--linked` route uses the Management API, so no DB password goes on the command line).
-- Apply to **production** via `mcp__supabase__apply_migration` (or the same CLI linked to the prod ref).
+- **Staging may come back later** — the project ref above is kept for reference in case it's revisited, not deleted. Until then, treat any staging-specific instructions below as historical.
+- Apply schema changes to **production only** via `mcp__supabase__apply_migration` (or the CLI linked to the prod ref). Still write migrations as **idempotent SQL** (`IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS`, `CREATE OR REPLACE`) — cheap insurance if staging returns.
 - After creating a **new table**, reload PostgREST so the REST API sees it: `NOTIFY pgrst, 'reload schema';`.
-- Regenerate types per env: **`npm run db:types:prod`** / **`npm run db:types:preview`** (or `SUPABASE_PROJECT_REF=<ref> npm run db:types`). The schema — and therefore the generated types — must match across both.
+- Regenerate types: **`npm run db:types`** (defaults to production). `npm run db:types:preview` will fail while the preview project is paused.
+- **`.env.local` (local dev)** previously pointed at PREVIEW — check it still points at a live project (production, most likely) before running the app locally.
 
 ## Deployment
 
-- **Staging:** `git push origin HEAD:staging` — triggers a Vercel deploy to **staging.boxistock.au**.
+- **Staging (deprecated):** `git push origin HEAD:staging` — triggers a Vercel deploy to **staging.boxistock.au**, but this likely won't work correctly while the staging Supabase project is paused (see migrations section above).
 - **Production:** `git push origin HEAD:main` (or merge staging → main) — only when the user explicitly asks to ship to prod. Production is **boxistock.au**.
 - **Never** use `vercel deploy` or `npx vercel deploy` from the CLI. Always go through git so the correct environment URL is used.
 
