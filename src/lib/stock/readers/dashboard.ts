@@ -3,12 +3,12 @@ import "server-only";
 // Server-only read helpers for dashboard cards and profit chart data.
 import { unstable_cache } from "next/cache";
 import type { DashboardMetricsRow, SalesByMonth } from "@/lib/stock/types";
-import { createClient } from "@/lib/supabase/server";
+import { createCachedClient } from "@/lib/supabase/server";
 
 export async function getSalesMetricsForUser(userId: string) {
   return unstable_cache(
     async (uid: string) => {
-      const supabase = await createClient();
+      const supabase = await createCachedClient();
 
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -87,7 +87,7 @@ export async function getSalesMetricsForUser(userId: string) {
 export async function getDashboardMetricsForUser(userId: string) {
   return unstable_cache(
     async (uid: string) => {
-      const supabase = await createClient();
+      const supabase = await createCachedClient();
       const { data, error } = await supabase.rpc("get_dashboard_metrics", {
         p_user_id: uid,
       });
@@ -114,7 +114,7 @@ export async function getDashboardMetricsForUser(userId: string) {
 export async function getProfitChartDataForUser(userId: string) {
   return unstable_cache(
     async (uid: string) => {
-      const supabase = await createClient();
+      const supabase = await createCachedClient();
       const { data, error } = await supabase.rpc("get_sales_by_month", {
         p_user_id: uid,
       });

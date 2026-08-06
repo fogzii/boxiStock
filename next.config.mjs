@@ -8,6 +8,10 @@
 //   so they don't need to be in the browser CSP.
 // - PostHog events and JS assets (web-vitals, toolbar, surveys, etc.) go through
 //   the managed reverse proxy at check.boxistock.au — needs both script-src and connect-src.
+// - The PostHog Toolbar (launched from the PostHog app for staff debugging,
+//   not something end users trigger) bypasses that proxy and loads its own
+//   JS/CSS and posts its own analytics straight from PostHog's cloud domains
+//   (*.posthog.com), so those need to be allowed too.
 const isDev = process.env.NODE_ENV === "development";
 const isPreview = process.env.VERCEL_ENV === "preview";
 
@@ -17,12 +21,12 @@ const ContentSecurityPolicy = [
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "img-src 'self' data: blob: https://lh3.googleusercontent.com",
+  "img-src 'self' data: blob: https://lh3.googleusercontent.com https://*.posthog.com",
   "font-src 'self' data: https://fonts.gstatic.com",
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.posthog.com",
   // React dev mode requires 'unsafe-eval' for call stack reconstruction
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}${isPreview ? " https://vercel.live https://vercel.com" : ""} https://challenges.cloudflare.com https://check.boxistock.au`,
-  `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://check.boxistock.au${isPreview ? " https://vercel.live wss://ws-us3.pusher.com https://*.pusher.com" : ""}`,
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}${isPreview ? " https://vercel.live https://vercel.com" : ""} https://challenges.cloudflare.com https://check.boxistock.au https://*.posthog.com`,
+  `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://check.boxistock.au https://*.posthog.com${isPreview ? " https://vercel.live wss://ws-us3.pusher.com https://*.pusher.com" : ""}`,
   "worker-src 'self' blob:",
   "frame-src 'self' https://challenges.cloudflare.com",
   "upgrade-insecure-requests",

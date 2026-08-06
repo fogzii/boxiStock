@@ -4,7 +4,7 @@ import "server-only";
 // pagination/sort runs in Postgres via the get_combined_sales_paginated RPC.
 import { unstable_cache } from "next/cache";
 import type { BundleItemListRow, SaleListRow } from "@/lib/stock/types";
-import { createClient } from "@/lib/supabase/server";
+import { createCachedClient } from "@/lib/supabase/server";
 
 type SalesSortField =
   | "date"
@@ -73,7 +73,7 @@ export async function getCombinedSalesGroupedForUser(
       safeSearch: string | null,
       safeSort: string,
     ) => {
-      const supabase = await createClient();
+      const supabase = await createCachedClient();
 
       const { data: rpcData, error: rpcError } = await supabase.rpc(
         "get_combined_sales_paginated",

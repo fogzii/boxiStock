@@ -11,7 +11,7 @@ import {
   type ShareConfig,
 } from "@/lib/sharing/config";
 import { getAuthUser } from "@/lib/supabase/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createCachedClient, createClient } from "@/lib/supabase/server";
 
 export type PublicShareLinkSummary = {
   id: string;
@@ -242,7 +242,7 @@ export async function deletePublicLink(
 async function fetchPublicShareLink(token: string) {
   if (!token || typeof token !== "string") return null;
 
-  const supabase = await createClient();
+  const supabase = await createCachedClient();
   const { data } = await supabase
     .from("ShareLink")
     .select(
