@@ -1,7 +1,5 @@
 # boxiStock — assistant instructions
 
-See `prd.md` for product intent, tech stack, and visual direction.
-
 ## Design system
 
 **Always read `DESIGN.md` before any UI or visual work.** It is the single source of truth for:
@@ -75,6 +73,17 @@ Production moved from Tokyo (`idgpprtyleutgqinrouo`, now paused, kept for rollba
 - **Staging (deprecated):** `git push origin HEAD:staging` — triggers a Vercel deploy to **staging.boxistock.au**, but this likely won't work correctly while the staging Supabase project is paused (see migrations section above).
 - **Production:** `git push origin HEAD:main` (or merge staging → main) — only when the user explicitly asks to ship to prod. Production is **boxistock.au**.
 - **Never** use `vercel deploy` or `npx vercel deploy` from the CLI. Always go through git so the correct environment URL is used.
+
+# Chrome DevTools MCP
+
+Attach to the user's running Chrome with `--autoConnect` (Chrome 144+). Enable
+remote debugging once per session at `chrome://inspect/#remote-debugging`, then
+Accept the prompt. Do not combine `--autoConnect` with `--executablePath`.
+
+MCP config is per machine (`~/.cursor/mcp.json`). On macOS use normal
+`npx … --autoConnect`. On Windows+WSL run the MCP via `cmd.exe` so it sees
+Windows Chrome (WSL Node only finds the Linux profile).
+
 
 ## Code quality
 

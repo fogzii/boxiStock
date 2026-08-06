@@ -25,7 +25,9 @@ const ContentSecurityPolicy = [
   "font-src 'self' data: https://fonts.gstatic.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.posthog.com",
   // React dev mode requires 'unsafe-eval' for call stack reconstruction
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}${isPreview ? " https://vercel.live https://vercel.com" : ""} https://challenges.cloudflare.com https://check.boxistock.au https://*.posthog.com`,
+  // Vercel Speed Insights serves a first-party script (/_vercel/speed-insights)
+  // in production, but a debug build from va.vercel-scripts.com in dev only.
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval' https://va.vercel-scripts.com" : ""}${isPreview ? " https://vercel.live https://vercel.com" : ""} https://challenges.cloudflare.com https://check.boxistock.au https://*.posthog.com`,
   `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://check.boxistock.au https://*.posthog.com${isPreview ? " https://vercel.live wss://ws-us3.pusher.com https://*.pusher.com" : ""}`,
   "worker-src 'self' blob:",
   "frame-src 'self' https://challenges.cloudflare.com",
