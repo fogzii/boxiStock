@@ -1,3 +1,12 @@
+// Ad blockers (EasyPrivacy, AdGuard) carry domain-agnostic path rules for
+// `/posthog-recorder.js` and `/dead-clicks-autocapture.js`, so the reverse proxy
+// at check.boxistock.au can't get them through - the filename is what's matched,
+// not the host. These standalone bundles self-register on
+// `window.__PosthogExtensions__` from our own first-party JS, and posthog-js uses
+// an already-registered extension instead of fetching it. Keep them as static
+// imports so registration is guaranteed to happen before init() below.
+import "posthog-js/dist/posthog-recorder";
+import "posthog-js/dist/dead-clicks-autocapture";
 import posthog from "posthog-js";
 
 // Single PostHog client init (Next.js instrumentation-client convention).
