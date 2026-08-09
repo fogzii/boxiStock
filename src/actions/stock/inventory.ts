@@ -20,6 +20,7 @@ import {
 } from "@/lib/validation";
 import {
   gateStockMutation,
+  lowestHistoricalUnitPrice,
   revalidateStockData,
   syncProductSalesStats,
 } from "./_helpers";
@@ -134,6 +135,9 @@ export async function addProduct(data: {
       .update({ updatedAt: now })
       .eq("id", productId);
   } else {
+    // sellPrice is seeded from sales history by the product_seed_sell_price
+    // trigger, so every product-creation path (here, bulk import, CSV restore,
+    // AI import) gets the same treatment.
     const { data: product, error: productError } = await supabase
       .from("Product")
       .insert([
@@ -389,7 +393,17 @@ export async function updateLotNotes(lotId: string, notes: string | null) {
   revalidateStockData(userId);
 }
 
-export async function updateProductName(productId: string, name: string) {
+/**
+ * Edit a product row: its name and its projected sell price.
+ *
+ * `sellPrice` is per unit. Passing null clears it, which puts the product back
+ * to NA and drops it out of projected-profit totals — that is a real choice the
+ * user can make, so null is stored rather than ignored.
+ */
+export async function updateProduct(
+  productId: string,
+  data: { name: string; sellPrice: number | null },
+) {
   const {
     data: { user },
   } = await getAuthUser();
@@ -398,23 +412,48 @@ export async function updateProductName(productId: string, name: string) {
   await gateStockMutation(userId);
 
   const cleanProductId = cleanRequiredString(productId, "productId");
-  const cleanName = cleanRequiredString(name, "product name");
+  const cleanName = cleanRequiredString(data?.name, "product name");
+
+  let sellPrice: number | null = null;
+  if (data?.sellPrice !== null && data?.sellPrice !== undefined) {
+    assertNonNegativeNumber(data.sellPrice, "sellPrice");
+    sellPrice = Math.round(data.sellPrice * 100) / 100;
+  }
 
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  const { data: updated, error } = await supabase
     .from("Product")
-    .update({ name: cleanName })
+    .update({ name: cleanName, sellPrice, updatedAt: new Date().toISOString() })
     .eq("id", cleanProductId)
     .eq("userId", userId)
     .select();
 
   if (error) throw new Error(error.message);
-  if (!data || data.length === 0)
+  if (!updated || updated.length === 0)
     throw new Error("Product not found or unauthorized");
 
   revalidatePath("/", "layout");
   revalidateStockData(userId);
+}
+
+/**
+ * Lowest per-unit price this product name has ever sold for, or null when it
+ * has no sales history. Powers the "suggested from sales history" hint in the
+ * edit-row modal.
+ */
+export async function getSuggestedSellPrice(
+  productName: string,
+): Promise<number | null> {
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
+  if (!userId) throw new Error("Unauthorized");
+
+  const name = cleanRequiredString(productName, "product name");
+  const supabase = await createClient();
+  return lowestHistoricalUnitPrice(supabase, userId, name);
 }
 
 export async function deleteLot(lotId: string) {

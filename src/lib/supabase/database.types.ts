@@ -112,6 +112,7 @@ export type Database = {
           lastSoldAt: string | null;
           name: string;
           saleCount: number;
+          sellPrice: number | null;
           totalProfit: number;
           totalRevenue: number;
           totalUnitsSold: number;
@@ -124,6 +125,7 @@ export type Database = {
           lastSoldAt?: string | null;
           name: string;
           saleCount?: number;
+          sellPrice?: number | null;
           totalProfit?: number;
           totalRevenue?: number;
           totalUnitsSold?: number;
@@ -136,6 +138,7 @@ export type Database = {
           lastSoldAt?: string | null;
           name?: string;
           saleCount?: number;
+          sellPrice?: number | null;
           totalProfit?: number;
           totalRevenue?: number;
           totalUnitsSold?: number;
@@ -194,6 +197,8 @@ export type Database = {
           ownerId: string;
           respondedAt: string | null;
           sections: string[];
+          showProjectedProfit: boolean;
+          showSellPrice: boolean;
           showStockAmounts: boolean;
           status: string;
         };
@@ -205,6 +210,8 @@ export type Database = {
           ownerId: string;
           respondedAt?: string | null;
           sections?: string[];
+          showProjectedProfit?: boolean;
+          showSellPrice?: boolean;
           showStockAmounts?: boolean;
           status?: string;
         };
@@ -216,6 +223,8 @@ export type Database = {
           ownerId?: string;
           respondedAt?: string | null;
           sections?: string[];
+          showProjectedProfit?: boolean;
+          showSellPrice?: boolean;
           showStockAmounts?: boolean;
           status?: string;
         };
@@ -230,6 +239,8 @@ export type Database = {
           label: string | null;
           passwordHash: string | null;
           sections: string[];
+          showProjectedProfit: boolean;
+          showSellPrice: boolean;
           showStockAmounts: boolean;
           token: string;
           userId: string;
@@ -243,6 +254,8 @@ export type Database = {
           label?: string | null;
           passwordHash?: string | null;
           sections: string[];
+          showProjectedProfit?: boolean;
+          showSellPrice?: boolean;
           showStockAmounts?: boolean;
           token: string;
           userId: string;
@@ -256,6 +269,8 @@ export type Database = {
           label?: string | null;
           passwordHash?: string | null;
           sections?: string[];
+          showProjectedProfit?: boolean;
+          showSellPrice?: boolean;
           showStockAmounts?: boolean;
           token?: string;
           userId?: string;
@@ -345,6 +360,7 @@ export type Database = {
         Args: { p_status?: string; p_user_id: string };
         Returns: number;
       };
+      get_projected_profit: { Args: { p_user_id: string }; Returns: number };
       get_sales_by_month: {
         Args: { p_user_id: string };
         Returns: {

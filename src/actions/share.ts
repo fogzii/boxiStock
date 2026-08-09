@@ -19,6 +19,8 @@ export type PublicShareLinkSummary = {
   label: string | null;
   sections: string[];
   showStockAmounts: boolean;
+  showSellPrice: boolean;
+  showProjectedProfit: boolean;
   hasPassword: boolean;
   expiresAt: string | null;
   isActive: boolean;
@@ -45,7 +47,7 @@ export async function getMyPublicLinks(): Promise<PublicShareLinkSummary[]> {
   const { data, error } = await supabase
     .from("ShareLink")
     .select(
-      "id, token, label, sections, showStockAmounts, passwordHash, expiresAt, isActive, createdAt",
+      "id, token, label, sections, showStockAmounts, showSellPrice, showProjectedProfit, passwordHash, expiresAt, isActive, createdAt",
     )
     .eq("userId", userId)
     .eq("visibility", "everyone")
@@ -66,6 +68,8 @@ export async function createPublicLink({
   label,
   sections,
   showStockAmounts,
+  showSellPrice,
+  showProjectedProfit,
   password,
   expiresAt,
 }: ShareConfig & {
@@ -74,7 +78,12 @@ export async function createPublicLink({
   expiresAt?: string | null;
 }): Promise<ShareLinkActionResult> {
   try {
-    const config = normalizeConfig({ sections, showStockAmounts });
+    const config = normalizeConfig({
+      sections,
+      showStockAmounts,
+      showSellPrice,
+      showProjectedProfit,
+    });
     const userId = await requireUserId();
 
     const supabase = await createClient();
@@ -107,6 +116,8 @@ export async function createPublicLink({
       label: label?.trim() || null,
       sections: config.sections,
       showStockAmounts: config.showStockAmounts,
+      showSellPrice: config.showSellPrice,
+      showProjectedProfit: config.showProjectedProfit,
       passwordHash,
       expiresAt: expiresAt ?? null,
       isActive: true,
@@ -135,6 +146,8 @@ export async function updatePublicLink(
     label?: string | null;
     sections?: string[];
     showStockAmounts?: boolean;
+    showSellPrice?: boolean;
+    showProjectedProfit?: boolean;
     expiresAt?: string | null;
   },
 ): Promise<ShareLinkActionResult> {
@@ -145,6 +158,8 @@ export async function updatePublicLink(
       label?: string | null;
       sections?: string[];
       showStockAmounts?: boolean;
+      showSellPrice?: boolean;
+      showProjectedProfit?: boolean;
       expiresAt?: string | null;
     } = {};
     if (patch.label !== undefined) update.label = patch.label?.trim() || null;
@@ -152,9 +167,13 @@ export async function updatePublicLink(
       const config = normalizeConfig({
         sections: patch.sections,
         showStockAmounts: patch.showStockAmounts ?? true,
+        showSellPrice: patch.showSellPrice ?? false,
+        showProjectedProfit: patch.showProjectedProfit ?? false,
       });
       update.sections = config.sections;
       update.showStockAmounts = config.showStockAmounts;
+      update.showSellPrice = config.showSellPrice;
+      update.showProjectedProfit = config.showProjectedProfit;
     }
     if (patch.expiresAt !== undefined) update.expiresAt = patch.expiresAt;
     if (Object.keys(update).length === 0) return { ok: true };
@@ -246,7 +265,7 @@ async function fetchPublicShareLink(token: string) {
   const { data } = await supabase
     .from("ShareLink")
     .select(
-      "id, userId, token, label, sections, showStockAmounts, expiresAt, isActive, createdAt, visibility, passwordHash",
+      "id, userId, token, label, sections, showStockAmounts, showSellPrice, showProjectedProfit, expiresAt, isActive, createdAt, visibility, passwordHash",
     )
     .eq("token", token)
     .eq("isActive", true)

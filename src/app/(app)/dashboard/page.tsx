@@ -1,4 +1,4 @@
-import { Package, Percent, Wallet } from "lucide-react";
+import { Package, Percent, TrendingUp, Wallet } from "lucide-react";
 import { Suspense } from "react";
 import {
   getDashboardMetrics,
@@ -40,7 +40,7 @@ async function DashboardContent() {
   return (
     <>
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <StatCard
           title="Total Lifetime Profit"
           value={formatter.format(metrics.totalLifetimeProfit)}
@@ -50,6 +50,11 @@ async function DashboardContent() {
           title="Current Inventory Value"
           value={formatter.format(metrics.currentInventoryValue)}
           icon={Package}
+        />
+        <StatCard
+          title="Projected Profits"
+          value={formatter.format(metrics.projectedProfit)}
+          icon={TrendingUp}
         />
         <StatCard
           title="Current ROI (Sold Stock Only)"
@@ -73,8 +78,8 @@ async function DashboardContent() {
 function DashboardContentSkeleton() {
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {[0, 1, 2].map((i) => (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {[0, 1, 2, 3].map((i) => (
           <div
             key={i}
             className="bg-primary/5 border border-primary/10 p-6 rounded-2xl"

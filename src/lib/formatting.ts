@@ -11,6 +11,14 @@ export function formatCurrency(n: number): string {
   return currencyFormatter.format(n);
 }
 
+/**
+ * Plain dollar amount with the sign ahead of the symbol — "-$12.00", not
+ * "$-12.00". Matches the unseparated `$0.00` style the stock table uses.
+ */
+export function formatSignedAmount(n: number): string {
+  return `${n < 0 ? "-" : ""}$${Math.abs(n).toFixed(2)}`;
+}
+
 export function parseIntQty(raw: string, fallback = 1): number {
   const n = Math.floor(parseFloat(raw));
   return Number.isFinite(n) && n >= 1 ? n : fallback;

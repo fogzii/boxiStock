@@ -88,10 +88,13 @@ export async function getDashboardMetricsForUser(userId: string) {
   return unstable_cache(
     async (uid: string) => {
       const supabase = await createCachedClient();
-      const { data, error } = await supabase.rpc("get_dashboard_metrics", {
-        p_user_id: uid,
-      });
+      const [{ data, error }, { data: projected, error: projectedError }] =
+        await Promise.all([
+          supabase.rpc("get_dashboard_metrics", { p_user_id: uid }),
+          supabase.rpc("get_projected_profit", { p_user_id: uid }),
+        ]);
       if (error) throw new Error(error.message);
+      if (projectedError) throw new Error(projectedError.message);
 
       const metrics = data as DashboardMetricsRow;
 
@@ -104,6 +107,9 @@ export async function getDashboardMetricsForUser(userId: string) {
         totalLifetimeProfit: metrics.totalLifetimeProfit,
         currentInventoryValue: metrics.currentInventoryValue,
         currentROI,
+        // Unrealised margin on stock still on the shelf. Products with no sell
+        // price are excluded by the RPC rather than counted as zero.
+        projectedProfit: Number(projected ?? 0),
       };
     },
     [`dashboard-metrics-${userId}`],

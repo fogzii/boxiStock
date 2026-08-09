@@ -11,7 +11,7 @@
     "format": "biome format --write",
     "lint": "biome lint",
     "prepare": "husky",
-    "db:types": "npx supabase gen types typescript --project-id ${SUPABASE_PROJECT_REF:-euduypcktlvwvzoiomlv} > src/lib/supabase/database.types.ts",
+    "db:types": "supabase gen types typescript --project-id ${SUPABASE_PROJECT_REF:-euduypcktlvwvzoiomlv} > /tmp/boxistock-db-types.ts && mv /tmp/boxistock-db-types.ts src/lib/supabase/database.types.ts",
     "db:types:prod": "SUPABASE_PROJECT_REF=euduypcktlvwvzoiomlv npm run db:types",
     "db:types:preview": "SUPABASE_PROJECT_REF=uzsijodyaiooiroscfdx npm run db:types"
   },

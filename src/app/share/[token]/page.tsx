@@ -4,7 +4,10 @@ import Link from "next/link";
 import { getPublicShareLink } from "@/actions/share";
 import { getInviteAccess } from "@/lib/sharing/access";
 import { ALLOWED_SECTIONS } from "@/lib/sharing/config";
-import { sanitizeStockAmounts } from "@/lib/sharing/sanitize";
+import {
+  sanitizeSellPrice,
+  sanitizeStockAmounts,
+} from "@/lib/sharing/sanitize";
 import {
   getCombinedSalesGroupedForUser,
   getDashboardMetricsForUser,
@@ -56,6 +59,27 @@ function InviteOnlyGate() {
   );
 }
 
+/**
+ * Apply every share restriction before inventory crosses to the client. Both
+ * strips are server-side on purpose: hiding a column in the UI still ships the
+ * numbers in the RSC payload.
+ */
+function sanitizeInventory(
+  products: Awaited<
+    ReturnType<typeof getInventoryPaginatedForUser>
+  >["products"],
+  hideStockAmounts: boolean,
+  hideSellPrice: boolean,
+  hideProjectedProfit: boolean,
+) {
+  let result = products;
+  if (hideStockAmounts) result = sanitizeStockAmounts(result);
+  // sellPrice drives both the sell-price and projected-profit columns, so it
+  // may only be dropped once the viewer is entitled to neither.
+  if (hideSellPrice && hideProjectedProfit) result = sanitizeSellPrice(result);
+  return result;
+}
+
 export default async function SharePage({
   params,
   searchParams,
@@ -87,6 +111,8 @@ export default async function SharePage({
   // link row; invite-only viewers get their per-person ShareInvite config.
   let sections = link.sections;
   let showStockAmounts = link.showStockAmounts;
+  let showSellPrice = link.showSellPrice;
+  let showProjectedProfit = link.showProjectedProfit;
 
   // Invite-only links require login + an accepted invite (or being the owner).
   if (link.visibility === "invite_only") {
@@ -101,6 +127,8 @@ export default async function SharePage({
       // Owner previewing their own link sees everything.
       sections = [...ALLOWED_SECTIONS];
       showStockAmounts = true;
+      showSellPrice = true;
+      showProjectedProfit = true;
     } else {
       const access = await getInviteAccess(link.userId, user.id);
       if (!access) {
@@ -109,6 +137,8 @@ export default async function SharePage({
       }
       sections = access.sections;
       showStockAmounts = access.showStockAmounts;
+      showSellPrice = access.showSellPrice;
+      showProjectedProfit = access.showProjectedProfit;
     }
     // Authorized invitee — no password gate.
   } else if (link.hasPassword) {
@@ -123,6 +153,13 @@ export default async function SharePage({
   const uid = link.userId;
   const has = (s: string) => sections.includes(s);
   const hideStockAmounts = !showStockAmounts;
+  const hideSellPrice = !showSellPrice;
+  // The stock-amounts clause is enforced on read as well as on write: purchase
+  // prices are stripped from the payload when hidden, which would make any
+  // profit figure wrong, and showing one anyway would leak the cost as
+  // `sell price - projected profit`. Rows written before that rule existed are
+  // covered here too.
+  const hideProjectedProfit = !showProjectedProfit || hideStockAmounts;
 
   // Value sorts leak relative stock worth — ignore them when amounts are
   // hidden, matching the sort options removed from the UI.
@@ -165,17 +202,25 @@ export default async function SharePage({
 
   const inventoryProducts = inventoryData?.products ?? [];
 
+  // Same rule as the inventory strip: zero the figure out here rather than
+  // relying on the card being hidden, so it never lands in the RSC payload.
+  const safeDashboardMetrics =
+    dashboardMetrics && hideProjectedProfit
+      ? { ...dashboardMetrics, projectedProfit: 0 }
+      : dashboardMetrics;
+
   return (
     <ShareContent
       token={token}
       sections={sections}
-      dashboardMetrics={dashboardMetrics}
+      dashboardMetrics={safeDashboardMetrics}
       chartData={chartData}
-      inventoryProducts={
-        hideStockAmounts
-          ? sanitizeStockAmounts(inventoryProducts)
-          : inventoryProducts
-      }
+      inventoryProducts={sanitizeInventory(
+        inventoryProducts,
+        hideStockAmounts,
+        hideSellPrice,
+        hideProjectedProfit,
+      )}
       inventoryCount={inventoryData?.totalCount ?? 0}
       stockCurrentPage={stockPage}
       stockTotalPages={inventoryData?.totalPages ?? 1}
@@ -188,6 +233,8 @@ export default async function SharePage({
       salesTotalPages={salesCombined?.totalPages ?? 1}
       salesSort={salesSort}
       hideStockAmounts={hideStockAmounts}
+      hideSellPrice={hideSellPrice}
+      hideProjectedProfit={hideProjectedProfit}
     />
   );
 }

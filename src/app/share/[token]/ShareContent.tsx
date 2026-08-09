@@ -30,6 +30,7 @@ interface ShareContentProps {
     totalLifetimeProfit: number;
     currentInventoryValue: number;
     currentROI: number;
+    projectedProfit: number;
   } | null;
   chartData: {
     weeklyData: ChartPoint[];
@@ -54,6 +55,8 @@ interface ShareContentProps {
   salesTotalPages: number;
   salesSort?: string;
   hideStockAmounts?: boolean;
+  hideSellPrice?: boolean;
+  hideProjectedProfit?: boolean;
 }
 
 const TAB_CONFIG = [
@@ -80,6 +83,8 @@ export function ShareContent({
   salesTotalPages,
   salesSort,
   hideStockAmounts = false,
+  hideSellPrice = false,
+  hideProjectedProfit = false,
 }: ShareContentProps) {
   const tabs = TAB_CONFIG.filter((t) => sections.includes(t.key));
   const [activeTab, setActiveTab] = React.useState(tabs[0]?.key ?? "");
@@ -128,7 +133,11 @@ export function ShareContent({
   });
 
   return (
-    <ReadOnlyProvider hideStockAmounts={hideStockAmounts}>
+    <ReadOnlyProvider
+      hideStockAmounts={hideStockAmounts}
+      hideSellPrice={hideSellPrice}
+      hideProjectedProfit={hideProjectedProfit}
+    >
       <div className="px-4 sm:px-8 pt-6 sm:pt-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Tab bar — only shown when multiple sections */}
         {tabs.length > 1 && (
@@ -155,7 +164,12 @@ export function ShareContent({
         {/* Dashboard section */}
         {activeTab === "dashboard" && dashboardMetrics && chartData && (
           <div className="flex flex-col gap-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div
+              className={cn(
+                "grid grid-cols-1 md:grid-cols-2 gap-6",
+                hideProjectedProfit ? "lg:grid-cols-3" : "lg:grid-cols-4",
+              )}
+            >
               <StatCard
                 title="Total Lifetime Profit"
                 value={formatter.format(dashboardMetrics.totalLifetimeProfit)}
@@ -166,6 +180,13 @@ export function ShareContent({
                 value={formatter.format(dashboardMetrics.currentInventoryValue)}
                 icon={Package}
               />
+              {!hideProjectedProfit && (
+                <StatCard
+                  title="Projected Profits"
+                  value={formatter.format(dashboardMetrics.projectedProfit)}
+                  icon={TrendingUp}
+                />
+              )}
               <StatCard
                 title="Current ROI (Sold Stock Only)"
                 value={`${dashboardMetrics.currentROI.toFixed(1)}%`}

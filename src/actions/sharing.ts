@@ -58,6 +58,8 @@ export type OutgoingInvite = {
   createdAt: string;
   sections: string[];
   showStockAmounts: boolean;
+  showSellPrice: boolean;
+  showProjectedProfit: boolean;
 };
 
 export type IncomingPendingInvite = {
@@ -220,6 +222,8 @@ export async function sendInvite(
           inviteeEmail: cleaned,
           sections: normalized.sections,
           showStockAmounts: normalized.showStockAmounts,
+          showSellPrice: normalized.showSellPrice,
+          showProjectedProfit: normalized.showProjectedProfit,
         })
         .eq("id", existing.id);
       if (error) throw new Error(error.message);
@@ -231,6 +235,8 @@ export async function sendInvite(
         status: "pending",
         sections: normalized.sections,
         showStockAmounts: normalized.showStockAmounts,
+        showSellPrice: normalized.showSellPrice,
+        showProjectedProfit: normalized.showProjectedProfit,
       });
       if (error) throw new Error(error.message);
     }
@@ -274,6 +280,8 @@ export async function updateInviteConfig(
       .update({
         sections: normalized.sections,
         showStockAmounts: normalized.showStockAmounts,
+        showSellPrice: normalized.showSellPrice,
+        showProjectedProfit: normalized.showProjectedProfit,
       })
       .eq("id", inviteId)
       .eq("ownerId", userId)
@@ -389,7 +397,7 @@ export async function getOutgoingInvites(): Promise<OutgoingInvite[]> {
   const { data, error } = await supabase
     .from("ShareInvite")
     .select(
-      "id, inviteeId, inviteeEmail, status, createdAt, sections, showStockAmounts",
+      "id, inviteeId, inviteeEmail, status, createdAt, sections, showStockAmounts, showSellPrice, showProjectedProfit",
     )
     .eq("ownerId", userId)
     .order("createdAt", { ascending: false });
@@ -410,6 +418,8 @@ export async function getOutgoingInvites(): Promise<OutgoingInvite[]> {
     createdAt: row.createdAt,
     sections: row.sections,
     showStockAmounts: row.showStockAmounts,
+    showSellPrice: row.showSellPrice,
+    showProjectedProfit: row.showProjectedProfit,
   }));
 }
 

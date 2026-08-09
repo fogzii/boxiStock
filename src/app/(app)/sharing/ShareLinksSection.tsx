@@ -250,6 +250,8 @@ function PublicLinkCard({
           <ConfigSummary
             sections={link.sections}
             showStockAmounts={link.showStockAmounts}
+            showSellPrice={link.showSellPrice}
+            showProjectedProfit={link.showProjectedProfit}
           />
         </div>
         <div className="flex items-center gap-2">
@@ -338,6 +340,8 @@ function PublicLinkCreateForm({
         label: label.trim() || null,
         sections: config.sections,
         showStockAmounts: config.showStockAmounts,
+        showSellPrice: config.showSellPrice,
+        showProjectedProfit: config.showProjectedProfit,
         password: showPasswordField ? password : null,
         expiresAt: resolveExpiresAt(expiryDays, customExpiryDate),
       });
@@ -465,6 +469,8 @@ function EditPublicLinkModal({
   const [config, setConfig] = React.useState<ShareConfigValue>({
     sections: link.sections,
     showStockAmounts: link.showStockAmounts,
+    showSellPrice: link.showSellPrice,
+    showProjectedProfit: link.showProjectedProfit,
   });
   const [expiryDays, setExpiryDays] = React.useState<ExpiryValue>(
     link.expiresAt ? "custom" : null,
@@ -495,6 +501,8 @@ function EditPublicLinkModal({
         label: label.trim() || null,
         sections: config.sections,
         showStockAmounts: config.showStockAmounts,
+        showSellPrice: config.showSellPrice,
+        showProjectedProfit: config.showProjectedProfit,
         expiresAt: resolveExpiresAt(expiryDays, customExpiryDate),
       });
       if (!res.ok) {

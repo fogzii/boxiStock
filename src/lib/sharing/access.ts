@@ -15,14 +15,19 @@ export async function getInviteAccess(
   const supabase = await createClient();
   const { data } = await supabase
     .from("ShareInvite")
-    .select("sections, showStockAmounts")
+    .select("sections, showStockAmounts, showSellPrice, showProjectedProfit")
     .eq("ownerId", ownerId)
     .eq("inviteeId", viewerId)
     .eq("status", "accepted")
     .maybeSingle();
 
   if (!data) return null;
-  return { sections: data.sections, showStockAmounts: data.showStockAmounts };
+  return {
+    sections: data.sections,
+    showStockAmounts: data.showStockAmounts,
+    showSellPrice: data.showSellPrice,
+    showProjectedProfit: data.showProjectedProfit,
+  };
 }
 
 /** Whether `viewerId` may view `ownerId`'s invite-only portfolio. */

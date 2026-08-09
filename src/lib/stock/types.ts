@@ -94,7 +94,7 @@ export type BundleInventoryLot = Pick<
   "id" | "remainingQuantity" | "buyPrice" | "dateAcquired" | "lotIdentity"
 >;
 
-export type ProductWithLots = Pick<ProductRow, "id" | "name"> & {
+export type ProductWithLots = Pick<ProductRow, "id" | "name" | "sellPrice"> & {
   lots: InventoryLot[];
 };
 

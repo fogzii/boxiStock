@@ -362,6 +362,8 @@ export function SharingClient({
                         <ConfigSummary
                           sections={invite.sections}
                           showStockAmounts={invite.showStockAmounts}
+                          showSellPrice={invite.showSellPrice}
+                          showProjectedProfit={invite.showProjectedProfit}
                           className="truncate text-caption text-muted-foreground"
                         />
                       </div>
@@ -520,6 +522,8 @@ export function SharingClient({
               initialValue={{
                 sections: editingInvite.sections,
                 showStockAmounts: editingInvite.showStockAmounts,
+                showSellPrice: editingInvite.showSellPrice,
+                showProjectedProfit: editingInvite.showProjectedProfit,
               }}
               onSave={async (value) => {
                 const res = await updateInviteConfig(editingInvite.id, value);

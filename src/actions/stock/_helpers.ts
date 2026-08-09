@@ -1,8 +1,10 @@
 // Shared server-action helpers for stock mutations, rate limits, and product
 // sales aggregate maintenance.
 import { revalidateTag } from "next/cache";
+import { round2 } from "@/lib/formatting";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import type { createClient } from "@/lib/supabase/server";
+import { escapeLikePattern } from "@/lib/validation";
 
 // Purges every unstable_cache read derived from this user's stock/sales/bundle
 // data (see the `stock-data-${userId}` tags in src/lib/stock/readers/*).
@@ -44,4 +46,31 @@ export async function syncProductSalesStats(
   productId: string,
 ) {
   await supabase.rpc("sync_product_sale_stats", { p_product_id: productId });
+}
+
+// Seed value for a new product's projected sell price: the lowest per-unit
+// price anything of the same name has ever sold for. Matching is by name
+// (case-insensitive) rather than product id so a product re-created after its
+// last lot was deleted still inherits its old pricing. Returns null when the
+// name has no sales history, which the UI renders as NA.
+export async function lowestHistoricalUnitPrice(
+  supabase: SupabaseInstance,
+  userId: string,
+  name: string,
+): Promise<number | null> {
+  const { data, error } = await supabase
+    .from("Sale")
+    .select("totalSalePrice, quantitySold, Product!inner(userId, name)")
+    .eq("Product.userId", userId)
+    // No wildcards survive escaping, so this is an exact case-insensitive match.
+    .ilike("Product.name", escapeLikePattern(name))
+    .gt("quantitySold", 0);
+
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) return null;
+
+  return data.reduce<number | null>((lowest, sale) => {
+    const unitPrice = round2(sale.totalSalePrice / sale.quantitySold);
+    return lowest === null || unitPrice < lowest ? unitPrice : lowest;
+  }, null);
 }
