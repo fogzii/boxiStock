@@ -49,27 +49,47 @@ When building or modifying any UI, resolve tokens from DESIGN.md rather than har
 ## Supabase types
 
 - Generated types: **`src/lib/supabase/database.types.ts`**, consumed by **`src/lib/supabase/server.ts`**.
-- **Run `npm run db:types` after any schema change** (table, column, RPC, enum, or view). Do not hand-edit the file.
+- After a schema change that is already on **production**: **`npm run db:types`** (or `db:types:prod`).
+- After a schema change that exists **only on local** so far: **`npm run db:types:local`**.
+- Do not hand-edit the types file. **`db:types:preview` is gone** - the preview project is disabled permanently.
 
-## Database migrations
+## Database migrations — local first, then production
 
-Both Supabase projects are live (preview/staging was resumed on 2026-08-09 after a short pause):
+**`boxistock-preview` was disabled by the user on 2026-08-10.** Treat it as gone. Only production is live; local Supabase CLI is the test environment.
 
 | Env | Name | Project ref | Region |
 | --- | --- | --- | --- |
 | Production | `boxiStock-sydney` | `euduypcktlvwvzoiomlv` | `ap-southeast-2` (Sydney) |
-| Preview/staging | `boxistock-preview` | `uzsijodyaiooiroscfdx` | `ap-northeast-1` (Tokyo) |
+| ~~Preview/staging~~ (disabled 2026-08-10) | `boxistock-preview` | `uzsijodyaiooiroscfdx` | `ap-northeast-1` (Tokyo) |
+| Local (CLI) | Docker via `supabase start` | n/a | `http://127.0.0.1:54321` |
 
-Production moved from Tokyo (`idgpprtyleutgqinrouo`, now paused, kept for rollback) to Sydney on 2026-08-02, to co-locate with Vercel's `syd1` region.
+### How assistants / humans must change schema
 
-- Apply schema changes to **staging first, then production** via `mcp__supabase__apply_migration` (or the CLI linked to the matching ref). Write migrations as **idempotent SQL** (`IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS`, `CREATE OR REPLACE`) so the same file applies cleanly to both.
-- After creating a **new table**, reload PostgREST so the REST API sees it: `NOTIFY pgrst, 'reload schema';`.
-- Regenerate types: **`npm run db:types`** (defaults to production) or **`npm run db:types:preview`** for staging.
-- **`.env.local` (local dev)** points at PREVIEW.
+1. **Create** a migration with the CLI so the filename is valid:
+   `npx supabase migration new short_description`
+   → `supabase/migrations/YYYYMMDDHHMMSS_short_description.sql`
+2. Write **idempotent** SQL (`IF NOT EXISTS`, `DROP CONSTRAINT IF EXISTS`, `CREATE OR REPLACE`).
+3. **Apply locally** (do this before touching production):
+   - Prefer: `npm run db:migrate` (`supabase migration up`), or just `npm run dev` - `predev` runs `scripts/ensure-supabase.sh`, which starts local Supabase if needed **and then runs `migration up`**.
+   - Clean slate + seed: `npm run db:reset` (destructive).
+4. Verify the app against local (`.env.local` → `http://127.0.0.1:54321`).
+5. **Then** apply to production via `mcp__supabase__apply_migration` or the linked CLI (`supabase link --project-ref euduypcktlvwvzoiomlv` if needed). Never auto-push schema to prod from `predev`.
+6. Regenerate types (`db:types:local` while iterating; `db:types` after prod has the change).
+7. After a **new table**, reload PostgREST: `NOTIFY pgrst, 'reload schema';`.
+
+**Filename rule:** only `YYYYMMDDHHMMSS_name.sql` is applied by the CLI. Legacy ad-hoc files (`align_prod_to_preview.sql`, `get_combined_sales_paginated.sql`, `sharing_per_person_config.sql`) are skipped - reference only, safe to delete.
+
+### Local stack notes
+
+- `npm run dev` → `predev` → `bash scripts/ensure-supabase.sh` (Docker health checks, start if down, then `migration up`). Do not put Supabase startup on the `start` script (`next start` for production builds must stay Docker-free).
+- Seed logins (`supabase/seed.sql`, applied on `db reset` / first start): `test@gmail.com` / `Testing123*` and `test1@gmail.com` / same password.
+- `.env.local.example` has deterministic local Supabase URL/keys; copy to `.env.local` and fill third-party secrets.
+- For occasional cloud-only testing (webhooks, share links, phones), use Supabase branching on production and tear the branch down after.
+- Local Next CSP must allow `http://127.0.0.1:54321` / `http://localhost:54321` (and matching `ws://`) in `connect-src` during development, or browser auth fails with `TypeError: Failed to fetch`.
 
 ## Deployment
 
-- **Staging:** `git push origin HEAD:staging` — triggers a Vercel deploy to **staging.boxistock.au**.
+- **Staging:** `git push origin HEAD:staging` - triggers a Vercel deploy to **staging.boxistock.au**, but this will fail/misbehave now that the staging Supabase project is disabled, not just paused (see migrations section above).
 - **Production:** `git push origin HEAD:main` (or merge staging → main) — only when the user explicitly asks to ship to prod. Production is **boxistock.au**.
 - **Never** use `vercel deploy` or `npx vercel deploy` from the CLI. Always go through git so the correct environment URL is used.
 

@@ -28,7 +28,10 @@ const ContentSecurityPolicy = [
   // Vercel Speed Insights serves a first-party script (/_vercel/speed-insights)
   // in production, but a debug build from va.vercel-scripts.com in dev only.
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval' https://va.vercel-scripts.com" : ""}${isPreview ? " https://vercel.live https://vercel.com" : ""} https://challenges.cloudflare.com https://check.boxistock.au https://*.posthog.com`,
-  `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://check.boxistock.au https://*.posthog.com${isPreview ? " https://vercel.live wss://ws-us3.pusher.com https://*.pusher.com" : ""}`,
+  // Local `supabase start` serves the API on 127.0.0.1:54321 (and localhost).
+  // Without these, the browser CSP blocks auth/data calls and surfaces as
+  // TypeError: Failed to fetch on sign-in.
+  `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://check.boxistock.au https://*.posthog.com${isDev ? " http://127.0.0.1:54321 http://localhost:54321 ws://127.0.0.1:54321 ws://localhost:54321" : ""}${isPreview ? " https://vercel.live wss://ws-us3.pusher.com https://*.pusher.com" : ""}`,
   "worker-src 'self' blob:",
   "frame-src 'self' https://challenges.cloudflare.com",
   "upgrade-insecure-requests",
