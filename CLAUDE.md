@@ -83,7 +83,7 @@ When building or modifying any UI, resolve tokens from DESIGN.md rather than har
 
 - `npm run dev` → `predev` → `bash scripts/ensure-supabase.sh` (Docker health checks, start if down, then `migration up`). Do not put Supabase startup on the `start` script (`next start` for production builds must stay Docker-free).
 - Seed logins (`supabase/seed.sql`, applied on `db reset` / first start): `test@gmail.com` / `Testing123*` and `test1@gmail.com` / same password.
-- `.env.local.example` has deterministic local Supabase URL/keys; copy to `.env.local` and fill third-party secrets.
+- `.env.local.example` has the local Supabase URL pre-filled and blank key slots. Copy to `.env.local`, then fill keys from `npx supabase status` (do not commit `sb_secret_*` / real API keys - GitHub push protection blocks them).
 - For occasional cloud-only testing (webhooks, share links, phones), use Supabase branching on production and tear the branch down after.
 - Local Next CSP must allow `http://127.0.0.1:54321` / `http://localhost:54321` (and matching `ws://`) in `connect-src` during development, or browser auth fails with `TypeError: Failed to fetch`.
 
