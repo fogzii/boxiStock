@@ -4,6 +4,7 @@ import "server-only";
 // pagination/sort runs in Postgres via the get_combined_sales_paginated RPC.
 import { unstable_cache } from "next/cache";
 import type { BundleItemListRow, SaleListRow } from "@/lib/stock/types";
+import { withJwtClockFallback } from "@/lib/supabase/jwt-clock";
 import { createCachedClient } from "@/lib/supabase/server";
 
 type SalesSortField =
@@ -65,7 +66,7 @@ export async function getCombinedSalesGroupedForUser(
   const { field: sortField, dir: sortDir } = parseSalesSort(sort);
   const safeSort = `${sortField}_${sortDir}`;
 
-  return unstable_cache(
+  const read = unstable_cache(
     async (
       userId: string,
       safePage: number,
@@ -257,5 +258,9 @@ export async function getCombinedSalesGroupedForUser(
     },
     [`sales-combined-${userId}`],
     { revalidate: 30, tags: [`stock-data-${userId}`] },
-  )(userId, safePage, safePageSize, safeSearch, safeSort);
+  );
+  return withJwtClockFallback(
+    () => read(userId, safePage, safePageSize, safeSearch, safeSort),
+    { items: [], total: 0, totalPages: 0 },
+  );
 }

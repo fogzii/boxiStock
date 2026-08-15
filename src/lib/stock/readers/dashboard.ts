@@ -3,10 +3,31 @@ import "server-only";
 // Server-only read helpers for dashboard cards and profit chart data.
 import { unstable_cache } from "next/cache";
 import type { DashboardMetricsRow, SalesByMonth } from "@/lib/stock/types";
+import { withJwtClockFallback } from "@/lib/supabase/jwt-clock";
 import { createCachedClient } from "@/lib/supabase/server";
 
+const EMPTY_SALES_METRICS = {
+  totalSalesToday: 0,
+  totalUnitsSoldWeek: 0,
+  netProfitWeek: 0,
+  netProfitLifetime: 0,
+};
+
+const EMPTY_DASHBOARD_METRICS = {
+  totalLifetimeProfit: 0,
+  currentInventoryValue: 0,
+  currentROI: 0,
+  projectedProfit: 0,
+};
+
+const EMPTY_PROFIT_CHART = {
+  weeklyData: [] as { name: string; total: number }[],
+  monthlyData: [] as { name: string; total: number }[],
+  allTimeData: [] as { name: string; total: number }[],
+};
+
 export async function getSalesMetricsForUser(userId: string) {
-  return unstable_cache(
+  const read = unstable_cache(
     async (uid: string) => {
       const supabase = await createCachedClient();
 
@@ -81,11 +102,12 @@ export async function getSalesMetricsForUser(userId: string) {
     },
     [`sales-metrics-${userId}`],
     { revalidate: 60, tags: [`stock-data-${userId}`] },
-  )(userId);
+  );
+  return withJwtClockFallback(() => read(userId), EMPTY_SALES_METRICS);
 }
 
 export async function getDashboardMetricsForUser(userId: string) {
-  return unstable_cache(
+  const read = unstable_cache(
     async (uid: string) => {
       const supabase = await createCachedClient();
       const [{ data, error }, { data: projected, error: projectedError }] =
@@ -114,11 +136,12 @@ export async function getDashboardMetricsForUser(userId: string) {
     },
     [`dashboard-metrics-${userId}`],
     { revalidate: 60, tags: [`stock-data-${userId}`] },
-  )(userId);
+  );
+  return withJwtClockFallback(() => read(userId), EMPTY_DASHBOARD_METRICS);
 }
 
 export async function getProfitChartDataForUser(userId: string) {
-  return unstable_cache(
+  const read = unstable_cache(
     async (uid: string) => {
       const supabase = await createCachedClient();
       const { data, error } = await supabase.rpc("get_sales_by_month", {
@@ -252,5 +275,6 @@ export async function getProfitChartDataForUser(userId: string) {
     },
     [`profit-chart-${userId}`],
     { revalidate: 60, tags: [`stock-data-${userId}`] },
-  )(userId);
+  );
+  return withJwtClockFallback(() => read(userId), EMPTY_PROFIT_CHART);
 }

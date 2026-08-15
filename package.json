@@ -13,11 +13,11 @@
     "format": "biome format --write",
     "lint": "biome lint",
     "prepare": "husky",
-    "db:migrate": "npx supabase migration up",
-    "db:reset": "npx supabase db reset",
+    "db:migrate": "npx --yes supabase migration up",
+    "db:reset": "npx --yes supabase db reset",
     "db:types": "supabase gen types typescript --project-id ${SUPABASE_PROJECT_REF:-euduypcktlvwvzoiomlv} > /tmp/boxistock-db-types.ts && mv /tmp/boxistock-db-types.ts src/lib/supabase/database.types.ts",
     "db:types:prod": "SUPABASE_PROJECT_REF=euduypcktlvwvzoiomlv npm run db:types",
-    "db:types:local": "npx supabase gen types typescript --local > /tmp/boxistock-db-types.ts && mv /tmp/boxistock-db-types.ts src/lib/supabase/database.types.ts"
+    "db:types:local": "npx --yes supabase gen types typescript --local > /tmp/boxistock-db-types.ts && mv /tmp/boxistock-db-types.ts src/lib/supabase/database.types.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",

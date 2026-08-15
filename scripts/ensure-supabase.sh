@@ -48,9 +48,16 @@ ensure_docker() {
   fi
 }
 
+# npm 7+ `npx supabase` prompts "Ok to proceed?" when the CLI is not a
+# project dependency. That prompt is invisible when stdout/stderr are
+# redirected, so `npm run dev` looks hung. --yes skips the prompt.
+supabase_cli() {
+  npx --yes supabase "$@"
+}
+
 apply_pending_migrations() {
   yellow "Applying pending local migrations (supabase migration up)..."
-  if npx supabase migration up; then
+  if supabase_cli migration up; then
     green "Local migrations up to date."
   else
     red "Failed to apply local migrations."
@@ -71,12 +78,13 @@ fi
 
 ensure_docker
 
-if npx supabase status >/dev/null 2>&1; then
+if supabase_cli status >/dev/null 2>&1; then
   green "Local Supabase already running - skipping start."
   apply_pending_migrations
   exit 0
 fi
 
 green "Docker healthy - starting local Supabase..."
-npx supabase start
+yellow "First start can take several minutes while Docker images are pulled."
+supabase_cli start
 apply_pending_migrations

@@ -4,6 +4,7 @@ import "server-only";
 // inventory value totals.
 import { unstable_cache } from "next/cache";
 import type { PaginatedInventoryProduct } from "@/lib/stock/types";
+import { withJwtClockFallback } from "@/lib/supabase/jwt-clock";
 import { createCachedClient, createClient } from "@/lib/supabase/server";
 
 const VALID_SORTS = new Set([
@@ -40,7 +41,7 @@ export async function getInventoryPaginatedForUser(
   const safeStatus =
     typeof status === "string" && VALID_STATUSES.has(status) ? status : "all";
 
-  return unstable_cache(
+  const read = unstable_cache(
     async (
       uid: string,
       page: number,
@@ -77,18 +78,28 @@ export async function getInventoryPaginatedForUser(
     },
     [`inventory-${userId}`],
     { revalidate: 30, tags: [`stock-data-${userId}`] },
-  )(userId, safePage, safePageSize, safeSearch, safeSort, safeStatus);
+  );
+  return withJwtClockFallback(
+    () =>
+      read(userId, safePage, safePageSize, safeSearch, safeSort, safeStatus),
+    { products: [], totalCount: 0, totalPages: 0 },
+  );
 }
 
 export async function getInventoryValueByStatusForUser(
   userId: string,
   status?: string,
 ): Promise<number> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("get_inventory_value_by_status", {
-    p_user_id: userId,
-    p_status: status ?? "all",
-  });
-  if (error) throw new Error(error.message);
-  return Math.round((data as number) * 100) / 100;
+  return withJwtClockFallback(async () => {
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc(
+      "get_inventory_value_by_status",
+      {
+        p_user_id: userId,
+        p_status: status ?? "all",
+      },
+    );
+    if (error) throw new Error(error.message);
+    return Math.round((data as number) * 100) / 100;
+  }, 0);
 }
