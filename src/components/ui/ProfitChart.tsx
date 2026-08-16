@@ -1,5 +1,6 @@
 "use client";
 
+import { SegmentedControl, ToggleSwitch } from "@box-ds";
 import * as React from "react";
 import { Area, AreaChart, Tooltip, XAxis } from "recharts";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,11 @@ const modeLabels: Record<Mode, { label: string; sublabel: string }> = {
   monthly: { label: "Monthly", sublabel: "Last 12 Months" },
   alltime: { label: "All Time", sublabel: "Entire History" },
 };
+
+const modeTabs = (Object.keys(modeLabels) as Mode[]).map((mode) => ({
+  value: mode,
+  label: modeLabels[mode].label,
+}));
 
 export function ProfitChart({
   className,
@@ -103,36 +109,25 @@ export function ProfitChart({
             </span>
           </div>
         </div>
-        <div className="flex flex-row flex-wrap items-center gap-2 sm:gap-4 w-full sm:w-auto">
-          <button
-            type="button"
-            onClick={() => setIsCumulative(!isCumulative)}
-            className={cn(
-              "px-3 py-1.5 rounded-md text-caption transition-colors border text-center",
-              isCumulative
-                ? "bg-primary border-primary text-primary-foreground shadow-sm"
-                : "bg-transparent border-primary/20 text-muted-foreground hover:text-foreground hover:bg-primary/5",
-            )}
-          >
-            Cumulative
-          </button>
-          <div className="flex bg-primary/5 p-1 rounded-lg border border-primary/10">
-            {(Object.keys(modeLabels) as Mode[]).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                className={cn(
-                  "flex-1 px-4 py-1.5 whitespace-nowrap rounded-md text-caption transition-colors",
-                  mode === m
-                    ? "bg-primary text-background shadow-sm"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {modeLabels[m].label}
-              </button>
-            ))}
-          </div>
+        {/* wrap-reverse stacks wrapped lines bottom-up, so when Cumulative no
+            longer fits beside the mode switcher it drops below it rather than
+            sitting on top. On a single line the order is unchanged. */}
+        <div className="flex flex-row flex-wrap-reverse items-center gap-2 sm:gap-4 w-full sm:w-auto">
+          <ToggleSwitch
+            checked={isCumulative}
+            onCheckedChange={setIsCumulative}
+            label="Cumulative"
+            size="lg"
+            // The switch sizes to its own content here; `w-full` is only right
+            // for the form rows the default targets.
+            className="w-auto"
+          />
+          <SegmentedControl
+            ariaLabel="Chart range"
+            items={modeTabs}
+            value={mode}
+            onChange={setMode}
+          />
         </div>
       </div>
 
@@ -151,13 +146,21 @@ export function ProfitChart({
           >
             <defs>
               <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#9180a8" stopOpacity={0.5} />
-                <stop offset="95%" stopColor="#9180a8" stopOpacity={0} />
+                <stop
+                  offset="5%"
+                  stopColor="var(--color-primary)"
+                  stopOpacity={0.5}
+                />
+                <stop
+                  offset="95%"
+                  stopColor="var(--color-primary)"
+                  stopOpacity={0}
+                />
               </linearGradient>
             </defs>
             <XAxis
               dataKey="name"
-              stroke="#888888"
+              stroke="var(--color-mute)"
               fontSize={12}
               tickLine={false}
               axisLine={false}
@@ -189,7 +192,7 @@ export function ProfitChart({
               className="chart-glow drop-shadow-[0_0_8px_rgba(145,128,168,0.4)]"
               type="monotone"
               dataKey="total"
-              stroke="#9180a8"
+              stroke="var(--color-primary)"
               strokeWidth={3}
               fillOpacity={1}
               fill="url(#colorProfit)"

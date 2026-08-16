@@ -14,6 +14,8 @@ import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { bulkAddLotsAndProducts, bulkAddSales } from "@/actions/stock/bulk";
+import { PageBody } from "@/components/layout/PageBody";
+import { PageHeader } from "@/components/layout/PageHeader";
 import { useAIImport } from "@/context/AIImportContext";
 import { round2 } from "@/lib/formatting";
 
@@ -575,102 +577,86 @@ export default function AIImportReviewPage() {
   );
 
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
+    <>
+      <PageHeader title="AI Import Review" />
+
+      <PageBody className="max-w-5xl space-y-8">
+        <p className="text-body flex items-center gap-3 text-body-sm sm:text-body-md">
+          <PackageSearch className="w-6 h-6 shrink-0 text-primary" />
+          Please verify the extracted information. You can edit, add, or remove
+          rows before confirming.
+        </p>
+
         <div>
-          <h1 className="font-display text-display-md text-foreground flex items-center gap-3">
-            <PackageSearch className="w-8 h-8 text-primary" />
-            AI Import Review
-          </h1>
-          <p className="text-body mt-2 text-body-sm sm:text-body-md">
-            Please verify the extracted information. You can edit, add, or
-            remove rows before confirming.
-          </p>
-        </div>
-      </div>
-
-      <div>
-        <div className="flex border-b border-border/50 mb-4 pb-2 select-none">
-          <div className="px-4 py-2 text-body-lg text-primary border-b-2 border-primary">
-            {importData.type === "stock"
-              ? "Parsed Stock Lots"
-              : "Parsed Sales History"}
+          <div className="flex border-b border-border/50 mb-4 pb-2 select-none">
+            <div className="px-4 py-2 text-body-lg text-primary border-b-2 border-primary">
+              {importData.type === "stock"
+                ? "Parsed Stock Lots"
+                : "Parsed Sales History"}
+            </div>
           </div>
+
+          {importData.type === "stock" &&
+            (stockLots.length > 0 ? (
+              renderStockTable()
+            ) : (
+              <div className="space-y-4">
+                <p className="text-muted-foreground py-10 text-center">
+                  No rows found.
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleAddStockRow}
+                >
+                  <Plus />
+                  Add row
+                </Button>
+              </div>
+            ))}
+          {importData.type === "sales" &&
+            (sales.length > 0 ? (
+              renderSalesTable()
+            ) : (
+              <div className="space-y-4">
+                <p className="text-muted-foreground py-10 text-center">
+                  No rows found.
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleAddSaleRow}
+                >
+                  <Plus />
+                  Add row
+                </Button>
+              </div>
+            ))}
         </div>
 
-        {importData.type === "stock" &&
-          (stockLots.length > 0 ? (
-            renderStockTable()
-          ) : (
-            <div className="space-y-4">
-              <p className="text-muted-foreground py-10 text-center">
-                No rows found.
-              </p>
-              <button
-                type="button"
-                onClick={handleAddStockRow}
-                className="flex items-center gap-1.5 text-caption text-body hover:text-primary transition-colors py-1"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add row
-              </button>
-            </div>
-          ))}
-        {importData.type === "sales" &&
-          (sales.length > 0 ? (
-            renderSalesTable()
-          ) : (
-            <div className="space-y-4">
-              <p className="text-muted-foreground py-10 text-center">
-                No rows found.
-              </p>
-              <button
-                type="button"
-                onClick={handleAddSaleRow}
-                className="flex items-center gap-1.5 text-caption text-body hover:text-primary transition-colors py-1"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add row
-              </button>
-            </div>
-          ))}
-      </div>
-
-      <div className="flex flex-col gap-3 pt-8 border-t border-border mt-10">
-        {/* Row 1: Cancel + Try Again */}
-        <div className="flex items-center justify-between gap-3">
-          <Button
-            variant="outline"
-            onClick={handleCancel}
-            className="h-12 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Cancel
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleTryAgain}
-            className="h-12 px-6 border-primary/20 hover:bg-primary/5 shadow-sm"
-          >
-            <RefreshCcw className="w-4 h-4 mr-2 text-primary" />
-            Try Again
-          </Button>
-        </div>
-        {/* Row 2 (mobile) / inline right (desktop): Confirm & Save */}
-        <Button
-          onClick={handleConfirm}
-          disabled={
-            isSaving ||
-            (importData.type === "stock"
-              ? stockLots.length === 0
-              : sales.length === 0)
-          }
-          className="h-12 w-full bg-primary hover:bg-primary-active shadow-glow-subtle text-ink-deep gap-2 sm:hidden"
-        >
-          {isSaving ? "Saving..." : "Confirm & Save"}
-          <Save className="w-4 h-4" />
-        </Button>
-        <div className="hidden sm:flex sm:justify-end">
+        <div className="flex flex-col gap-3 pt-8 border-t border-border mt-10">
+          {/* Row 1: Cancel + Try Again */}
+          <div className="flex items-center justify-between gap-3">
+            <Button
+              variant="outline"
+              onClick={handleCancel}
+              className="h-12 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Cancel
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleTryAgain}
+              className="h-12 px-6 border-primary/20 hover:bg-primary/5 shadow-sm"
+            >
+              <RefreshCcw className="w-4 h-4 mr-2 text-primary" />
+              Try Again
+            </Button>
+          </div>
+          {/* Row 2 (mobile) / inline right (desktop): Confirm & Save */}
           <Button
             onClick={handleConfirm}
             disabled={
@@ -679,13 +665,28 @@ export default function AIImportReviewPage() {
                 ? stockLots.length === 0
                 : sales.length === 0)
             }
-            className="h-12 bg-primary hover:bg-primary-active shadow-glow-subtle text-ink-deep gap-2 px-8"
+            className="h-12 w-full bg-primary hover:bg-primary-active shadow-glow-subtle text-ink-deep gap-2 sm:hidden"
           >
             {isSaving ? "Saving..." : "Confirm & Save"}
             <Save className="w-4 h-4" />
           </Button>
+          <div className="hidden sm:flex sm:justify-end">
+            <Button
+              onClick={handleConfirm}
+              disabled={
+                isSaving ||
+                (importData.type === "stock"
+                  ? stockLots.length === 0
+                  : sales.length === 0)
+              }
+              className="h-12 bg-primary hover:bg-primary-active shadow-glow-subtle text-ink-deep gap-2 px-8"
+            >
+              {isSaving ? "Saving..." : "Confirm & Save"}
+              <Save className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
-      </div>
-    </div>
+      </PageBody>
+    </>
   );
 }

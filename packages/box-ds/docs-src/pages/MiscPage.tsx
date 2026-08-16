@@ -2,6 +2,7 @@ import {
   Badge,
   Button,
   CustomTooltip,
+  Pagination,
   Skeleton,
   Table,
   TableBody,
@@ -10,7 +11,22 @@ import {
   TableHeader,
   TableRow,
 } from "@box-ds";
+import { useState } from "react";
 import { GroupHeading, PageHeader, Section } from "../ComponentFrame";
+
+function PaginationDemo() {
+  const [page, setPage] = useState(2);
+  return (
+    <Pagination
+      currentPage={page}
+      pageSize={10}
+      totalCount={47}
+      totalPages={5}
+      unitLabel="products"
+      onPageChange={setPage}
+    />
+  );
+}
 
 export function MiscPage() {
   return (
@@ -97,6 +113,12 @@ export function MiscPage() {
             </TableBody>
           </Table>
         )}
+      />
+
+      <Section
+        title="Pagination"
+        description="Range label plus previous/next. Hidden when there is only one page."
+        render={() => <PaginationDemo />}
       />
 
       <GroupHeading>Tooltip</GroupHeading>

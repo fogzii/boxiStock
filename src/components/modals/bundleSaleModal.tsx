@@ -2,6 +2,7 @@
 
 import {
   Button,
+  CustomTooltip,
   DatePickerInput,
   FormField,
   Input,
@@ -624,14 +625,22 @@ export function BundleSaleButton() {
   const [isOpen, setIsOpen] = React.useState(false);
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setIsOpen(true)}
-        className="flex items-center gap-2 h-9 px-4 text-body-sm-strong text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 rounded-lg transition-all whitespace-nowrap cursor-pointer"
+      <CustomTooltip
+        content={
+          <span className="block max-w-[15rem] leading-relaxed">
+            Sell several products together for one total price.
+          </span>
+        }
       >
-        <PackagePlus className="w-4 h-4" />
-        Bundle sale
-      </button>
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className="flex items-center gap-2 h-9 px-4 text-body-sm-strong text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 rounded-lg transition-all whitespace-nowrap cursor-pointer"
+        >
+          <PackagePlus className="w-4 h-4" />
+          Bundle sale
+        </button>
+      </CustomTooltip>
       <BundleSaleModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
     </>
   );

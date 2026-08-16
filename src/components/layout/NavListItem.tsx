@@ -35,7 +35,7 @@ export function NavListItem({
         isCollapsed ? "px-4 md:px-0 md:justify-center" : "gap-3 px-4",
         isActive
           ? "bg-primary/10 text-primary"
-          : "text-muted-foreground hover:bg-primary/5 hover:text-foreground",
+          : "text-foreground hover:bg-primary/5",
       )}
       title={isCollapsed ? label : undefined}
     >

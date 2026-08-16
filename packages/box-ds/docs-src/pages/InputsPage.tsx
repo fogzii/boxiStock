@@ -1,12 +1,25 @@
 import {
   Button,
+  CountedInput,
   CurrencyInput,
   FormField,
   Input,
   Label,
   SearchInput,
 } from "@box-ds";
+import { useState } from "react";
 import { GroupHeading, PageHeader, Section } from "../ComponentFrame";
+
+function CountedInputDemo() {
+  const [value, setValue] = useState("");
+  return (
+    <CountedInput
+      value={value}
+      onChange={(event) => setValue(event.target.value)}
+      placeholder="Add notes..."
+    />
+  );
+}
 
 export function InputsPage() {
   return (
@@ -40,6 +53,12 @@ export function InputsPage() {
             <Input type="password" placeholder="Password" />
           </div>
         )}
+      />
+
+      <Section
+        title="Counted input"
+        description="Text input with a character counter. Default max is 75."
+        render={() => <CountedInputDemo />}
       />
 
       {/* ── Search input ── */}

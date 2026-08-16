@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   Package,
   PlusCircle,
-  Settings,
   Sparkles,
   Users,
   X,
@@ -33,7 +32,6 @@ const navItems = [
   { href: "/stock", icon: Package, label: "Stock Inventory" },
   { href: "/sales", icon: History, label: "Sales History" },
   { href: "/sharing", icon: Users, label: "Sharing" },
-  { href: "/settings", icon: Settings, label: "Settings" },
 ];
 
 interface SidebarActionButtonProps {
@@ -55,7 +53,7 @@ function SidebarActionButton({
     <button
       type="button"
       className={cn(
-        "bg-primary hover:bg-primary-active text-primary-foreground py-2.5 rounded-xl text-button-md flex items-center justify-center transition-all shadow-glow-primary group",
+        "bg-primary hover:bg-primary-active text-primary-foreground py-2.5 rounded-xl text-button-md flex items-center justify-center transition-all shadow-glow-primary group cursor-pointer",
         isCollapsed ? "md:px-0" : "px-4 gap-2",
       )}
       title={title}
@@ -167,7 +165,7 @@ export function Sidebar({ isOpenMobile, onCloseMobile, user }: SidebarProps) {
               type="button"
               onClick={onCloseMobile}
               aria-label="Close menu"
-              className="md:hidden p-2 -mr-2 text-foreground/70 hover:text-foreground"
+              className="md:hidden -mr-2 cursor-pointer p-2 text-foreground/70 hover:text-foreground"
             >
               <X className="w-5 h-5" />
             </button>
@@ -223,7 +221,7 @@ export function Sidebar({ isOpenMobile, onCloseMobile, user }: SidebarProps) {
           type="button"
           onClick={() => setIsCollapsed(!isCollapsed)}
           aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="hidden md:flex absolute -right-3 top-20 w-6 h-6 bg-background border border-primary/20 rounded-full items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors z-50 shadow-sm"
+          className="hidden md:flex absolute -right-3 top-20 w-6 h-6 bg-background border border-primary/20 rounded-full items-center justify-center text-foreground hover:border-primary/50 transition-colors z-50 shadow-sm cursor-pointer"
         >
           {isCollapsed ? (
             <ChevronRight className="w-4 h-4" />

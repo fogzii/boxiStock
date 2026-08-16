@@ -8,10 +8,7 @@ interface NavLoadingContextValue {
   startLoading: () => void;
 }
 
-const NavLoadingContext = createContext<NavLoadingContextValue>({
-  isLoading: false,
-  startLoading: () => {},
-});
+const NavLoadingContext = createContext<NavLoadingContextValue | null>(null);
 
 export function NavLoadingProvider({
   children,
@@ -36,5 +33,9 @@ export function NavLoadingProvider({
 }
 
 export function useNavLoading() {
-  return useContext(NavLoadingContext);
+  const value = useContext(NavLoadingContext);
+  if (!value) {
+    throw new Error("useNavLoading must be used within a NavLoadingProvider");
+  }
+  return value;
 }

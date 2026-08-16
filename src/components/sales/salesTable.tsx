@@ -1,18 +1,20 @@
 "use client";
 
-import { ActionMenu, Button, Modal, Skeleton } from "@box-ds";
 import {
-  ArrowDown,
-  ArrowUp,
-  ArrowUpDown,
-  ChevronDown,
-  ChevronRight,
-  Edit2,
-  Loader2,
-  Merge,
-  Package,
-  Trash2,
-} from "lucide-react";
+  ActionMenu,
+  Button,
+  Modal,
+  Pagination,
+  Skeleton,
+  SortableTableHead,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@box-ds";
+import { Edit2, Loader2, Merge, Package, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
@@ -21,7 +23,7 @@ import { deleteProductSales, deleteSale } from "@/actions/stock/sales";
 import { EditBundleModal } from "@/components/modals/editBundleModal";
 import { EditSaleModal } from "@/components/modals/editSaleModal";
 import { MergeSaleModal } from "@/components/modals/mergeSaleModal";
-import { TablePagination } from "@/components/ui/TablePagination";
+import { ExpandRowButton } from "@/components/ui/ExpandRowButton";
 import { useReadOnly } from "@/lib/context/readOnly";
 import { formatCurrency } from "@/lib/formatting";
 import type {
@@ -30,6 +32,7 @@ import type {
   ProductSaleGroup,
   SaleWithProductName,
 } from "@/lib/stock/types";
+import { cn } from "@/lib/utils";
 
 type SaleItem = SaleWithProductName;
 
@@ -45,6 +48,8 @@ interface SalesTableProps {
   sort?: string;
   onSortChange?: (sort: string) => void;
   isExternalPending?: boolean;
+  /** Overrides the table's surface — e.g. an opaque card when it overlaps the header. */
+  className?: string;
 }
 
 const SKELETON_ROW_KEYS = Array.from(
@@ -53,7 +58,7 @@ const SKELETON_ROW_KEYS = Array.from(
 );
 
 function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "—";
+  if (!dateStr) return "-";
   return new Date(dateStr).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
@@ -64,9 +69,11 @@ function formatDate(dateStr: string | null | undefined): string {
 function SaleSubRow({
   sale,
   groupProductName,
+  id,
 }: {
   sale: SaleItem;
   groupProductName: string;
+  id?: string;
 }) {
   const isReadOnly = useReadOnly();
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
@@ -86,11 +93,11 @@ function SaleSubRow({
   };
 
   return (
-    <tr className="bg-muted/30 hover:bg-muted/50 transition-colors animate-in fade-in slide-in-from-top-1 duration-150">
-      <td className="px-6 py-3 whitespace-nowrap text-body-sm text-muted-foreground border-l-2 border-primary/50">
-        {formatDate(sale.dateSold ?? sale.createdAt)}
-      </td>
-      <td className="px-6 py-3">
+    <TableRow
+      id={id}
+      className="bg-muted/30 hover:bg-muted/50 transition-colors animate-in fade-in slide-in-from-top-1 duration-150"
+    >
+      <TableCell className="px-6 py-2 border-l-2 border-primary/50">
         <div className="flex items-center gap-2">
           <Package className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
           <span className="text-body-sm text-foreground">
@@ -102,27 +109,28 @@ function SaleSubRow({
             {sale.notes}
           </p>
         )}
-      </td>
-      <td className="px-6 py-3 text-body-sm">{sale.quantitySold}</td>
-      <td className="px-6 py-3 text-body-sm text-muted-foreground">
+      </TableCell>
+      <TableCell className="px-6 py-2 text-right text-body-sm">
+        {sale.quantitySold}
+      </TableCell>
+      <TableCell className="px-6 py-2 text-right text-body-sm text-muted-foreground">
         {formatCurrency(saleBuy)}
-      </td>
-      <td className="px-6 py-3 text-body-sm-strong text-primary">
+      </TableCell>
+      <TableCell className="px-6 py-2 text-right text-body-sm-strong text-primary">
         {formatCurrency(sale.totalSalePrice)}
-      </td>
-      <td
-        className={`px-6 py-3 text-body-sm-strong ${
+      </TableCell>
+      <TableCell
+        className={`px-6 py-2 text-right text-body-sm-strong ${
           sale.totalProfit >= 0 ? "text-positive" : "text-destructive"
         }`}
       >
         {sale.totalProfit >= 0 ? "+" : ""}
         {formatCurrency(sale.totalProfit)}
-      </td>
-      <td
-        className="pl-4 pr-6 py-3 w-px"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-      >
+      </TableCell>
+      <TableCell className="whitespace-nowrap px-6 py-2 text-right text-body-sm text-muted-foreground">
+        {formatDate(sale.dateSold ?? sale.createdAt)}
+      </TableCell>
+      <TableCell className="w-px py-2 pr-6 pl-2">
         {!isReadOnly && (
           <>
             <EditSaleModal sale={sale}>
@@ -155,8 +163,8 @@ function SaleSubRow({
             />
           </>
         )}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -182,51 +190,47 @@ function ProductGroupRow({ group }: { group: ProductSaleGroup }) {
     }
   };
 
+  const salesPanelId = `sales-product-${group.productId}-sales`;
+
   return (
     <>
-      {/* Product group header row — clickable */}
-      <tr
-        className="cursor-pointer hover:bg-primary/5 transition-colors"
-        onClick={() => setIsOpen((o) => !o)}
-      >
-        <td className="px-6 py-4 whitespace-nowrap text-body-sm text-muted-foreground">
-          {formatDate(group.latestDate)}
-        </td>
-        <td className="px-6 py-4">
-          <div className="flex items-center gap-2">
-            {isOpen ? (
-              <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-            )}
+      <TableRow className="hover:bg-primary/5 transition-colors">
+        <TableCell className="px-6 py-2.5">
+          <ExpandRowButton
+            expanded={isOpen}
+            controlsId={salesPanelId}
+            label={`${isOpen ? "Collapse" : "Expand"} ${group.productName}`}
+            onToggle={() => setIsOpen((open) => !open)}
+          >
             <span className="text-body-sm-strong text-foreground">
               {group.productName}
             </span>
             <span className="text-caption text-muted-foreground/50">
               ({saleCount} {saleCount === 1 ? "sale" : "sales"})
             </span>
-          </div>
-        </td>
-        <td className="px-6 py-4 text-body-sm">{group.totalQuantity}</td>
-        <td className="px-6 py-4 text-body-sm text-muted-foreground">
+          </ExpandRowButton>
+        </TableCell>
+        <TableCell className="px-6 py-2.5 text-right text-body-sm">
+          {group.totalQuantity}
+        </TableCell>
+        <TableCell className="px-6 py-2.5 text-right text-body-sm text-muted-foreground">
           {formatCurrency(totalBuy)}
-        </td>
-        <td className="px-6 py-4 text-body-sm-strong text-primary">
+        </TableCell>
+        <TableCell className="px-6 py-2.5 text-right text-body-sm-strong text-primary">
           {formatCurrency(group.totalSalePrice)}
-        </td>
-        <td
-          className={`px-6 py-4 text-body-sm-strong ${
+        </TableCell>
+        <TableCell
+          className={`px-6 py-2.5 text-right text-body-sm-strong ${
             group.totalProfit >= 0 ? "text-positive" : "text-destructive"
           }`}
         >
           {group.totalProfit >= 0 ? "+" : ""}
           {formatCurrency(group.totalProfit)}
-        </td>
-        <td
-          className="pl-4 pr-6 py-4 w-px"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-        >
+        </TableCell>
+        <TableCell className="whitespace-nowrap px-6 py-2.5 text-right text-body-sm text-muted-foreground">
+          {formatDate(group.latestDate)}
+        </TableCell>
+        <TableCell className="w-px py-2.5 pr-6 pl-2">
           {!isReadOnly && (
             <ActionMenu
               items={[
@@ -249,14 +253,14 @@ function ProductGroupRow({ group }: { group: ProductSaleGroup }) {
               ]}
             />
           )}
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
 
-      {/* Individual sale sub-rows */}
       {isOpen &&
-        group.sales.map((sale) => (
+        group.sales.map((sale, index) => (
           <SaleSubRow
             key={sale.id}
+            id={index === 0 ? salesPanelId : undefined}
             sale={sale}
             groupProductName={group.productName}
           />
@@ -330,53 +334,47 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
     }
   }
 
+  const productsPanelId = `sales-bundle-${bundle.bundleId}-products`;
+
   return (
     <>
-      {/* Bundle header row */}
-      <tr
-        className="cursor-pointer hover:bg-primary/5 transition-colors"
-        onClick={() => setIsOpen((o) => !o)}
-      >
-        <td className="px-6 py-4 whitespace-nowrap text-body-sm text-muted-foreground">
-          {formatDate(bundle.dateSold ?? bundle.createdAt)}
-        </td>
-        <td className="px-6 py-4">
-          <div className="flex items-center gap-2">
-            {isOpen ? (
-              <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
-            ) : (
-              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-            )}
+      <TableRow className="hover:bg-primary/5 transition-colors">
+        <TableCell className="px-6 py-2.5">
+          <ExpandRowButton
+            expanded={isOpen}
+            controlsId={productsPanelId}
+            label={`${isOpen ? "Collapse" : "Expand"} ${bundle.bundleName}`}
+            onToggle={() => setIsOpen((open) => !open)}
+          >
             <span className="text-body-sm-strong text-foreground">
               {bundle.bundleName}
             </span>
-            <span className="text-caption bg-primary/15 text-primary px-1.5 py-0.5 rounded">
+            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-caption text-primary">
               Bundle
             </span>
-          </div>
-        </td>
-        <td className="px-6 py-4 text-body-sm">
+          </ExpandRowButton>
+        </TableCell>
+        <TableCell className="px-6 py-2.5 text-right text-body-sm">
           {bundle.products.reduce((s, p) => s + p.totalQuantity, 0)}
-        </td>
-        <td className="px-6 py-4 text-body-sm text-muted-foreground">
+        </TableCell>
+        <TableCell className="px-6 py-2.5 text-right text-body-sm text-muted-foreground">
           {formatCurrency(bundle.totalBuyCost)}
-        </td>
-        <td className="px-6 py-4 text-body-sm-strong text-primary">
+        </TableCell>
+        <TableCell className="px-6 py-2.5 text-right text-body-sm-strong text-primary">
           {formatCurrency(bundle.totalSellPrice)}
-        </td>
-        <td
-          className={`px-6 py-4 text-body-sm-strong ${
+        </TableCell>
+        <TableCell
+          className={`px-6 py-2.5 text-right text-body-sm-strong ${
             bundle.totalProfit >= 0 ? "text-positive" : "text-destructive"
           }`}
         >
           {bundle.totalProfit >= 0 ? "+" : ""}
           {formatCurrency(bundle.totalProfit)}
-        </td>
-        <td
-          className="pl-4 pr-6 py-4 w-px"
-          onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => e.stopPropagation()}
-        >
+        </TableCell>
+        <TableCell className="whitespace-nowrap px-6 py-2.5 text-right text-body-sm text-muted-foreground">
+          {formatDate(bundle.dateSold ?? bundle.createdAt)}
+        </TableCell>
+        <TableCell className="w-px py-2.5 pr-6 pl-2">
           {!isReadOnly && (
             <>
               <EditBundleModal bundle={bundle}>
@@ -407,32 +405,33 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
               />
             </>
           )}
-        </td>
-      </tr>
+        </TableCell>
+      </TableRow>
 
-      {/* Product sub-rows */}
       {isOpen &&
-        bundle.products.map((product) => (
-          <tr
+        bundle.products.map((product, index) => (
+          <TableRow
             key={product.productId ?? product.productName}
+            id={index === 0 ? productsPanelId : undefined}
             className="bg-muted/30 hover:bg-muted/50 transition-colors animate-in fade-in slide-in-from-top-1 duration-150"
           >
-            <td className="pl-14 pr-6 py-3 whitespace-nowrap text-body-sm text-muted-foreground border-l-2 border-primary/50">
-              —
-            </td>
-            <td className="px-6 py-3 text-body-sm flex items-center gap-2">
-              <Package className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-              <span>{product.productName}</span>
-            </td>
-            <td className="px-6 py-3 text-body-sm">{product.totalQuantity}</td>
-            <td className="px-6 py-3 text-body-sm text-muted-foreground">
+            <TableCell className="border-l-2 border-primary/50 py-2 pr-6 pl-14 text-body-sm">
+              <div className="flex items-center gap-2">
+                <Package className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                <span>{product.productName}</span>
+              </div>
+            </TableCell>
+            <TableCell className="px-6 py-2 text-right text-body-sm">
+              {product.totalQuantity}
+            </TableCell>
+            <TableCell className="px-6 py-2 text-right text-body-sm text-muted-foreground">
               {formatCurrency(product.totalBuyCost)}
-            </td>
-            <td className="px-6 py-3 text-body-sm text-muted-foreground/50">
-              —
-            </td>
-            <td
-              className={`px-6 py-3 text-body-sm-strong ${
+            </TableCell>
+            <TableCell className="px-6 py-2 text-right text-body-sm text-muted-foreground/50">
+              -
+            </TableCell>
+            <TableCell
+              className={`px-6 py-2 text-right text-body-sm-strong ${
                 product.allocatedProfit >= 0
                   ? "text-positive"
                   : "text-destructive"
@@ -440,9 +439,12 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
             >
               {product.allocatedProfit >= 0 ? "+" : ""}
               {formatCurrency(product.allocatedProfit)}
-            </td>
-            <td className="pl-4 pr-6 py-3 w-px" />
-          </tr>
+            </TableCell>
+            <TableCell className="whitespace-nowrap px-6 py-2 text-right text-body-sm text-muted-foreground">
+              -
+            </TableCell>
+            <TableCell className="w-px py-2 pr-6 pl-2" />
+          </TableRow>
         ))}
 
       {/* Delete confirmation modal */}
@@ -511,13 +513,14 @@ function parseSortParam(raw: string | undefined): {
   return { field: "date", dir: "desc" };
 }
 
-function SortHeader({
+function SalesSortHeader({
   label,
   field,
   sortField,
   sortDir,
   onSort,
   className,
+  alignRight,
 }: {
   label: string;
   field: SortField;
@@ -525,29 +528,18 @@ function SortHeader({
   sortDir: SortDir;
   onSort: (f: SortField) => void;
   className?: string;
+  alignRight?: boolean;
 }) {
-  const isActive = sortField === field;
   return (
-    <th className={className}>
-      <button
-        type="button"
-        onClick={() => onSort(field)}
-        className={`flex items-center gap-1 transition-colors select-none ${
-          isActive ? "text-foreground" : "hover:text-foreground"
-        }`}
-      >
-        {label}
-        {isActive ? (
-          sortDir === "asc" ? (
-            <ArrowUp className="w-3 h-3 text-primary" />
-          ) : (
-            <ArrowDown className="w-3 h-3 text-primary" />
-          )
-        ) : (
-          <ArrowUpDown className="w-3 h-3 opacity-30" />
-        )}
-      </button>
-    </th>
+    <SortableTableHead
+      className={className}
+      active={sortField === field}
+      direction={sortDir}
+      align={alignRight ? "right" : "left"}
+      onToggle={() => onSort(field)}
+    >
+      {label}
+    </SortableTableHead>
   );
 }
 
@@ -561,6 +553,7 @@ export function SalesTable({
   sort: sortProp,
   onSortChange,
   isExternalPending = false,
+  className,
 }: SalesTableProps) {
   const router = useRouter();
   const [internalPending, startTransition] = React.useTransition();
@@ -586,137 +579,155 @@ export function SalesTable({
   };
 
   const handlePageChange = (page: number) => {
-    startTransition(() => {
-      if (onPageChange) {
+    if (onPageChange) {
+      startTransition(() => {
         onPageChange(page);
-      } else {
-        const params = new URLSearchParams(window.location.search);
-        params.set("page", String(page));
-        router.push(`/sales?${params.toString()}`, { scroll: false });
-      }
+      });
+      return;
+    }
+    startTransition(() => {
+      const params = new URLSearchParams(window.location.search);
+      params.set("page", String(page));
+      router.push(`/sales?${params.toString()}`, { scroll: false });
     });
   };
 
   return (
     <>
-      <div className="bg-card/50 backdrop-blur-md rounded-xl border border-border overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-body-sm text-left">
-            <thead className="text-caption text-muted-foreground uppercase bg-muted/20 border-b border-border">
-              <tr>
-                <SortHeader
-                  label="Date"
-                  field="date"
-                  sortField={sortField}
-                  sortDir={sortDir}
-                  onSort={handleSort}
-                  className="px-6 py-4"
-                />
-                <SortHeader
-                  label="Product"
-                  field="product"
-                  sortField={sortField}
-                  sortDir={sortDir}
-                  onSort={handleSort}
-                  className="px-6 py-4"
-                />
-                <SortHeader
-                  label="Quantity"
-                  field="quantity"
-                  sortField={sortField}
-                  sortDir={sortDir}
-                  onSort={handleSort}
-                  className="px-6 py-4"
-                />
-                <SortHeader
-                  label="Buy"
-                  field="buy"
-                  sortField={sortField}
-                  sortDir={sortDir}
-                  onSort={handleSort}
-                  className="px-6 py-4"
-                />
-                <SortHeader
-                  label="Sell"
-                  field="sell"
-                  sortField={sortField}
-                  sortDir={sortDir}
-                  onSort={handleSort}
-                  className="px-6 py-4"
-                />
-                <SortHeader
-                  label="Net Profit"
-                  field="profit"
-                  sortField={sortField}
-                  sortDir={sortDir}
-                  onSort={handleSort}
-                  className="px-6 py-4"
-                />
-                <th className="pl-4 pr-6 py-4 w-[72px]" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {isPending ? (
-                SKELETON_ROW_KEYS.map((key) => (
-                  <tr key={key} className="hover:bg-muted/10 transition-colors">
-                    <td className="px-6 py-4">
-                      <Skeleton className="h-5 w-24" />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <Skeleton className="h-4 w-4 rounded" />
-                        <Skeleton className="h-5 w-40" />
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
+      <div
+        className={cn(
+          "min-w-0 max-w-full overflow-hidden rounded-xl border border-border bg-card/50 backdrop-blur-md",
+          className,
+        )}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow className="border-b border-border bg-canvas-soft text-caption text-muted-foreground uppercase hover:bg-canvas-soft">
+              <SalesSortHeader
+                label="Product"
+                field="product"
+                sortField={sortField}
+                sortDir={sortDir}
+                onSort={handleSort}
+                className="px-6 py-4"
+              />
+              <SalesSortHeader
+                alignRight
+                label="Quantity"
+                field="quantity"
+                sortField={sortField}
+                sortDir={sortDir}
+                onSort={handleSort}
+                className="px-6 py-4"
+              />
+              <SalesSortHeader
+                alignRight
+                label="Buy"
+                field="buy"
+                sortField={sortField}
+                sortDir={sortDir}
+                onSort={handleSort}
+                className="px-6 py-4"
+              />
+              <SalesSortHeader
+                alignRight
+                label="Sell"
+                field="sell"
+                sortField={sortField}
+                sortDir={sortDir}
+                onSort={handleSort}
+                className="px-6 py-4"
+              />
+              <SalesSortHeader
+                alignRight
+                label="Net Profit"
+                field="profit"
+                sortField={sortField}
+                sortDir={sortDir}
+                onSort={handleSort}
+                className="px-6 py-4"
+              />
+              <SalesSortHeader
+                alignRight
+                label="Date"
+                field="date"
+                sortField={sortField}
+                sortDir={sortDir}
+                onSort={handleSort}
+                className="px-6 py-4"
+              />
+              <TableHead className="w-[56px] py-4 pr-6 pl-2" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isPending ? (
+              SKELETON_ROW_KEYS.map((key) => (
+                <TableRow
+                  key={key}
+                  className="hover:bg-muted/10 transition-colors"
+                >
+                  <TableCell className="px-6 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-4 w-4 rounded" />
+                      <Skeleton className="h-5 w-40" />
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-6 py-2.5">
+                    <div className="flex justify-end">
                       <Skeleton className="h-5 w-12" />
-                    </td>
-                    <td className="px-6 py-4">
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-6 py-2.5">
+                    <div className="flex justify-end">
                       <Skeleton className="h-5 w-20" />
-                    </td>
-                    <td className="px-6 py-4">
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-6 py-2.5">
+                    <div className="flex justify-end">
                       <Skeleton className="h-5 w-20" />
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex justify-end">
-                        <Skeleton className="h-5 w-20" />
-                      </div>
-                    </td>
-                    <td className="pl-4 pr-6 py-4 w-px">
-                      <Skeleton className="h-5 w-5" />
-                    </td>
-                  </tr>
-                ))
-              ) : items.length > 0 ? (
-                items.map((item) =>
-                  item.kind === "product" ? (
-                    <ProductGroupRow
-                      key={item.data.productId}
-                      group={item.data}
-                    />
-                  ) : (
-                    <BundleGroupRow
-                      key={item.data.bundleId}
-                      bundle={item.data}
-                    />
-                  ),
-                )
-              ) : (
-                <tr>
-                  <td
-                    colSpan={7}
-                    className="px-6 py-8 text-center text-muted-foreground"
-                  >
-                    No sales history found.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-6 py-2.5">
+                    <div className="flex justify-end">
+                      <Skeleton className="h-5 w-20" />
+                    </div>
+                  </TableCell>
+                  <TableCell className="px-6 py-2.5">
+                    <div className="flex justify-end">
+                      <Skeleton className="h-5 w-24" />
+                    </div>
+                  </TableCell>
+                  <TableCell className="w-px py-2.5 pr-6 pl-2">
+                    <Skeleton className="h-5 w-5" />
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : items.length > 0 ? (
+              items.map((item) =>
+                item.kind === "product" ? (
+                  <ProductGroupRow
+                    key={item.data.productId}
+                    group={item.data}
+                  />
+                ) : (
+                  <BundleGroupRow key={item.data.bundleId} bundle={item.data} />
+                ),
+              )
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="px-6 py-8 text-center text-muted-foreground"
+                >
+                  No sales history found.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
 
-      <TablePagination
+      <Pagination
         currentPage={currentPage}
         pageSize={pageSize}
         totalCount={total}

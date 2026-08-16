@@ -16,8 +16,8 @@ import { StockFilters } from "@/components/stock/StockFilters";
 import type { ProductWithLots } from "@/components/stock/stockTable";
 import { StockTable } from "@/components/stock/stockTable";
 import { ProfitChart } from "@/components/ui/ProfitChart";
-import { SearchInput } from "@/components/ui/SearchInput";
 import { StatCard } from "@/components/ui/StatCard";
+import { UrlSearchInput } from "@/components/ui/UrlSearchInput";
 import { ReadOnlyProvider } from "@/lib/context/readOnly";
 import { cn } from "@/lib/utils";
 
@@ -205,7 +205,7 @@ export function ShareContent({
         {activeTab === "stock" && (
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <SearchInput
+              <UrlSearchInput
                 placeholder="Search product names..."
                 paramKey="stockSearch"
                 pageParamKey="stockPage"
@@ -218,7 +218,6 @@ export function ShareContent({
                 sortParamKey="stockSort"
                 statusParamKey="stockStatus"
                 pageParamKey="stockPage"
-                showBundleSale={false}
                 showValueSort={!hideStockAmounts}
               />
             </div>
@@ -241,7 +240,7 @@ export function ShareContent({
               <h2 className="font-display text-display-xs text-foreground">
                 Sales History
               </h2>
-              <SearchInput
+              <UrlSearchInput
                 placeholder="Search product or bundle names..."
                 paramKey="salesSearch"
                 pageParamKey="salesPage"

@@ -11,7 +11,20 @@ interface ToggleSwitchProps {
   disabled?: boolean;
   className?: string;
   id?: string;
+  /**
+   * `md` (default) is the form-row switch. `lg` is for switches that stand on
+   * their own next to other controls, where the `md` track reads undersized.
+   */
+  size?: "md" | "lg";
 }
+
+// Each track is padded 2px around its knob, so the checked offset is
+// track − knob − 2: 36 − 16 − 2 = 18px (`translate-x-4.5`), 44 − 20 − 2 = 22px
+// (`translate-x-5.5`).
+const switchSizes = {
+  md: { track: "h-5 w-9", knob: "size-4", checked: "translate-x-4.5" },
+  lg: { track: "h-6 w-11", knob: "size-5", checked: "translate-x-5.5" },
+} as const;
 
 function ToggleSwitch({
   checked,
@@ -20,7 +33,10 @@ function ToggleSwitch({
   disabled,
   className,
   id,
+  size = "md",
 }: ToggleSwitchProps) {
+  const sizing = switchSizes[size];
+
   return (
     <button
       type="button"
@@ -42,15 +58,17 @@ function ToggleSwitch({
       <span
         aria-hidden="true"
         className={cn(
-          "relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+          "relative inline-flex shrink-0 items-center rounded-full transition-colors",
           "group-focus-visible/switch:ring-3 group-focus-visible/switch:ring-ring/50",
+          sizing.track,
           checked ? "bg-primary" : "bg-primary/15",
         )}
       >
         <span
           className={cn(
-            "size-4 rounded-full bg-ink-deep shadow-sm transition-transform",
-            checked ? "translate-x-4.5" : "translate-x-0.5",
+            "rounded-full bg-ink-deep shadow-sm transition-transform",
+            sizing.knob,
+            checked ? sizing.checked : "translate-x-0.5",
           )}
         />
       </span>

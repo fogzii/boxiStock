@@ -1,9 +1,9 @@
 "use client";
 
+import { SegmentedControl } from "@box-ds";
 import { ArrowUpDown, Check, ChevronDown, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import * as React from "react";
-import { BundleSaleButton } from "@/components/modals/bundleSaleModal";
 import { cn } from "@/lib/utils";
 
 const SORT_OPTIONS = [
@@ -26,12 +26,10 @@ interface StockFiltersProps {
   currentSort?: string;
   currentStatus?: string;
   onNavigate?: (url: string) => void;
-  totalStockValue?: number;
   isPending?: boolean;
   sortParamKey?: string;
   statusParamKey?: string;
   pageParamKey?: string;
-  showBundleSale?: boolean;
   showValueSort?: boolean;
 }
 
@@ -39,12 +37,10 @@ export function StockFilters({
   currentSort,
   currentStatus,
   onNavigate,
-  totalStockValue,
   isPending = false,
   sortParamKey = "sort",
   statusParamKey = "status",
   pageParamKey = "page",
-  showBundleSale = true,
   showValueSort = true,
 }: StockFiltersProps) {
   const searchParams = useSearchParams();
@@ -65,9 +61,21 @@ export function StockFilters({
       );
 
   const activeSort = currentSort ?? "";
-  const activeStatus = currentStatus ?? "all";
+  // Resolved against the options rather than taken raw, so the param types the
+  // tab value and an unknown `?status=` falls back to All.
+  const activeStatus =
+    STATUS_OPTIONS.find((o) => o.value === currentStatus)?.value ?? "all";
   const activeSortLabel =
     sortOptions.find((o) => o.value === activeSort)?.label ?? "Recent first";
+
+  // The tab fills in on click rather than when the navigation lands: the URL
+  // is the source of truth, but waiting on the round trip left the pill on the
+  // old status while the table was already showing its skeleton. The effect
+  // re-syncs once `activeStatus` catches up, which also covers back/forward.
+  const [selectedStatus, setSelectedStatus] = React.useState(activeStatus);
+  React.useEffect(() => {
+    setSelectedStatus(activeStatus);
+  }, [activeStatus]);
 
   function pushParams(
     updates: Record<string, string | undefined>,
@@ -91,7 +99,6 @@ export function StockFilters({
     }
   }
 
-  // Close dropdown on outside click
   React.useEffect(() => {
     if (!sortOpen) return;
     function handleClick(e: MouseEvent) {
@@ -107,45 +114,30 @@ export function StockFilters({
   }, [sortOpen]);
 
   return (
-    <div className="flex items-center gap-3 flex-wrap">
-      {/* Total stock value + bundle sale */}
-      {totalStockValue !== undefined && (
-        <div className="flex items-center gap-3 mr-auto">
-          <div className="flex items-center gap-1.5 text-body-sm">
-            <span className="text-muted-foreground">Total Stock Value:</span>
-            <span className="text-body-sm-strong text-foreground">
-              $
-              {totalStockValue.toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </span>
-          </div>
-          {showBundleSale && <BundleSaleButton />}
-        </div>
-      )}
-
-      {/* Sort custom dropdown */}
-      <div ref={dropdownRef} className="relative">
+    <div className="flex w-full min-w-0 flex-col gap-3 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+      <div
+        ref={dropdownRef}
+        className="relative w-full min-w-0 sm:w-auto sm:min-w-[190px] sm:flex-none"
+      >
         <button
           type="button"
           onClick={() => setSortOpen((o) => !o)}
-          className="flex items-center gap-2 h-9 pl-3 pr-2.5 text-body-sm rounded-lg border border-primary/20 bg-background/50 text-foreground hover:bg-primary/5 hover:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring/50 transition-colors min-w-[190px] justify-between"
+          className="flex h-10 w-full min-w-0 cursor-pointer items-center justify-between gap-2 rounded-lg border border-primary/20 bg-background/50 pl-3 pr-2.5 text-body-sm text-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 focus:outline-none focus:ring-2 focus:ring-ring/50 sm:min-w-[190px]"
         >
-          <span className="flex items-center gap-2">
-            <ArrowUpDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            <span>{activeSortLabel}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <ArrowUpDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            <span className="truncate">{activeSortLabel}</span>
           </span>
           <ChevronDown
             className={cn(
-              "w-3.5 h-3.5 text-muted-foreground transition-transform duration-150 shrink-0",
+              "h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform duration-150",
               sortOpen && "rotate-180",
             )}
           />
         </button>
 
         {sortOpen && (
-          <div className="absolute top-full left-0 mt-1 z-50 w-full min-w-[190px] rounded-lg border border-primary/20 bg-card shadow-lg shadow-black/20 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-100">
+          <div className="absolute top-full left-0 z-50 mt-1 w-full min-w-[190px] overflow-hidden rounded-lg border border-primary/20 bg-card shadow-lg shadow-black/20 animate-in fade-in slide-in-from-top-1 duration-100">
             {sortOptions.map((opt) => {
               const isSelected = activeSort === opt.value;
               const isThisPending =
@@ -163,17 +155,17 @@ export function StockFilters({
                   }}
                   disabled={isPending}
                   className={cn(
-                    "w-full flex items-center justify-between px-3 py-2 text-body-sm transition-colors",
+                    "flex w-full cursor-pointer items-center justify-between px-3 py-2 text-body-sm transition-colors disabled:pointer-events-none disabled:cursor-not-allowed",
                     isSelected
-                      ? "bg-primary/10 text-primary text-body-sm-strong"
+                      ? "bg-primary/10 text-body-sm-strong text-primary"
                       : "text-foreground hover:bg-primary/5 hover:text-primary",
                   )}
                 >
                   {opt.label}
                   {isThisPending ? (
-                    <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+                    <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
                   ) : (
-                    isSelected && <Check className="w-3.5 h-3.5 shrink-0" />
+                    isSelected && <Check className="h-3.5 w-3.5 shrink-0" />
                   )}
                 </button>
               );
@@ -182,43 +174,16 @@ export function StockFilters({
         )}
       </div>
 
-      {/* Status pills */}
-      <div className="flex items-center border border-primary/20 rounded-lg overflow-hidden bg-background/50">
-        {STATUS_OPTIONS.map((opt) => {
-          const isActive = activeStatus === opt.value;
-          const isThisPending =
-            isPending && pendingKey === `status-${opt.value}`;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() =>
-                pushParams(
-                  { [statusParamKey]: opt.value },
-                  `status-${opt.value}`,
-                )
-              }
-              disabled={isPending}
-              className={cn(
-                "px-3 h-9 text-body-sm-strong transition-colors inline-flex items-center gap-1.5",
-                isActive
-                  ? opt.value === "stocked"
-                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                    : opt.value === "pending"
-                      ? "bg-yellow-500/15 text-yellow-600 dark:text-yellow-400"
-                      : "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-primary/5 hover:text-foreground",
-                "border-r border-primary/20 last:border-r-0",
-              )}
-            >
-              {isThisPending && (
-                <Loader2 className="w-3 h-3 animate-spin shrink-0" />
-              )}
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
+      <SegmentedControl
+        className="w-full min-w-0 sm:w-auto sm:flex-none"
+        ariaLabel="Stock status"
+        items={STATUS_OPTIONS}
+        value={selectedStatus}
+        onChange={(next) => {
+          setSelectedStatus(next);
+          pushParams({ [statusParamKey]: next }, `status-${next}`);
+        }}
+      />
     </div>
   );
 }

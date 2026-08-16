@@ -1,5 +1,6 @@
-import { ActionMenu, Badge, Button } from "@box-ds";
+import { ActionMenu, Badge, Button, SegmentedControl } from "@box-ds";
 import { ArrowRight, Copy, Edit2, GitMerge, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { GroupHeading, PageHeader, Section } from "../ComponentFrame";
 
 // ─── Badge helpers ────────────────────────────────────────────────────────────
@@ -27,6 +28,22 @@ function BadgeExample({
         variant="{variant}"
       </code>
     </div>
+  );
+}
+
+function SegmentedControlDemo() {
+  const [value, setValue] = useState<"all" | "stocked" | "pending">("all");
+  return (
+    <SegmentedControl
+      ariaLabel="Status"
+      items={[
+        { value: "all", label: "All" },
+        { value: "stocked", label: "In Stock" },
+        { value: "pending", label: "Pending" },
+      ]}
+      value={value}
+      onChange={setValue}
+    />
   );
 }
 
@@ -108,6 +125,15 @@ export function ActionsPage() {
             <Button variant="default">Loading…</Button>
           </div>
         )}
+      />
+
+      {/* ── Segmented control ── */}
+      <GroupHeading>Segmented control</GroupHeading>
+
+      <Section
+        title="Value selector"
+        description="Mutually exclusive options with radio-group semantics. Use this for filters and modes, not tab panels."
+        render={() => <SegmentedControlDemo />}
       />
 
       {/* ── Badge ── */}

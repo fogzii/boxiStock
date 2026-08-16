@@ -9,7 +9,7 @@ import {
   CardTitle,
   FormField,
   Input,
-  Tabs,
+  SegmentedControl,
 } from "@box-ds";
 import {
   Check,
@@ -56,7 +56,7 @@ interface SharingClientProps {
 const TABS = [
   { value: "invite", label: "Invite Only" },
   { value: "public", label: "Public" },
-];
+] as const;
 
 type SharingTab = "invite" | "public";
 
@@ -244,10 +244,11 @@ export function SharingClient({
 
   return (
     <div className="flex flex-col gap-8">
-      <Tabs
-        tabs={TABS}
+      <SegmentedControl
+        ariaLabel="Sharing mode"
+        items={TABS}
         value={activeTab}
-        onChange={(v) => setActiveTab(v as SharingTab)}
+        onChange={setActiveTab}
       />
 
       {activeTab === "public" ? (

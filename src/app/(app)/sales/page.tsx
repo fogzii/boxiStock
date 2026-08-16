@@ -1,9 +1,19 @@
-import { TrendingUp, Wallet } from "lucide-react";
+import { Suspense } from "react";
 import { getSalesMetrics } from "@/actions/stock/metrics";
 import { getCombinedSalesGrouped } from "@/actions/stock/sales";
+import { PageBody } from "@/components/layout/PageBody";
+import { PageHeader } from "@/components/layout/PageHeader";
+import { surfaceOnHeader } from "@/components/layout/pageContainer";
 import { SalesTable } from "@/components/sales/salesTable";
-import { SearchInput } from "@/components/ui/SearchInput";
-import { StatCard } from "@/components/ui/StatCard";
+import { UrlSearchInput } from "@/components/ui/UrlSearchInput";
+import { formatCurrency } from "@/lib/formatting";
+
+const searchField = (
+  <UrlSearchInput
+    placeholder="Search sales..."
+    containerClassName="w-full sm:max-w-[320px]"
+  />
+);
 
 export default async function SalesPage({
   searchParams,
@@ -16,53 +26,101 @@ export default async function SalesPage({
   const sortParam = unresolvedParams?.sort ?? "date_desc";
   const pageSize = 10;
 
-  const [metrics, combined] = await Promise.all([
-    getSalesMetrics(),
-    getCombinedSalesGrouped(currentPage, pageSize, searchParamStr, sortParam),
-  ]);
+  return (
+    <>
+      <Suspense
+        fallback={
+          <PageHeader
+            title="Sales History"
+            overlap
+            actions={searchField}
+            statsLoading={3}
+          />
+        }
+      >
+        <SalesHeader />
+      </Suspense>
 
-  const formatter = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  });
+      <PageBody overlap>
+        <Suspense
+          fallback={
+            <SalesTable
+              className={surfaceOnHeader}
+              items={[]}
+              total={0}
+              totalPages={1}
+              currentPage={currentPage}
+              pageSize={pageSize}
+              sort={sortParam}
+              isExternalPending
+            />
+          }
+        >
+          <SalesContent
+            currentPage={currentPage}
+            pageSize={pageSize}
+            search={searchParamStr}
+            sort={sortParam}
+          />
+        </Suspense>
+      </PageBody>
+    </>
+  );
+}
+
+async function SalesHeader() {
+  const metrics = await getSalesMetrics();
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pt-6 sm:pt-8">
-      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="font-display text-display-md text-foreground">
-          Sales History
-        </h1>
-        <SearchInput placeholder="Search product or bundle names..." />
-      </div>
+    <PageHeader
+      title="Sales History"
+      overlap
+      actions={searchField}
+      stats={[
+        {
+          label: "Total Sales Today",
+          value: formatCurrency(metrics.totalSalesToday),
+        },
+        {
+          label: "Net Profit (Week)",
+          value: formatCurrency(metrics.netProfitWeek),
+        },
+        {
+          label: "Net Profit (Lifetime)",
+          value: formatCurrency(metrics.netProfitLifetime),
+        },
+      ]}
+    />
+  );
+}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <StatCard
-          title="Total Sales Today"
-          value={formatter.format(metrics.totalSalesToday)}
-          icon={Wallet}
-        />
-        <StatCard
-          title="Net Profit (Week)"
-          value={formatter.format(metrics.netProfitWeek)}
-          icon={TrendingUp}
-        />
-        <StatCard
-          title="Net Profit (Lifetime)"
-          value={formatter.format(metrics.netProfitLifetime)}
-          icon={TrendingUp}
-        />
-      </div>
+async function SalesContent({
+  currentPage,
+  pageSize,
+  search,
+  sort,
+}: {
+  currentPage: number;
+  pageSize: number;
+  search?: string;
+  sort: string;
+}) {
+  const combined = await getCombinedSalesGrouped(
+    currentPage,
+    pageSize,
+    search,
+    sort,
+  );
 
-      {/* Sales Table and Pagination */}
-      <SalesTable
-        items={combined.items}
-        total={combined.total}
-        totalPages={combined.totalPages}
-        currentPage={currentPage}
-        pageSize={pageSize}
-        sort={sortParam}
-      />
-    </div>
+  return (
+    <SalesTable
+      className={surfaceOnHeader}
+      items={combined.items}
+      total={combined.total}
+      totalPages={combined.totalPages}
+      currentPage={currentPage}
+      pageSize={pageSize}
+      sort={sort}
+    />
   );
 }

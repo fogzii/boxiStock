@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@box-ds";
 
 interface StatusToggleProps {
   value: boolean;
@@ -12,31 +12,14 @@ export function StatusToggle({
   onChange,
 }: StatusToggleProps) {
   return (
-    <div className="flex p-1 bg-canvas border border-body rounded-lg">
-      <button
-        type="button"
-        onClick={() => onChange(true)}
-        className={cn(
-          "flex-1 py-1.5 text-body-sm-strong rounded-md transition-all",
-          isStocked
-            ? "bg-primary text-primary-foreground shadow-sm"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        In Hand
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange(false)}
-        className={cn(
-          "flex-1 py-1.5 text-body-sm-strong rounded-md transition-all",
-          !isStocked
-            ? "bg-primary text-primary-foreground shadow-sm"
-            : "text-muted-foreground hover:text-foreground",
-        )}
-      >
-        Pending
-      </button>
-    </div>
+    <SegmentedControl
+      ariaLabel="Stock status"
+      items={[
+        { value: "stocked", label: "In Hand" },
+        { value: "pending", label: "Pending" },
+      ]}
+      value={isStocked ? "stocked" : "pending"}
+      onChange={(next) => onChange(next === "stocked")}
+    />
   );
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  Button,
   CustomTooltip,
+  Pagination,
   Skeleton,
   Table,
   TableBody,
@@ -12,8 +14,6 @@ import {
 } from "@box-ds";
 import {
   ArrowLeftRight,
-  ChevronDown,
-  ChevronRight,
   DollarSign,
   Package,
   Plus,
@@ -31,7 +31,7 @@ import { AddLotModal } from "@/components/modals/addLotModal";
 import { EditProductModal } from "@/components/modals/editProductModal";
 import { SellAllModal } from "@/components/modals/sellAllModal";
 import { LotCard } from "@/components/stock/lotCard";
-import { TablePagination } from "@/components/ui/TablePagination";
+import { ExpandRowButton } from "@/components/ui/ExpandRowButton";
 import {
   useHideProjectedProfit,
   useHideSellPrice,
@@ -96,6 +96,8 @@ interface StockTableProps {
   pageSize?: number;
   onPageChange?: (page: number) => void;
   isExternalPending?: boolean;
+  /** Overrides the table's surface — e.g. an opaque card when it overlaps the header. */
+  className?: string;
 }
 
 const SKELETON_ROW_KEYS = Array.from(
@@ -188,60 +190,49 @@ function ProductRow({
       ? projectedProfitTotal(lots, product.sellPrice)
       : toSellPrice(product.sellPrice);
 
+  const lotsPanelId = `stock-product-${product.id}-lots`;
+
   return (
     <>
-      {/* Collapsed Product Row in table */}
-      <TableRow
-        className="cursor-pointer hover:bg-primary/5 transition-colors"
-        onClick={(e) => {
-          // The edit modal portals into document.body, but React still bubbles
-          // its events up the component tree — so a click on Cancel or the
-          // backdrop would otherwise toggle this row open behind the modal.
-          // Only react to clicks that physically landed inside the row.
-          if (!e.currentTarget.contains(e.target as Node)) return;
-          setIsOpen(!isOpen);
-        }}
-      >
-        <TableCell className="px-5 py-4">
+      <TableRow className="hover:bg-primary/5 transition-colors">
+        <TableCell className="px-6 py-4">
           <div className="flex items-center gap-3">
-            {isOpen ? (
-              <ChevronDown className="w-5 h-5 text-muted-foreground shrink-0" />
-            ) : (
-              <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
-            )}
-            <div className="flex items-center gap-3">
+            <ExpandRowButton
+              expanded={isOpen}
+              controlsId={lotsPanelId}
+              label={`${isOpen ? "Collapse" : "Expand"} ${product.name}`}
+              onToggle={() => setIsOpen((open) => !open)}
+              iconClassName="h-5 w-5"
+            >
               <span className="text-body-sm-strong text-foreground">
                 {product.name}
               </span>
-              {!isReadOnly && (
-                <EditProductModal product={product}>
-                  {(open) => (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        open();
-                      }}
-                      className="text-caption text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                    >
-                      Edit row
-                    </button>
-                  )}
-                </EditProductModal>
-              )}
-            </div>
+            </ExpandRowButton>
+            {!isReadOnly && (
+              <EditProductModal product={product}>
+                {(open) => (
+                  <button
+                    type="button"
+                    onClick={open}
+                    className="cursor-pointer text-caption text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Edit row
+                  </button>
+                )}
+              </EditProductModal>
+            )}
           </div>
         </TableCell>
-        <TableCell className="px-5 py-4 text-right text-body-sm w-[250px] text-foreground">
+        <TableCell className="px-6 py-4 text-right text-body-sm w-[250px] text-foreground">
           {totalStock} Units
         </TableCell>
         {!hideAmounts && (
-          <TableCell className="px-5 py-4 text-right text-body-sm-strong w-[250px] text-foreground">
+          <TableCell className="px-6 py-4 text-right text-body-sm-strong w-[250px] text-foreground">
             ${totalValue.toFixed(2)}
           </TableCell>
         )}
         {showProjectionColumn && (
-          <TableCell className="px-5 py-4 text-right text-body-sm-strong w-[250px]">
+          <TableCell className="px-6 py-4 text-right text-body-sm-strong w-[250px]">
             {projectedValue === null ? (
               <CustomTooltip content="No sell price set for this product yet. Use “Edit row” to set one.">
                 <span className="text-muted-foreground cursor-default">NA</span>
@@ -263,14 +254,14 @@ function ProductRow({
 
       {/* Expanded Content below row */}
       {isOpen && (
-        <TableRow className="bg-primary/[0.06]">
+        <TableRow id={lotsPanelId} className="bg-primary/[0.06]">
           <TableCell
             colSpan={2 + (hideAmounts ? 0 : 1) + (showProjectionColumn ? 1 : 0)}
             className="p-0"
           >
             <div className="animate-in fade-in slide-in-from-top-2 duration-200 border-t border-primary/20">
               {/* Lot Sub-Header (desktop only) */}
-              <div className="hidden md:flex md:items-center px-5 py-2 border-t border-primary/20 text-caption uppercase tracking-widest text-muted-foreground">
+              <div className="hidden md:flex md:items-center px-6 py-2 border-t border-primary/20 text-caption uppercase tracking-widest text-muted-foreground">
                 <span className="flex-1">Lot Identity</span>
                 <span className="w-[250px] text-right">
                   {hideAmounts ? "Quantity" : "Quantity & Unit Price"}
@@ -293,18 +284,14 @@ function ProductRow({
 
               {/* Row actions: Sell All + Add More Stock */}
               {!isReadOnly && (
-                <div className="px-5 py-3 border-t border-primary/10 flex items-center gap-3">
+                <div className="px-6 py-3 border-t border-primary/10 flex items-center gap-3">
                   {sellableStock > 0 && (
                     <SellAllModal product={product}>
                       {(open) => (
-                        <button
-                          type="button"
-                          onClick={open}
-                          className="flex items-center gap-2 text-caption text-primary-foreground bg-primary hover:bg-primary-active px-3 py-1.5 rounded-md transition-all"
-                        >
-                          <ShoppingCart className="w-3.5 h-3.5" />
+                        <Button type="button" size="sm" onClick={open}>
+                          <ShoppingCart />
                           Sell all
-                        </button>
+                        </Button>
                       )}
                     </SellAllModal>
                   )}
@@ -313,14 +300,15 @@ function ProductRow({
                     productName={product.name}
                   >
                     {(open) => (
-                      <button
+                      <Button
                         type="button"
+                        size="sm"
+                        variant="outline"
                         onClick={open}
-                        className="flex items-center gap-2 text-caption text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 border border-primary/20 hover:border-primary/40 px-3 py-1.5 rounded-md transition-all"
                       >
-                        <Plus className="w-3.5 h-3.5" />
+                        <Plus />
                         Add more stock
-                      </button>
+                      </Button>
                     )}
                   </AddLotModal>
                 </div>
@@ -341,6 +329,7 @@ export function StockTable({
   pageSize = 10,
   onPageChange,
   isExternalPending = false,
+  className,
 }: StockTableProps) {
   const router = useRouter();
   const hideAmounts = useHideStockAmounts();
@@ -366,14 +355,14 @@ export function StockTable({
   const showSkeleton = isPending || isExternalPending;
 
   const handlePageChange = (page: number) => {
+    if (onPageChange) {
+      onPageChange(page);
+      return;
+    }
     startTransition(() => {
-      if (onPageChange) {
-        onPageChange(page);
-      } else {
-        const params = new URLSearchParams(window.location.search);
-        params.set("page", String(page));
-        router.push(`/stock?${params.toString()}`, { scroll: false });
-      }
+      const params = new URLSearchParams(window.location.search);
+      params.set("page", String(page));
+      router.push(`/stock?${params.toString()}`, { scroll: false });
     });
   };
 
@@ -392,19 +381,24 @@ export function StockTable({
   }
 
   return (
-    <div className="rounded-2xl border border-primary/10 overflow-hidden bg-background shadow-sm">
+    <div
+      className={cn(
+        "min-w-0 max-w-full overflow-hidden rounded-xl border border-border bg-card/50 backdrop-blur-md",
+        className,
+      )}
+    >
       <Table>
         <TableHeader>
-          <TableRow className="bg-primary/5 text-muted-foreground text-caption uppercase tracking-widest hover:bg-primary/5">
-            <TableHead className="px-5 py-2">Product</TableHead>
-            <TableHead className="px-5 py-2 text-right w-[250px]">
+          <TableRow className="bg-muted/20 border-b border-border text-muted-foreground text-caption uppercase hover:bg-muted/20">
+            <TableHead className="px-6 py-4">Product</TableHead>
+            <TableHead className="px-6 py-4 text-right w-[250px]">
               <span className="inline-flex items-center justify-end gap-2 w-full">
                 <Package className="w-4 h-4 text-primary" />
                 Total Stock
               </span>
             </TableHead>
             {!hideAmounts && (
-              <TableHead className="px-5 py-2 text-right w-[250px]">
+              <TableHead className="px-6 py-4 text-right w-[250px]">
                 <span className="inline-flex items-center justify-end gap-2 w-full">
                   <DollarSign className="w-4 h-4 text-primary" />
                   Total Value
@@ -412,7 +406,7 @@ export function StockTable({
               </TableHead>
             )}
             {showProjectionColumn && (
-              <TableHead className="px-5 py-2 text-right w-[250px]">
+              <TableHead className="px-6 py-4 text-right w-[250px]">
                 <span className="inline-flex items-center justify-end gap-2 w-full">
                   <TrendingUp className="w-4 h-4 text-primary" />
                   {PROJECTION_LABEL[projectionView]}
@@ -450,26 +444,26 @@ export function StockTable({
                   key={key}
                   className="hover:bg-primary/5 transition-colors"
                 >
-                  <TableCell className="px-5 py-4">
+                  <TableCell className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <Skeleton className="w-5 h-5 rounded-md" />
                       <Skeleton className="h-5 w-48" />
                     </div>
                   </TableCell>
-                  <TableCell className="px-5 py-4 w-[250px]">
+                  <TableCell className="px-6 py-4 w-[250px]">
                     <div className="flex justify-end">
                       <Skeleton className="h-4 w-20" />
                     </div>
                   </TableCell>
                   {!hideAmounts && (
-                    <TableCell className="px-5 py-4 w-[250px]">
+                    <TableCell className="px-6 py-4 w-[250px]">
                       <div className="flex justify-end">
                         <Skeleton className="h-4 w-24" />
                       </div>
                     </TableCell>
                   )}
                   {showProjectionColumn && (
-                    <TableCell className="px-5 py-4 w-[250px]">
+                    <TableCell className="px-6 py-4 w-[250px]">
                       <div className="flex justify-end">
                         <Skeleton className="h-4 w-24" />
                       </div>
@@ -488,7 +482,7 @@ export function StockTable({
         </TableBody>
       </Table>
 
-      <TablePagination
+      <Pagination
         currentPage={currentPage}
         pageSize={pageSize}
         totalCount={totalCount}
@@ -496,7 +490,7 @@ export function StockTable({
         unitLabel="products"
         isPending={showSkeleton}
         onPageChange={handlePageChange}
-        className="p-4 border-t border-primary/10"
+        className="border-t border-primary/10 py-4 sm:p-4"
       />
     </div>
   );

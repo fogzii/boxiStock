@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import type * as React from "react";
 
 import { cn } from "../../utils/cn";
@@ -8,7 +9,7 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      className="relative w-full min-w-0 max-w-full overflow-x-auto"
     >
       <table
         data-slot="table"
@@ -104,7 +105,52 @@ function TableCaption({
   );
 }
 
+function SortableTableHead({
+  children,
+  active,
+  direction,
+  align = "left",
+  onToggle,
+  className,
+}: {
+  children: React.ReactNode;
+  active: boolean;
+  direction: "asc" | "desc";
+  align?: "left" | "right";
+  onToggle: () => void;
+  className?: string;
+}) {
+  const icon = active ? (
+    direction === "asc" ? (
+      <ArrowUp className="h-3 w-3 text-primary" />
+    ) : (
+      <ArrowDown className="h-3 w-3 text-primary" />
+    )
+  ) : (
+    <ArrowUpDown className="h-3 w-3 opacity-30" />
+  );
+
+  return (
+    <TableHead className={cn(className, align === "right" && "text-right")}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={cn(
+          "flex w-full cursor-pointer items-center gap-1 uppercase tracking-wide transition-colors select-none",
+          align === "right" && "justify-end",
+          active ? "text-foreground" : "hover:text-foreground",
+        )}
+      >
+        {align === "right" && icon}
+        {children}
+        {align !== "right" && icon}
+      </button>
+    </TableHead>
+  );
+}
+
 export {
+  SortableTableHead,
   Table,
   TableBody,
   TableCaption,

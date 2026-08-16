@@ -1,9 +1,10 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "../../utils/cn";
+import { Button } from "../button";
 
-interface TablePaginationProps {
+interface PaginationProps {
   currentPage: number;
   pageSize: number;
   totalCount: number;
@@ -14,7 +15,7 @@ interface TablePaginationProps {
   className?: string;
 }
 
-export function TablePagination({
+function Pagination({
   currentPage,
   pageSize,
   totalCount,
@@ -23,7 +24,7 @@ export function TablePagination({
   isPending = false,
   onPageChange,
   className,
-}: TablePaginationProps) {
+}: PaginationProps) {
   if (totalPages <= 1) return null;
 
   const from = (currentPage - 1) * pageSize + 1;
@@ -53,23 +54,28 @@ export function TablePagination({
         </span>
       </div>
       <div className="flex flex-row gap-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1 || isPending}
-          className="inline-flex items-center justify-center h-8 px-3 text-body-sm-strong rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors disabled:opacity-50 disabled:pointer-events-none"
         >
-          <ChevronLeft className="w-4 h-4 mr-1" /> Previous
-        </button>
-        <button
+          <ChevronLeft /> Previous
+        </Button>
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages || isPending}
-          className="inline-flex items-center justify-center h-8 px-3 text-body-sm-strong rounded-lg border border-border bg-card hover:bg-muted/20 transition-colors disabled:opacity-50 disabled:pointer-events-none"
         >
-          Next <ChevronRight className="w-4 h-4 ml-1" />
-        </button>
+          Next <ChevronRight />
+        </Button>
       </div>
     </div>
   );
 }
+
+export type { PaginationProps };
+export { Pagination };
