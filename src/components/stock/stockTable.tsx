@@ -32,6 +32,7 @@ import { EditProductModal } from "@/components/modals/editProductModal";
 import { SellAllModal } from "@/components/modals/sellAllModal";
 import { LotCard } from "@/components/stock/lotCard";
 import { ExpandRowButton } from "@/components/ui/ExpandRowButton";
+import { TruncatedName } from "@/components/ui/TruncatedName";
 import {
   useHideProjectedProfit,
   useHideSellPrice,
@@ -58,6 +59,9 @@ const PROJECTION_LABEL: Record<ProjectionView, string> = {
   profit: "Projected Profit",
   sell: "Sell Price Per Unit",
 };
+
+/** Visible cap for product names in the inventory table. Raise this until a horizontal scrollbar appears. */
+const STOCK_NAME_MAX_WIDTH_PX = 400;
 
 /**
  * The active view, plus whether swapping is offered at all. When only one view
@@ -196,7 +200,7 @@ function ProductRow({
     <>
       <TableRow className="hover:bg-primary/5 transition-colors">
         <TableCell className="px-6 py-4">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <ExpandRowButton
               expanded={isOpen}
               controlsId={lotsPanelId}
@@ -204,9 +208,12 @@ function ProductRow({
               onToggle={() => setIsOpen((open) => !open)}
               iconClassName="h-5 w-5"
             >
-              <span className="text-body-sm-strong text-foreground">
+              <TruncatedName
+                className="text-body-sm-strong text-foreground"
+                maxWidth={STOCK_NAME_MAX_WIDTH_PX}
+              >
                 {product.name}
-              </span>
+              </TruncatedName>
             </ExpandRowButton>
             {!isReadOnly && (
               <EditProductModal product={product}>
@@ -214,7 +221,7 @@ function ProductRow({
                   <button
                     type="button"
                     onClick={open}
-                    className="cursor-pointer text-caption text-muted-foreground transition-colors hover:text-foreground"
+                    className="shrink-0 cursor-pointer text-caption text-muted-foreground transition-colors hover:text-foreground"
                   >
                     Edit row
                   </button>

@@ -24,6 +24,7 @@ import { EditBundleModal } from "@/components/modals/editBundleModal";
 import { EditSaleModal } from "@/components/modals/editSaleModal";
 import { MergeSaleModal } from "@/components/modals/mergeSaleModal";
 import { ExpandRowButton } from "@/components/ui/ExpandRowButton";
+import { TruncatedName } from "@/components/ui/TruncatedName";
 import { useReadOnly } from "@/lib/context/readOnly";
 import { formatCurrency } from "@/lib/formatting";
 import type {
@@ -56,6 +57,9 @@ const SKELETON_ROW_KEYS = Array.from(
   { length: 8 },
   (_, i) => `sales-skeleton-${i}`,
 );
+
+/** Visible cap for product and bundle names in the sales table. Raise this until a horizontal scrollbar appears. */
+const SALES_NAME_MAX_WIDTH_PX = 320;
 
 function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "-";
@@ -100,9 +104,12 @@ function SaleSubRow({
       <TableCell className="px-6 py-2 border-l-2 border-primary/50">
         <div className="flex items-center gap-2">
           <Package className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-          <span className="text-body-sm text-foreground">
+          <TruncatedName
+            className="text-body-sm text-foreground"
+            maxWidth={SALES_NAME_MAX_WIDTH_PX}
+          >
             {groupProductName}
-          </span>
+          </TruncatedName>
         </div>
         {sale.notes && (
           <p className="text-caption text-muted-foreground/70 mt-0.5 truncate max-w-[200px] pl-[22px]">
@@ -202,10 +209,13 @@ function ProductGroupRow({ group }: { group: ProductSaleGroup }) {
             label={`${isOpen ? "Collapse" : "Expand"} ${group.productName}`}
             onToggle={() => setIsOpen((open) => !open)}
           >
-            <span className="text-body-sm-strong text-foreground">
+            <TruncatedName
+              className="text-body-sm-strong text-foreground"
+              maxWidth={SALES_NAME_MAX_WIDTH_PX}
+            >
               {group.productName}
-            </span>
-            <span className="text-caption text-muted-foreground/50">
+            </TruncatedName>
+            <span className="shrink-0 text-caption text-muted-foreground/50">
               ({saleCount} {saleCount === 1 ? "sale" : "sales"})
             </span>
           </ExpandRowButton>
@@ -346,10 +356,13 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
             label={`${isOpen ? "Collapse" : "Expand"} ${bundle.bundleName}`}
             onToggle={() => setIsOpen((open) => !open)}
           >
-            <span className="text-body-sm-strong text-foreground">
+            <TruncatedName
+              className="text-body-sm-strong text-foreground"
+              maxWidth={SALES_NAME_MAX_WIDTH_PX}
+            >
               {bundle.bundleName}
-            </span>
-            <span className="rounded bg-primary/15 px-1.5 py-0.5 text-caption text-primary">
+            </TruncatedName>
+            <span className="shrink-0 rounded bg-primary/15 px-1.5 py-0.5 text-caption text-primary">
               Bundle
             </span>
           </ExpandRowButton>
@@ -418,7 +431,7 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
             <TableCell className="border-l-2 border-primary/50 py-2 pr-6 pl-14 text-body-sm">
               <div className="flex items-center gap-2">
                 <Package className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
-                <span>{product.productName}</span>
+                <TruncatedName maxWidth={SALES_NAME_MAX_WIDTH_PX}>{product.productName}</TruncatedName>
               </div>
             </TableCell>
             <TableCell className="px-6 py-2 text-right text-body-sm">
