@@ -1,3 +1,5 @@
+import { withPostHogConfig } from "@posthog/nextjs-config";
+
 /** @type {import('next').NextConfig} */
 
 // Security headers applied to every route.
@@ -66,4 +68,21 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+const posthogApiKey = process.env.POSTHOG_API_KEY;
+const posthogProjectId = process.env.POSTHOG_PROJECT_ID;
+
+// Uploads production source maps to PostHog Error Tracking so stack traces
+// resolve to real source. Maps are deleted after upload and are not served.
+// Host is us.posthog.com (API), not NEXT_PUBLIC_POSTHOG_HOST - that env is the
+// first-party reverse proxy for browser events (check.boxistock.au).
+export default posthogApiKey && posthogProjectId
+  ? withPostHogConfig(nextConfig, {
+      personalApiKey: posthogApiKey,
+      projectId: posthogProjectId,
+      host: "https://us.posthog.com",
+      sourcemaps: {
+        enabled: true,
+        deleteAfterUpload: true,
+      },
+    })
+  : nextConfig;
