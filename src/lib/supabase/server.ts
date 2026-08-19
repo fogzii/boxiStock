@@ -1,7 +1,7 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { headers } from "next/headers";
 import type { Database } from "./database.types";
-import { fetchWithJwtClockRetry } from "./jwt-clock";
+import { fetchWithPostgrestRetry } from "./postgrest-retry";
 
 /**
  * Server-only Supabase client.
@@ -44,7 +44,7 @@ function createSecretClient(
     // supabase-js sends `sb_secret_` keys to PostgREST.
     accessToken: async () => secretKey,
     global: {
-      fetch: fetchWithJwtClockRetry,
+      fetch: fetchWithPostgrestRetry,
       headers: forwardedFor ? { "sb-forwarded-for": forwardedFor } : undefined,
     },
   });
@@ -75,12 +75,17 @@ export async function createCachedClient() {
 }
 
 /**
- * GoTrue admin client (`auth.admin.getUserById`, `deleteUser`, …).
+ * GoTrue admin client (`auth.admin.deleteUser`, …).
  *
  * supabase-js disables the entire `auth` namespace when `accessToken` is set,
  * which the PostgREST secret client above requires. This client omits that
  * option so admin APIs work, and still uses the secret key as apikey +
- * Authorization. Never import from client components.
+ * Authorization. Do not attach `fetchWithPostgrestRetry` here: that wrapper
+ * inspects PostgREST 401 bodies for PGRST303. Never import from client
+ * components.
+ *
+ * Prefer `deleteAuthUser` over calling this from actions/layouts. Sharing
+ * display names go through `getAuthUsersPublic`, not Auth Admin.
  */
 export async function createAuthAdminClient() {
   const { url, secretKey } = getSecretConfig();
@@ -95,4 +100,9 @@ export async function createAuthAdminClient() {
       headers: forwardedFor ? { "sb-forwarded-for": forwardedFor } : undefined,
     },
   });
+}
+
+export async function deleteAuthUser(userId: string) {
+  const admin = await createAuthAdminClient();
+  return admin.auth.admin.deleteUser(userId);
 }

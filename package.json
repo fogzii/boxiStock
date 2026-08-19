@@ -17,7 +17,8 @@
     "db:reset": "npx --yes supabase db reset",
     "db:types": "supabase gen types typescript --project-id ${SUPABASE_PROJECT_REF:-euduypcktlvwvzoiomlv} > /tmp/boxistock-db-types.ts && mv /tmp/boxistock-db-types.ts src/lib/supabase/database.types.ts",
     "db:types:prod": "SUPABASE_PROJECT_REF=euduypcktlvwvzoiomlv npm run db:types",
-    "db:types:local": "npx --yes supabase gen types typescript --local > /tmp/boxistock-db-types.ts && mv /tmp/boxistock-db-types.ts src/lib/supabase/database.types.ts"
+    "db:types:local": "npx --yes supabase gen types typescript --local > /tmp/boxistock-db-types.ts && mv /tmp/boxistock-db-types.ts src/lib/supabase/database.types.ts",
+    "test": "tsx --test src/lib/supabase/postgrest-retry.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",
@@ -68,6 +69,7 @@
     "lint-staged": "^16.4.0",
     "postcss": "^8",
     "tailwindcss": "^4.2.1",
+    "tsx": "^4.21.0",
     "typescript": "^5"
   }
 }

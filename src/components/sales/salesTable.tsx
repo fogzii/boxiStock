@@ -431,7 +431,9 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
             <TableCell className="border-l-2 border-primary/50 py-2 pr-6 pl-14 text-body-sm">
               <div className="flex items-center gap-2">
                 <Package className="h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
-                <TruncatedName maxWidth={SALES_NAME_MAX_WIDTH_PX}>{product.productName}</TruncatedName>
+                <TruncatedName maxWidth={SALES_NAME_MAX_WIDTH_PX}>
+                  {product.productName}
+                </TruncatedName>
               </div>
             </TableCell>
             <TableCell className="px-6 py-2 text-right text-body-sm">

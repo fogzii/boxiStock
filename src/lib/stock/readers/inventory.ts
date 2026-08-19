@@ -4,7 +4,7 @@ import "server-only";
 // inventory value totals.
 import { unstable_cache } from "next/cache";
 import type { PaginatedInventoryProduct } from "@/lib/stock/types";
-import { withJwtClockFallback } from "@/lib/supabase/jwt-clock";
+import { withCachedReadFallback } from "@/lib/supabase/postgrest-retry";
 import { createCachedClient, createClient } from "@/lib/supabase/server";
 
 const VALID_SORTS = new Set([
@@ -79,7 +79,7 @@ export async function getInventoryPaginatedForUser(
     [`inventory-${userId}`],
     { revalidate: 30, tags: [`stock-data-${userId}`] },
   );
-  return withJwtClockFallback(
+  return withCachedReadFallback(
     () =>
       read(userId, safePage, safePageSize, safeSearch, safeSort, safeStatus),
     { products: [], totalCount: 0, totalPages: 0 },
@@ -90,7 +90,7 @@ export async function getInventoryValueByStatusForUser(
   userId: string,
   status?: string,
 ): Promise<number> {
-  return withJwtClockFallback(async () => {
+  return withCachedReadFallback(async () => {
     const supabase = await createClient();
     const { data, error } = await supabase.rpc(
       "get_inventory_value_by_status",

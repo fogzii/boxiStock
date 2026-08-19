@@ -3,7 +3,7 @@ import "server-only";
 // Server-only read helpers for dashboard cards and profit chart data.
 import { unstable_cache } from "next/cache";
 import type { DashboardMetricsRow, SalesByMonth } from "@/lib/stock/types";
-import { withJwtClockFallback } from "@/lib/supabase/jwt-clock";
+import { withCachedReadFallback } from "@/lib/supabase/postgrest-retry";
 import { createCachedClient } from "@/lib/supabase/server";
 
 const EMPTY_SALES_METRICS = {
@@ -103,7 +103,7 @@ export async function getSalesMetricsForUser(userId: string) {
     [`sales-metrics-${userId}`],
     { revalidate: 60, tags: [`stock-data-${userId}`] },
   );
-  return withJwtClockFallback(() => read(userId), EMPTY_SALES_METRICS);
+  return withCachedReadFallback(() => read(userId), EMPTY_SALES_METRICS);
 }
 
 export async function getDashboardMetricsForUser(userId: string) {
@@ -137,7 +137,7 @@ export async function getDashboardMetricsForUser(userId: string) {
     [`dashboard-metrics-${userId}`],
     { revalidate: 60, tags: [`stock-data-${userId}`] },
   );
-  return withJwtClockFallback(() => read(userId), EMPTY_DASHBOARD_METRICS);
+  return withCachedReadFallback(() => read(userId), EMPTY_DASHBOARD_METRICS);
 }
 
 export async function getProfitChartDataForUser(userId: string) {
@@ -193,13 +193,13 @@ export async function getProfitChartDataForUser(userId: string) {
         supabase
           .from("Sale")
           .select("totalProfit, dateSold, createdAt, Product!inner(userId)")
-          .eq("Product.userId", userId)
+          .eq("Product.userId", uid)
           .or(recentWeekFilter)
           .order("createdAt", { ascending: true }),
         supabase
           .from("Bundle")
           .select("totalProfit, dateSold, createdAt")
-          .eq("userId", userId)
+          .eq("userId", uid)
           .or(recentWeekFilter),
       ]);
 
@@ -276,5 +276,5 @@ export async function getProfitChartDataForUser(userId: string) {
     [`profit-chart-${userId}`],
     { revalidate: 60, tags: [`stock-data-${userId}`] },
   );
-  return withJwtClockFallback(() => read(userId), EMPTY_PROFIT_CHART);
+  return withCachedReadFallback(() => read(userId), EMPTY_PROFIT_CHART);
 }

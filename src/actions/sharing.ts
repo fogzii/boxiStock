@@ -11,7 +11,8 @@ import {
   type ShareConfig,
 } from "@/lib/sharing/config";
 import { getAuthUser } from "@/lib/supabase/auth";
-import { createAuthAdminClient, createClient } from "@/lib/supabase/server";
+import { getAuthUsersPublic } from "@/lib/supabase/auth-directory";
+import { createClient } from "@/lib/supabase/server";
 
 /** Best-effort absolute site origin for the current request (dev falls back to http). */
 async function getSiteUrl(): Promise<string> {
@@ -78,34 +79,14 @@ export type SharedWithMe = {
 };
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
-type AuthAdminClient = Awaited<ReturnType<typeof createAuthAdminClient>>;
-
-/** Resolve an auth user's display name + email for invite rows. */
-async function resolveUser(
-  admin: AuthAdminClient,
-  id: string,
-): Promise<{ name: string | null; email: string | null }> {
-  const { data } = await admin.auth.admin.getUserById(id);
-  const u = data?.user;
-  const fullName = (u?.user_metadata?.full_name as string | undefined) ?? null;
-  return { name: fullName, email: u?.email ?? null };
-}
 
 /**
- * Resolve many auth users at once: deduped ids, one parallel batch of admin
- * lookups, results keyed by id. Avoids per-row sequential resolution in the
- * invite list endpoints.
+ * Resolve many auth users at once: one RPC round-trip, results keyed by id.
  */
 async function resolveUsers(
   ids: string[],
 ): Promise<Map<string, { name: string | null; email: string | null }>> {
-  const unique = [...new Set(ids)];
-  if (unique.length === 0) return new Map();
-  const admin = await createAuthAdminClient();
-  const resolved = await Promise.all(
-    unique.map(async (id) => [id, await resolveUser(admin, id)] as const),
-  );
-  return new Map(resolved);
+  return getAuthUsersPublic(ids);
 }
 
 /**
