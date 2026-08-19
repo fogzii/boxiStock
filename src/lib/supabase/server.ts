@@ -16,6 +16,19 @@ import { fetchWithJwtClockRetry } from "./jwt-clock";
  * be sent to the browser. If it leaks, rotate it in the Supabase
  * dashboard (Project Settings -> API Keys -> Secret keys).
  */
+function getSecretConfig() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+
+  if (!url || !secretKey) {
+    throw new Error(
+      "Supabase server client is misconfigured: missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY.",
+    );
+  }
+
+  return { url, secretKey };
+}
+
 function createSecretClient(
   url: string,
   secretKey: string,
@@ -38,14 +51,7 @@ function createSecretClient(
 }
 
 export async function createClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const secretKey = process.env.SUPABASE_SECRET_KEY;
-
-  if (!url || !secretKey) {
-    throw new Error(
-      "Supabase server client is misconfigured: missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY.",
-    );
-  }
+  const { url, secretKey } = getSecretConfig();
 
   // Forwards the real end-user IP so Supabase Auth's rate limiting keys off
   // the caller rather than Vercel's shared egress IP. Requires "Enable IP
@@ -64,14 +70,29 @@ export async function createClient() {
  * RPC/select reads via the secret key.
  */
 export async function createCachedClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const secretKey = process.env.SUPABASE_SECRET_KEY;
-
-  if (!url || !secretKey) {
-    throw new Error(
-      "Supabase server client is misconfigured: missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY.",
-    );
-  }
-
+  const { url, secretKey } = getSecretConfig();
   return createSecretClient(url, secretKey);
+}
+
+/**
+ * GoTrue admin client (`auth.admin.getUserById`, `deleteUser`, …).
+ *
+ * supabase-js disables the entire `auth` namespace when `accessToken` is set,
+ * which the PostgREST secret client above requires. This client omits that
+ * option so admin APIs work, and still uses the secret key as apikey +
+ * Authorization. Never import from client components.
+ */
+export async function createAuthAdminClient() {
+  const { url, secretKey } = getSecretConfig();
+  const forwardedFor = (await headers()).get("x-forwarded-for");
+
+  return createSupabaseClient<Database>(url, secretKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+    global: {
+      headers: forwardedFor ? { "sb-forwarded-for": forwardedFor } : undefined,
+    },
+  });
 }

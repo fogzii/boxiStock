@@ -11,7 +11,7 @@ import {
   type ShareConfig,
 } from "@/lib/sharing/config";
 import { getAuthUser } from "@/lib/supabase/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAuthAdminClient, createClient } from "@/lib/supabase/server";
 
 /** Best-effort absolute site origin for the current request (dev falls back to http). */
 async function getSiteUrl(): Promise<string> {
@@ -78,13 +78,14 @@ export type SharedWithMe = {
 };
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+type AuthAdminClient = Awaited<ReturnType<typeof createAuthAdminClient>>;
 
 /** Resolve an auth user's display name + email for invite rows. */
 async function resolveUser(
-  supabase: SupabaseServerClient,
+  admin: AuthAdminClient,
   id: string,
 ): Promise<{ name: string | null; email: string | null }> {
-  const { data } = await supabase.auth.admin.getUserById(id);
+  const { data } = await admin.auth.admin.getUserById(id);
   const u = data?.user;
   const fullName = (u?.user_metadata?.full_name as string | undefined) ?? null;
   return { name: fullName, email: u?.email ?? null };
@@ -96,12 +97,13 @@ async function resolveUser(
  * invite list endpoints.
  */
 async function resolveUsers(
-  supabase: SupabaseServerClient,
   ids: string[],
 ): Promise<Map<string, { name: string | null; email: string | null }>> {
   const unique = [...new Set(ids)];
+  if (unique.length === 0) return new Map();
+  const admin = await createAuthAdminClient();
   const resolved = await Promise.all(
-    unique.map(async (id) => [id, await resolveUser(supabase, id)] as const),
+    unique.map(async (id) => [id, await resolveUser(admin, id)] as const),
   );
   return new Map(resolved);
 }
@@ -405,10 +407,7 @@ export async function getOutgoingInvites(): Promise<OutgoingInvite[]> {
   if (error) throw new Error(error.message);
   if (!data) return [];
 
-  const users = await resolveUsers(
-    supabase,
-    data.map((row) => row.inviteeId),
-  );
+  const users = await resolveUsers(data.map((row) => row.inviteeId));
 
   return data.map((row) => ({
     id: row.id,
@@ -453,10 +452,7 @@ export async function getIncomingInvites(): Promise<{
     .map((row) => row.ownerId);
 
   const [users, tokens] = await Promise.all([
-    resolveUsers(
-      supabase,
-      data.map((row) => row.ownerId),
-    ),
+    resolveUsers(data.map((row) => row.ownerId)),
     getActiveInviteOnlyTokens(supabase, acceptedOwnerIds),
   ]);
 

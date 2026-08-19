@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getPublicShareLink } from "@/actions/share";
 import { isAcceptedInvitee } from "@/lib/sharing/access";
 import { getAuthUser } from "@/lib/supabase/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAuthAdminClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
   title: "Shared Stats | BoxiStock",
@@ -42,10 +42,10 @@ export default async function ShareLayout({
       }
 
       if (mayReveal) {
-        const supabase = await createClient();
+        const admin = await createAuthAdminClient();
         const {
           data: { user },
-        } = await supabase.auth.admin.getUserById(link.userId);
+        } = await admin.auth.admin.getUserById(link.userId);
         const fullName = user?.user_metadata?.full_name as string | undefined;
         username = fullName?.split(" ")[0] ?? null;
       }

@@ -3,7 +3,7 @@
 import { revalidateStockData } from "@/actions/stock/_helpers";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getAuthUser } from "@/lib/supabase/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAuthAdminClient, createClient } from "@/lib/supabase/server";
 
 export type DeleteAccountResult = { ok: true } | { ok: false; error: string };
 
@@ -94,8 +94,9 @@ export async function deleteAccount(): Promise<DeleteAccountResult> {
       .eq("inviteeId", userId);
     if (receivedInviteError) fail("share invites", receivedInviteError.message);
 
-    // Delete the auth user via admin API (requires service role key)
-    const { error } = await supabase.auth.admin.deleteUser(userId);
+    // Delete the auth user via admin API (requires a client without accessToken)
+    const admin = await createAuthAdminClient();
+    const { error } = await admin.auth.admin.deleteUser(userId);
     if (error) throw new Error(error.message);
 
     revalidateStockData(userId);
