@@ -265,16 +265,22 @@ function ProductRow({
         )}
       </TableRow>
 
-      {/* Expanded Content below row */}
+      {/* Expanded content below the row.
+
+          `canvas-soft` is the tone `TableRow`'s own `hover:` state resolves to,
+          so the panel sits *recessed* under its product row rather than lifted
+          off it. Because the two now match, hovering the panel no longer shifts
+          it - correct, since the panel is not a click target the way the
+          product row above it is. */}
       {isOpen && (
-        <TableRow id={lotsPanelId} className="bg-primary/[0.06]">
+        <TableRow id={lotsPanelId} className="bg-canvas-soft">
           <TableCell
             colSpan={2 + (hideAmounts ? 0 : 1) + (showProjectionColumn ? 1 : 0)}
-            className="p-0"
+            className="border-l-2 border-primary/50 p-0"
           >
-            <div className="animate-in fade-in slide-in-from-top-2 duration-200 border-t border-primary/20">
+            <div className="animate-in fade-in slide-in-from-top-2 duration-200">
               {/* Lot Sub-Header (desktop only) */}
-              <div className="hidden md:flex md:items-center px-6 py-2 border-t border-primary/20 text-caption uppercase tracking-widest text-muted-foreground">
+              <div className="hidden md:flex md:items-center px-6 py-2 text-caption uppercase tracking-widest text-muted-foreground">
                 <span className="flex-1">Lot Identity</span>
                 <span className="w-[250px] text-right">
                   {hideAmounts ? "Quantity" : "Quantity & Unit Price"}

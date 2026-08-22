@@ -90,10 +90,15 @@ function SaleSubRow({
     }
   };
 
+  // `canvas-soft` at rest, matching the expanded lot panel in the stock table:
+  // an expanded row reads as recessed under its parent rather than lifted off
+  // it. `bg-muted/30` sat lighter than the rows around it and lightened further
+  // on hover. The hover lift stays, at the same `primary/5` a lot card uses, so
+  // it is still obvious which sale the pointer is on.
   return (
     <TableRow
       id={id}
-      className="bg-muted/30 hover:bg-muted/50 transition-colors animate-in fade-in slide-in-from-top-1 duration-150"
+      className="bg-canvas-soft transition-colors animate-in fade-in slide-in-from-top-1 duration-150 hover:bg-primary/5"
     >
       <TableCell className="px-6 py-2 border-l-2 border-primary/50">
         <div className="flex items-center gap-2">
@@ -426,7 +431,7 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
           <TableRow
             key={product.productId ?? product.productName}
             id={index === 0 ? productsPanelId : undefined}
-            className="bg-muted/30 hover:bg-muted/50 transition-colors animate-in fade-in slide-in-from-top-1 duration-150"
+            className="bg-canvas-soft transition-colors animate-in fade-in slide-in-from-top-1 duration-150 hover:bg-primary/5"
           >
             <TableCell className="border-l-2 border-primary/50 py-2 pr-6 pl-14 text-body-sm">
               <div className="flex items-center gap-2">
