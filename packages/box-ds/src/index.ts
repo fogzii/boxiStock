@@ -11,6 +11,7 @@ export * from "./components/label";
 export * from "./components/modal";
 export * from "./components/modal-actions";
 export * from "./components/pagination";
+export * from "./components/rolling-number";
 export * from "./components/search-input";
 export * from "./components/segmented-control";
 export * from "./components/skeleton";

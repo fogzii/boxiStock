@@ -310,10 +310,22 @@ export function SharingClient({
 
           {/* People I've invited */}
           <section className="flex flex-col gap-4">
-            <h2 className="flex items-center gap-2 font-display text-display-xs text-foreground">
-              <UserPlus className="h-5 w-5 text-primary" />
-              People I&apos;ve invited
-            </h2>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="flex min-w-0 items-center gap-2 font-display text-display-xs text-foreground">
+                <UserPlus className="h-5 w-5 shrink-0 text-primary" />
+                <span className="truncate">People I&apos;ve invited</span>
+              </h2>
+              {!showCreateInvite && (
+                <Button
+                  type="button"
+                  onClick={() => setShowCreateInvite(true)}
+                  className="shrink-0"
+                >
+                  <Plus />
+                  Create invite
+                </Button>
+              )}
+            </div>
 
             {showCreateInvite ? (
               <InviteCreateForm
@@ -323,16 +335,7 @@ export function SharingClient({
                 }}
                 onCancel={() => setShowCreateInvite(false)}
               />
-            ) : (
-              <Button
-                type="button"
-                onClick={() => setShowCreateInvite(true)}
-                className="h-11 w-full cursor-pointer"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create invite
-              </Button>
-            )}
+            ) : null}
 
             {outgoing.length === 0 && (
               <div className="rounded-2xl border border-primary/10 bg-primary/5 py-12 text-center">

@@ -11,6 +11,23 @@ export function formatCurrency(n: number): string {
   return currencyFormatter.format(n);
 }
 
+// Pinned, like the currency formatter above. `toLocaleDateString(undefined)`
+// resolves to the *runtime's* locale, so Node rendered "Aug 22, 2026" while the
+// browser rendered "22 Aug 2026" and React threw a hydration mismatch. en-AU
+// matches the day/month order the date pickers already use.
+const dateFormatter = new Intl.DateTimeFormat("en-AU", {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+});
+
+export function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return "-";
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "-";
+  return dateFormatter.format(date);
+}
+
 /**
  * Plain dollar amount with the sign ahead of the symbol — "-$12.00", not
  * "$-12.00". Matches the unseparated `$0.00` style the stock table uses.

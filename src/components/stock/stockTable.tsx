@@ -31,7 +31,10 @@ import { AddLotModal } from "@/components/modals/addLotModal";
 import { EditProductModal } from "@/components/modals/editProductModal";
 import { SellAllModal } from "@/components/modals/sellAllModal";
 import { LotCard } from "@/components/stock/lotCard";
-import { ExpandRowButton } from "@/components/ui/ExpandRowButton";
+import {
+  ExpandRowButton,
+  rowToggleProps,
+} from "@/components/ui/ExpandRowButton";
 import { TruncatedName } from "@/components/ui/TruncatedName";
 import {
   useHideProjectedProfit,
@@ -198,7 +201,10 @@ function ProductRow({
 
   return (
     <>
-      <TableRow className="hover:bg-primary/5 transition-colors">
+      <TableRow
+        {...rowToggleProps(() => setIsOpen((open) => !open))}
+        className="cursor-pointer hover:bg-primary/5 transition-colors"
+      >
         <TableCell className="px-6 py-4">
           <div className="flex min-w-0 items-center gap-3">
             <ExpandRowButton

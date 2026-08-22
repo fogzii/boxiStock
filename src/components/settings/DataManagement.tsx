@@ -433,7 +433,7 @@ export function DataManagement() {
             <div className="flex gap-4 w-full">
               <Button
                 type="button"
-                variant="secondary"
+                variant="outline"
                 onClick={() => setIsModalOpen(false)}
                 disabled={isDeleting}
                 className="flex-1"

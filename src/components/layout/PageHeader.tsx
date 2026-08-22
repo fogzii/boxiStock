@@ -1,6 +1,6 @@
 "use client";
 
-import { Skeleton } from "@box-ds";
+import { RollingNumber, Skeleton } from "@box-ds";
 import { Menu, Settings } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -75,21 +75,20 @@ export function PageHeader({
     statColumns[statCount] ?? "grid-cols-2 lg:grid-cols-4",
   );
   const bandClassName = cn(
-    // pt absorbs the padding taken off the title bar's bottom when it was made
-    // symmetric, so the gap between the title and the stats is unchanged.
+    // pt is the visible gap between the title bar and the stats. Keep it in
+    // step with the visible reserve below the stats (headerOverlapReserve
+    // minus bodyOverlapPull) so the figure sits in the middle of the tinted
+    // band: 48px above (pt-12) and 48px below (128-80 / 160-112).
     //
     // Stacked below ~700px of the main column so a headline figure and the
     // stock filter cluster cannot overlap. Side-by-side once both columns fit.
     //
     // `items-center`, not `items-end`: `bandActions` is the taller column, so
     // it sets the row height either way, but bottom-aligning the stats parked
-    // the headline figure down against the card below. Centred, it sits in the
-    // middle of the tinted band between the title bar and the card - the row's
-    // pt (28/32px) and the visible reserve below it (112-80 / 144-112 = 32px)
-    // are near enough equal that the row's centre line is the gap's centre line.
-    "flex min-w-0 flex-col gap-4 px-4 pt-7 sm:px-0 sm:pt-8",
+    // the headline figure down against the card below.
+    "flex min-w-0 flex-col gap-4 px-4 pt-12 sm:px-0",
     "@min-[700px]:flex-row @min-[700px]:items-center @min-[700px]:justify-between",
-    overlap ? headerOverlapReserve : "pb-10",
+    overlap ? headerOverlapReserve : "pb-12",
   );
   const statCellClassName = cn(
     "px-2",
@@ -218,7 +217,7 @@ export function PageHeader({
                             don't collide with the neighbouring column or clip
                             off-screen. */}
                         <p className="font-display text-display-xs font-extrabold text-ink tabular-nums sm:text-display-sm xl:text-display-md">
-                          {stat.value}
+                          <RollingNumber value={stat.value} />
                         </p>
                         {/* A `\n` in a label is a soft hint: collapsed to a
                             space at every width except the tablet band, where

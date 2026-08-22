@@ -1,6 +1,3 @@
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+// Single source of truth: the design system's `cn` carries the tailwind-merge
+// config that teaches it our custom font-size scale.
+export { cn } from "@box-ds/utils/cn";

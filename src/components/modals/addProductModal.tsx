@@ -2,6 +2,7 @@
 
 import {
   CurrencyInput,
+  CustomTooltip,
   DatePickerInput,
   FormField,
   Input,
@@ -10,6 +11,7 @@ import {
   ModalActions,
 } from "@box-ds";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { PlusCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import * as React from "react";
@@ -206,7 +208,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
               )}
             </FormField>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <FormField
                 label="Initial Lot Quantity"
                 htmlFor="quantity"
@@ -249,7 +251,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
               </FormField>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <Controller
                 name="dateReceived"
                 control={control}
@@ -306,5 +308,30 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
         </form>
       </Modal>
     </>
+  );
+}
+
+export function AddStockButton() {
+  return (
+    <AddProductModal>
+      {(open) => (
+        <CustomTooltip
+          content={
+            <span className="block max-w-[15rem] leading-relaxed">
+              Add a new product or lot to inventory.
+            </span>
+          }
+        >
+          <button
+            type="button"
+            onClick={open}
+            className="flex h-9 cursor-pointer items-center gap-2 whitespace-nowrap rounded-lg bg-primary px-4 text-body-sm-strong text-primary-foreground transition-all hover:bg-primary-active"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Add stock
+          </button>
+        </CustomTooltip>
+      )}
+    </AddProductModal>
   );
 }

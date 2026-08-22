@@ -25,6 +25,20 @@ resolve_docker_host() {
   return 1
 }
 
+# GNU `timeout` is not on stock macOS. Prefer it on Linux/WSL, then Homebrew
+# `gtimeout`, then perl's alarm (always present on macOS).
+run_with_timeout() {
+  local seconds=$1
+  shift
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$seconds" "$@"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    gtimeout "$seconds" "$@"
+  else
+    perl -e 'alarm shift; exec @ARGV' "$seconds" "$@"
+  fi
+}
+
 ensure_docker() {
   if ! command -v docker >/dev/null 2>&1; then
     red "Docker CLI not found in this WSL distro."
@@ -41,7 +55,7 @@ ensure_docker() {
   fi
   export DOCKER_HOST
 
-  if ! timeout 8 docker info >/dev/null 2>&1; then
+  if ! run_with_timeout 8 docker info >/dev/null 2>&1; then
     red "Docker engine is not responding (timed out or unhealthy)."
     yellow "Do not run supabase start until \`docker ps\` works. Restart Docker Desktop / WSL if needed."
     exit 1

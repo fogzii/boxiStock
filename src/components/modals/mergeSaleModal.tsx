@@ -9,6 +9,7 @@ import {
   getProductGroupHeaders,
   mergeProductSales,
 } from "@/actions/stock/sales";
+import { formatDate } from "@/lib/formatting";
 
 const MERGE_SKELETON_KEYS = ["msk-0", "msk-1", "msk-2", "msk-3", "msk-4"];
 
@@ -28,15 +29,6 @@ interface MergeSaleModalProps {
   sourceGroup: SourceGroup;
   isOpen: boolean;
   onClose: () => void;
-}
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
 }
 
 export function MergeSaleModal({

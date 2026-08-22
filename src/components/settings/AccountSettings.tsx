@@ -209,7 +209,7 @@ export function AccountSettings() {
                 />
                 <Button
                   type="button"
-                  variant="secondary"
+                  variant="default"
                   onClick={handleSaveName}
                   disabled={isSavingName}
                   className="shrink-0 cursor-pointer"
@@ -246,33 +246,30 @@ export function AccountSettings() {
                   <p className="text-body-sm-strong text-foreground">
                     Change email
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-                    <FormField
-                      label="New email address"
-                      htmlFor="new-email"
-                      className="flex-1 min-w-0"
-                    >
+                  <FormField label="New email address" htmlFor="new-email">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                       <Input
                         id="new-email"
                         type="email"
                         value={newEmail}
                         onChange={(e) => setNewEmail(e.target.value)}
                         placeholder={user?.email ?? "your@email.com"}
+                        className="min-w-0 flex-1"
                       />
-                    </FormField>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={handleUpdateEmail}
-                      disabled={isSavingEmail}
-                      className="shrink-0 cursor-pointer"
-                    >
-                      {isSavingEmail ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : null}
-                      {isSavingEmail ? "Sending…" : "Update email"}
-                    </Button>
-                  </div>
+                      <Button
+                        type="button"
+                        variant="default"
+                        onClick={handleUpdateEmail}
+                        disabled={isSavingEmail}
+                        className="h-11 shrink-0 cursor-pointer"
+                      >
+                        {isSavingEmail ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : null}
+                        {isSavingEmail ? "Sending…" : "Update email"}
+                      </Button>
+                    </div>
+                  </FormField>
                   {emailMessage && (
                     <div
                       className={`p-4 rounded-xl text-body-sm ${emailMessage.type === "error" ? "bg-negative-surface text-negative border border-negative/20" : "bg-positive-surface text-positive border border-positive/20"}`}
@@ -312,7 +309,7 @@ export function AccountSettings() {
                   <div>
                     <Button
                       type="button"
-                      variant="secondary"
+                      variant="default"
                       onClick={handleUpdatePassword}
                       disabled={isSavingPassword}
                       className="cursor-pointer"
@@ -346,7 +343,7 @@ export function AccountSettings() {
               </div>
               <Button
                 type="button"
-                variant="secondary"
+                variant="default"
                 onClick={handleSignOut}
                 disabled={isSigningOut}
                 className="shrink-0 cursor-pointer"
@@ -437,7 +434,7 @@ export function AccountSettings() {
         <div className="flex gap-4 w-full">
           <Button
             type="button"
-            variant="secondary"
+            variant="outline"
             onClick={() => {
               setIsDeleteModalOpen(false);
               setDeleteConfirmText("");

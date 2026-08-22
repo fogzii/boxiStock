@@ -661,24 +661,40 @@ export function PublicLinksSection() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-body-md-strong text-foreground">Public links</h3>
-          <p className="text-body-sm text-muted-foreground">
-            Anyone with a link can view the sections you choose for it.
-          </p>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="flex min-w-0 items-center gap-2 font-display text-display-xs text-foreground">
+            <Link2 className="h-5 w-5 shrink-0 text-primary" />
+            <span className="truncate">Public links</span>
+          </h3>
+          {!isLoading && !showCreate && (
+            <Button
+              type="button"
+              onClick={() => setShowCreate(true)}
+              disabled={atCap}
+              className="shrink-0"
+            >
+              <Plus />
+              {atCap
+                ? `Link limit reached (${MAX_PUBLIC_LINKS})`
+                : "Create link"}
+            </Button>
+          )}
         </div>
-        <span className="shrink-0 text-caption text-muted-foreground tabular-nums">
-          {activeCount} of {MAX_PUBLIC_LINKS} active
-        </span>
+        <p className="text-body-sm text-muted-foreground">
+          Anyone with a link can view the sections you choose for it.
+          {!isLoading && (
+            <>
+              {" "}
+              <span className="tabular-nums">
+                {activeCount} of {MAX_PUBLIC_LINKS} active
+              </span>
+            </>
+          )}
+        </p>
       </div>
 
-      {isLoading && (
-        <div className="flex flex-col gap-4">
-          <Skeleton className="h-40 w-full rounded-xl" />
-          <Skeleton className="h-11 w-full rounded-xl" />
-        </div>
-      )}
+      {isLoading && <Skeleton className="h-40 w-full rounded-xl" />}
 
       {!isLoading && loadedLinks.length === 0 && !showCreate && (
         <div className="rounded-2xl border border-primary/10 bg-primary/5 py-12 text-center">
@@ -699,26 +715,15 @@ export function PublicLinksSection() {
         />
       ))}
 
-      {!isLoading &&
-        (showCreate ? (
-          <PublicLinkCreateForm
-            onCreate={async () => {
-              await reloadLinks();
-              setShowCreate(false);
-            }}
-            onCancel={() => setShowCreate(false)}
-          />
-        ) : (
-          <Button
-            type="button"
-            onClick={() => setShowCreate(true)}
-            disabled={atCap}
-            className="h-11 w-full cursor-pointer"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            {atCap ? `Link limit reached (${MAX_PUBLIC_LINKS})` : "Create link"}
-          </Button>
-        ))}
+      {!isLoading && showCreate ? (
+        <PublicLinkCreateForm
+          onCreate={async () => {
+            await reloadLinks();
+            setShowCreate(false);
+          }}
+          onCancel={() => setShowCreate(false)}
+        />
+      ) : null}
 
       {editingLink && (
         <EditPublicLinkModal

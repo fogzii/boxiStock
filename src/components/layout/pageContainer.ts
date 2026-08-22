@@ -19,5 +19,5 @@ export const surfaceOnHeader = "border-transparent bg-canvas shadow-level3";
  * difference between the two is the visible gap between the stats and the
  * card. Keep them in sync - editing one alone changes both.
  */
-export const headerOverlapReserve = "pb-28 sm:pb-36";
+export const headerOverlapReserve = "pb-32 sm:pb-40";
 export const bodyOverlapPull = "-mt-20 sm:-mt-28";

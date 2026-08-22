@@ -57,6 +57,20 @@ input[type="number"] {
   background: transparent;
 }
 
+/* Height parity with `Input`, which is 50px (24px line box + 12px padding +
+   1px border, top and bottom). Two bits of vendor padding pushed the picker's
+   content past that 24px line box: 4px around the 19px calendar icon, and 1px
+   on the `/` dividers. Strip both, and centre the icon in the line box. */
+.react-date-picker__calendar-button {
+  display: flex;
+  align-items: center;
+  padding-block: 0;
+}
+
+.react-date-picker__inputGroup__divider {
+  padding-block: 0;
+}
+
 .react-date-picker__calendar-button svg {
   stroke: var(--muted-foreground);
   color: var(--muted-foreground);

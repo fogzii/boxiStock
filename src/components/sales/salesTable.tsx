@@ -23,10 +23,13 @@ import { deleteProductSales, deleteSale } from "@/actions/stock/sales";
 import { EditBundleModal } from "@/components/modals/editBundleModal";
 import { EditSaleModal } from "@/components/modals/editSaleModal";
 import { MergeSaleModal } from "@/components/modals/mergeSaleModal";
-import { ExpandRowButton } from "@/components/ui/ExpandRowButton";
+import {
+  ExpandRowButton,
+  rowToggleProps,
+} from "@/components/ui/ExpandRowButton";
 import { TruncatedName } from "@/components/ui/TruncatedName";
 import { useReadOnly } from "@/lib/context/readOnly";
-import { formatCurrency } from "@/lib/formatting";
+import { formatCurrency, formatDate } from "@/lib/formatting";
 import type {
   BundleGroup,
   CombinedSalesRow,
@@ -60,15 +63,6 @@ const SKELETON_ROW_KEYS = Array.from(
 
 /** Visible cap for product and bundle names in the sales table. Raise this until a horizontal scrollbar appears. */
 const SALES_NAME_MAX_WIDTH_PX = 320;
-
-function formatDate(dateStr: string | null | undefined): string {
-  if (!dateStr) return "-";
-  return new Date(dateStr).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 function SaleSubRow({
   sale,
@@ -201,7 +195,10 @@ function ProductGroupRow({ group }: { group: ProductSaleGroup }) {
 
   return (
     <>
-      <TableRow className="hover:bg-primary/5 transition-colors">
+      <TableRow
+        {...rowToggleProps(() => setIsOpen((open) => !open))}
+        className="cursor-pointer hover:bg-primary/5 transition-colors"
+      >
         <TableCell className="px-6 py-2.5">
           <ExpandRowButton
             expanded={isOpen}
@@ -348,7 +345,10 @@ function BundleGroupRow({ bundle }: { bundle: BundleGroup }) {
 
   return (
     <>
-      <TableRow className="hover:bg-primary/5 transition-colors">
+      <TableRow
+        {...rowToggleProps(() => setIsOpen((open) => !open))}
+        className="cursor-pointer hover:bg-primary/5 transition-colors"
+      >
         <TableCell className="px-6 py-2.5">
           <ExpandRowButton
             expanded={isOpen}
