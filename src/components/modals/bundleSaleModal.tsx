@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { createBundle } from "@/actions/stock/bundles";
 import { getInventoryPaginated } from "@/actions/stock/inventory";
+import { saleToastIcon } from "@/components/ui/toaster";
 import { formatCurrency, round2 } from "@/lib/formatting";
 import { optionalDateSchema, sellPriceSchema } from "@/lib/schemas";
 import type {
@@ -256,7 +257,9 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
           quantity: i.quantity,
         })),
       });
-      toast.success(`Bundle "${data.bundleName.trim()}" recorded.`);
+      toast.success(`Bundle "${data.bundleName.trim()}" recorded.`, {
+        icon: saleToastIcon,
+      });
       handleClose();
       router.refresh();
     } catch (err) {

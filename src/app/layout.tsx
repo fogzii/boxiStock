@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 };
 
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/toaster";
 
 export default function RootLayout({
   children,
@@ -40,7 +40,7 @@ export default function RootLayout({
       <body className="antialiased min-h-screen flex flex-col">
         <AIImportProvider>
           {children}
-          <Toaster position="bottom-right" theme="dark" richColors />
+          <Toaster />
           <SpeedInsights />
         </AIImportProvider>
       </body>

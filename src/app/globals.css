@@ -38,6 +38,36 @@ input[type="number"] {
   appearance: textfield; /* Standard */
 }
 
+/* Toast accents. The surface itself is themed in `components/ui/toaster.tsx`
+   as DESIGN.md's `ex-toast` - canvas, rounded.xl, Level 2 - and stays canvas
+   for every variant. Only the left edge carries the status, in the semantic
+   colour families.
+
+   Keyed off sonner's `data-type` rather than its `classNames` so the variants
+   cannot compete on stylesheet order. The extra `[data-sonner-toaster]` is
+   load-bearing: sonner injects `[data-sonner-toast][data-styled="true"] {
+   border: ... }` into the head after this file, so an equally specific
+   selector would lose to it. */
+[data-sonner-toaster] [data-sonner-toast][data-styled="true"] {
+  border-left-color: color-mix(in oklab, var(--color-primary) 40%, transparent);
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="success"] {
+  border-left-color: var(--color-positive);
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="error"] {
+  border-left-color: var(--color-negative);
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="warning"] {
+  border-left-color: var(--color-warning);
+}
+
+[data-sonner-toaster] [data-sonner-toast][data-type="info"] {
+  border-left-color: var(--color-primary);
+}
+
 /* React Date Picker UI Overrides.
    Vendor CSS is imported before globals.css in app/layout.tsx,
    so these rules override by natural source order (no !important needed). */

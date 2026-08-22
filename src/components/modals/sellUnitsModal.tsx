@@ -15,7 +15,8 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { sellLotUnits } from "@/actions/stock/inventory";
-import { round2 } from "@/lib/formatting";
+import { saleToastIcon } from "@/components/ui/toaster";
+import { formatCurrency, round2 } from "@/lib/formatting";
 import type { DatePickerValue } from "@/lib/types";
 
 interface SellUnitsModalProps {
@@ -156,12 +157,20 @@ export function SellUnitsModal({
     const salePrice = Math.round(data.perUnit * 100) / 100;
     try {
       await sellLotUnits(lot.id, data.quantity, salePrice, data.dateSold);
+      const total = round2(data.quantity * salePrice);
       posthog.capture("units_sold", {
         product_name: productName,
         quantity_sold: data.quantity,
         sale_price_per_unit: salePrice,
-        total_sale_price: round2(data.quantity * salePrice),
+        total_sale_price: total,
       });
+      toast.success(
+        `Sold ${data.quantity} ${data.quantity === 1 ? "unit" : "units"} of "${productName}".`,
+        {
+          icon: saleToastIcon,
+          description: `${formatCurrency(total)} recorded against lot ${lotRef}.`,
+        },
+      );
       setIsOpen(false);
       router.refresh();
     } catch (error) {
