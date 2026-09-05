@@ -1,8 +1,10 @@
 "use client";
 
 import {
+  ActionMenu,
   Button,
   CustomTooltip,
+  Modal,
   Pagination,
   Skeleton,
   Table,
@@ -15,15 +17,20 @@ import {
 import {
   ArrowLeftRight,
   DollarSign,
+  Loader2,
   Package,
+  Pencil,
   Plus,
   ShoppingCart,
+  Trash2,
   TrendingUp,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import * as React from "react";
+import { toast } from "sonner";
 import {
   deleteLot,
+  deleteProductStock,
   markAsStocked,
   updateLotNotes,
 } from "@/actions/stock/inventory";
@@ -59,8 +66,8 @@ type ProjectionView = "profit" | "sell";
 const PROJECTION_VIEW_KEY = "boxistock:stock-projection-view";
 
 const PROJECTION_LABEL: Record<ProjectionView, string> = {
-  profit: "Projected Profit",
-  sell: "Sell Price Per Unit",
+  profit: "Est. Profit",
+  sell: "Sell Price / Unit",
 };
 
 /** Visible cap for product names in the inventory table. Raise this until a horizontal scrollbar appears. */
@@ -126,7 +133,14 @@ function ProductRow({
   const [isOpen, setIsOpen] = React.useState(false);
   const [lots, setLots] = React.useState(product.lots);
   const [isUpdating, setIsUpdating] = React.useState<string | null>(null);
+  const [confirmDeleteAll, setConfirmDeleteAll] = React.useState(false);
+  const [isDeletingAll, setIsDeletingAll] = React.useState(false);
   const router = useRouter();
+
+  // The action menu opens these modals, so their triggers render nothing and
+  // hand back their open function instead.
+  const editNameOpenRef = React.useRef<() => void>(() => {});
+  const editSellPriceOpenRef = React.useRef<() => void>(() => {});
 
   React.useEffect(() => {
     setLots(product.lots);
@@ -181,6 +195,21 @@ function ProductRow({
     }
   };
 
+  const handleDeleteAll = async () => {
+    setIsDeletingAll(true);
+    try {
+      await deleteProductStock(product.id);
+      toast.success(`Deleted all stock for "${product.name}".`);
+      setConfirmDeleteAll(false);
+      router.refresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete stock",
+      );
+      setIsDeletingAll(false);
+    }
+  };
+
   const handleNotesUpdate = async (
     lotId: string,
     notes: string | null,
@@ -221,19 +250,6 @@ function ProductRow({
                 {product.name}
               </TruncatedName>
             </ExpandRowButton>
-            {!isReadOnly && (
-              <EditProductModal product={product}>
-                {(open) => (
-                  <button
-                    type="button"
-                    onClick={open}
-                    className="shrink-0 cursor-pointer text-caption text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    Edit row
-                  </button>
-                )}
-              </EditProductModal>
-            )}
           </div>
         </TableCell>
         <TableCell className="px-6 py-4 text-right text-body-sm w-[250px] text-foreground">
@@ -247,7 +263,7 @@ function ProductRow({
         {showProjectionColumn && (
           <TableCell className="px-6 py-4 text-right text-body-sm-strong w-[250px]">
             {projectedValue === null ? (
-              <CustomTooltip content="No sell price set for this product yet. Use “Edit row” to set one.">
+              <CustomTooltip content="No sell price set for this product yet. Use the row menu to set one.">
                 <span className="text-muted-foreground cursor-default">NA</span>
               </CustomTooltip>
             ) : (
@@ -263,6 +279,50 @@ function ProductRow({
             )}
           </TableCell>
         )}
+        {!isReadOnly && (
+          <TableCell className="w-px py-4 pr-6 pl-2">
+            {/* Hidden modal triggers — open functions captured via refs */}
+            <EditProductModal product={product} field="name">
+              {(open) => {
+                editNameOpenRef.current = open;
+                return null;
+              }}
+            </EditProductModal>
+            <EditProductModal product={product} field="sellPrice">
+              {(open) => {
+                editSellPriceOpenRef.current = open;
+                return null;
+              }}
+            </EditProductModal>
+            <ActionMenu
+              items={[
+                {
+                  label: "Edit name",
+                  icon: <Pencil />,
+                  onClick: () => editNameOpenRef.current(),
+                  disabled: isDeletingAll,
+                },
+                {
+                  label: "Edit sell price",
+                  icon: <DollarSign />,
+                  onClick: () => editSellPriceOpenRef.current(),
+                  disabled: isDeletingAll,
+                },
+                {
+                  label: "Delete all stock",
+                  icon: isDeletingAll ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <Trash2 />
+                  ),
+                  variant: "destructive",
+                  onClick: () => setConfirmDeleteAll(true),
+                  disabled: isDeletingAll,
+                },
+              ]}
+            />
+          </TableCell>
+        )}
       </TableRow>
 
       {/* Expanded content below the row.
@@ -275,7 +335,12 @@ function ProductRow({
       {isOpen && (
         <TableRow id={lotsPanelId} className="bg-canvas-soft">
           <TableCell
-            colSpan={2 + (hideAmounts ? 0 : 1) + (showProjectionColumn ? 1 : 0)}
+            colSpan={
+              2 +
+              (hideAmounts ? 0 : 1) +
+              (showProjectionColumn ? 1 : 0) +
+              (isReadOnly ? 0 : 1)
+            }
             className="border-l-2 border-primary/50 p-0"
           >
             <div className="animate-in fade-in slide-in-from-top-2 duration-200">
@@ -336,6 +401,46 @@ function ProductRow({
           </TableCell>
         </TableRow>
       )}
+
+      {/* Row delete confirmation */}
+      <Modal
+        isOpen={confirmDeleteAll}
+        onClose={() => !isDeletingAll && setConfirmDeleteAll(false)}
+        title={`Delete all stock for "${product.name}"?`}
+      >
+        <div className="flex flex-col gap-6">
+          <p className="text-body-sm text-foreground/80 bg-negative-bg border border-negative/20 rounded-lg p-3">
+            This permanently deletes every remaining lot of{" "}
+            <strong className="text-foreground">{product.name}</strong> -{" "}
+            <strong className="text-foreground">
+              {lots.length} {lots.length === 1 ? "lot" : "lots"}
+            </strong>{" "}
+            and{" "}
+            <strong className="text-foreground">
+              {totalStock} {totalStock === 1 ? "unit" : "units"}
+            </strong>{" "}
+            in this view. This cannot be undone.
+          </p>
+          <div className="flex justify-end gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setConfirmDeleteAll(false)}
+              disabled={isDeletingAll}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleDeleteAll}
+              disabled={isDeletingAll}
+            >
+              {isDeletingAll ? "Deleting..." : "Delete All Stock"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }
@@ -351,6 +456,7 @@ export function StockTable({
   className,
 }: StockTableProps) {
   const router = useRouter();
+  const isReadOnly = useReadOnly();
   const hideAmounts = useHideStockAmounts();
   const hideSellPrice = useHideSellPrice();
   const hideProjected = useHideProjectedProfit();
@@ -454,6 +560,7 @@ export function StockTable({
                 </span>
               </TableHead>
             )}
+            {!isReadOnly && <TableHead className="w-[56px] py-4 pr-6 pl-2" />}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -486,6 +593,11 @@ export function StockTable({
                       <div className="flex justify-end">
                         <Skeleton className="h-4 w-24" />
                       </div>
+                    </TableCell>
+                  )}
+                  {!isReadOnly && (
+                    <TableCell className="w-px py-4 pr-6 pl-2">
+                      <Skeleton className="size-8 rounded-lg" />
                     </TableCell>
                   )}
                 </TableRow>

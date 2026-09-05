@@ -1,41 +1,20 @@
 "use client";
 
-import {
-  CurrencyInput,
-  DatePickerInput,
-  FormField,
-  Input,
-  Label,
-  Modal,
-  ModalActions,
-} from "@box-ds";
+import { Modal, ModalActions } from "@box-ds";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import * as React from "react";
-import { Controller, useForm } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { z } from "zod";
 import { addStockLot } from "@/actions/stock/inventory";
-import { NotesField } from "@/components/ui/NotesField";
-import { StatusToggle } from "@/components/ui/StatusToggle";
-import { toCalendarDay } from "@/lib/date";
-import { generateLotIdentity } from "@/lib/formatting";
 import {
-  buyPriceSchema,
-  lotIdentitySchema,
-  optionalDateSchema,
-  quantitySchema,
-} from "@/lib/schemas";
-
-const schema = z.object({
-  quantity: quantitySchema,
-  buyPrice: buyPriceSchema,
-  dateReceived: optionalDateSchema,
-  lotIdentity: lotIdentitySchema,
-});
-
-type FormData = z.infer<typeof schema>;
+  LotFormFields,
+  type LotFormValues,
+  lotFormDefaults,
+  lotFormSchema,
+} from "@/components/stock/lotFormFields";
+import { toCalendarDay } from "@/lib/date";
 
 interface AddLotModalProps {
   productId: string;
@@ -54,37 +33,21 @@ export function AddLotModal({
   const [notes, setNotes] = React.useState("");
   const router = useRouter();
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    formState: { errors },
-    reset,
-  } = useForm<FormData>({
-    resolver: zodResolver(schema),
+  const form = useForm<LotFormValues>({
+    resolver: zodResolver(lotFormSchema),
     mode: "onSubmit",
     reValidateMode: "onChange",
     shouldFocusError: true,
-    defaultValues: {
-      quantity: 1,
-      buyPrice: undefined,
-      dateReceived: new Date(),
-      lotIdentity: generateLotIdentity(),
-    },
+    defaultValues: lotFormDefaults(),
   });
 
   const resetForm = () => {
-    reset({
-      quantity: 1,
-      buyPrice: undefined,
-      dateReceived: new Date(),
-      lotIdentity: generateLotIdentity(),
-    });
+    form.reset(lotFormDefaults());
     setIsStocked(true);
     setNotes("");
   };
 
-  const onSubmit = handleSubmit(async (data) => {
+  const onSubmit = form.handleSubmit(async (data) => {
     setIsSubmitting(true);
     try {
       await addStockLot({
@@ -121,107 +84,31 @@ export function AddLotModal({
           resetForm();
           setIsOpen(false);
         }}
-        title={`Add Stock — ${productName}`}
+        title={`Add Stock - ${productName}`}
       >
-        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
-          <div className="space-y-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormField
-                label="Lot Quantity"
-                htmlFor="lot-quantity"
-                error={errors.quantity?.message}
-              >
-                <Input
-                  id="lot-quantity"
-                  type="number"
-                  min="1"
-                  step="1"
-                  error={!!errors.quantity}
-                  {...register("quantity", { valueAsNumber: true })}
-                />
-              </FormField>
-              <FormField
-                label="Unit Buy Price"
-                htmlFor="lot-buyPrice"
-                error={errors.buyPrice?.message}
-              >
-                <Controller
-                  name="buyPrice"
-                  control={control}
-                  render={({ field }) => (
-                    <CurrencyInput
-                      id="lot-buyPrice"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      error={!!errors.buyPrice}
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => {
-                        const n = parseFloat(e.target.value);
-                        field.onChange(Number.isNaN(n) ? undefined : n);
-                      }}
-                    />
-                  )}
-                />
-              </FormField>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Controller
-                name="dateReceived"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <FormField
-                    label={isStocked ? "Date Received" : "Date Ordered"}
-                    className="flex flex-col"
-                    error={fieldState.error?.message}
-                  >
-                    <div className="w-full flex">
-                      <DatePickerInput
-                        onChange={(val) => field.onChange(val ?? undefined)}
-                        value={field.value ?? null}
-                        error={!!fieldState.error}
-                      />
-                    </div>
-                  </FormField>
-                )}
+        <FormProvider {...form}>
+          <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
+            <div className="space-y-5">
+              <LotFormFields
+                idPrefix="lot"
+                isStocked={isStocked}
+                onStockedChange={setIsStocked}
+                notes={notes}
+                onNotesChange={setNotes}
               />
-
-              <FormField label="Lot Identity" htmlFor="lot-lotIdentity">
-                <Input
-                  id="lot-lotIdentity"
-                  placeholder="e.g. L-20260430-143052"
-                  {...register("lotIdentity")}
-                />
-              </FormField>
             </div>
 
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <StatusToggle value={isStocked} onChange={setIsStocked} />
-            </div>
-
-            <FormField
-              label="Notes"
-              htmlFor="lot-notes"
-              hint="optional, max 75 chars"
-            >
-              <NotesField id="lot-notes" value={notes} onChange={setNotes} />
-            </FormField>
-          </div>
-
-          <ModalActions
-            submitLabel="Add Lot"
-            loadingLabel="Adding..."
-            isLoading={isSubmitting}
-            onCancel={() => {
-              resetForm();
-              setIsOpen(false);
-            }}
-          />
-        </form>
+            <ModalActions
+              submitLabel="Add Lot"
+              loadingLabel="Adding..."
+              isLoading={isSubmitting}
+              onCancel={() => {
+                resetForm();
+                setIsOpen(false);
+              }}
+            />
+          </form>
+        </FormProvider>
       </Modal>
     </>
   );

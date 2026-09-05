@@ -74,3 +74,26 @@ export async function lowestHistoricalUnitPrice(
     return lowest === null || unitPrice < lowest ? unitPrice : lowest;
   }, null);
 }
+
+// Drops a product once its last lot is gone, so an emptied row does not linger
+// as an invisible record. Skipped when the product still has sales: deleting it
+// would cascade through Sale.productId and silently take the sales history with
+// it, and the inventory list already hides products with no remaining units.
+export async function deleteProductIfUnused(
+  supabase: SupabaseInstance,
+  productId: string,
+) {
+  const { count: lotCount } = await supabase
+    .from("StockLot")
+    .select("*", { count: "exact", head: true })
+    .eq("productId", productId);
+  if (lotCount !== 0) return;
+
+  const { count: saleCount } = await supabase
+    .from("Sale")
+    .select("*", { count: "exact", head: true })
+    .eq("productId", productId);
+  if (saleCount !== 0) return;
+
+  await supabase.from("Product").delete().eq("id", productId);
+}

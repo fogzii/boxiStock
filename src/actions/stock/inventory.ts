@@ -24,6 +24,7 @@ import {
   MAX_LOT_NOTES_LENGTH,
 } from "@/lib/validation";
 import {
+  deleteProductIfUnused,
   gateStockMutation,
   lowestHistoricalUnitPrice,
   revalidateStockData,
@@ -493,14 +494,52 @@ export async function deleteLot(lotId: string) {
 
   await supabase.from("StockLot").delete().eq("id", cleanLotId);
 
-  const { count } = await supabase
-    .from("StockLot")
-    .select("*", { count: "exact", head: true })
-    .eq("productId", lot.productId);
+  await deleteProductIfUnused(supabase, lot.productId);
 
-  if (count === 0) {
-    await supabase.from("Product").delete().eq("id", lot.productId);
-  }
+  revalidatePath("/", "layout");
+  revalidateStockData(userId);
+}
+
+/**
+ * Clear out a product's remaining stock - the row-level "delete all stock"
+ * action.
+ *
+ * Only lots that still hold units go: depleted ones are what bundle items point
+ * back at when a bundle sale is restored, and they are already invisible in the
+ * inventory list. The product record follows when nothing at all is left of it
+ * (see `deleteProductIfUnused`); either way the row leaves the list, which keys
+ * off remaining units rather than the product existing.
+ */
+export async function deleteProductStock(productId: string) {
+  const {
+    data: { user },
+  } = await getAuthUser();
+  const userId = user?.id;
+  if (!userId) throw new Error("Unauthorized");
+  await gateStockMutation(userId);
+
+  const cleanProductId = cleanRequiredString(productId, "productId");
+
+  const supabase = await createClient();
+
+  const { data: product } = await supabase
+    .from("Product")
+    .select("id")
+    .eq("id", cleanProductId)
+    .eq("userId", userId)
+    .single();
+
+  if (!product) throw new Error("Product not found or unauthorized");
+
+  const { error } = await supabase
+    .from("StockLot")
+    .delete()
+    .eq("productId", cleanProductId)
+    .gt("remainingQuantity", 0);
+
+  if (error) throw new Error(error.message);
+
+  await deleteProductIfUnused(supabase, cleanProductId);
 
   revalidatePath("/", "layout");
   revalidateStockData(userId);
@@ -532,14 +571,7 @@ export async function deleteLotUnits(lotId: string, quantity: number) {
 
   if (lot.remainingQuantity === quantity) {
     await supabase.from("StockLot").delete().eq("id", cleanLotId);
-    const { count } = await supabase
-      .from("StockLot")
-      .select("*", { count: "exact", head: true })
-      .eq("productId", lot.productId);
-
-    if (count === 0) {
-      await supabase.from("Product").delete().eq("id", lot.productId);
-    }
+    await deleteProductIfUnused(supabase, lot.productId);
   } else {
     // Conditional decrement: refuse if stock changed concurrently since the
     // read above, so remainingQuantity can never go negative.

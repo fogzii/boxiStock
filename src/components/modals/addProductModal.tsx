@@ -1,35 +1,21 @@
 "use client";
 
-import {
-  CurrencyInput,
-  CustomTooltip,
-  DatePickerInput,
-  FormField,
-  Input,
-  Label,
-  Modal,
-  ModalActions,
-} from "@box-ds";
+import { CustomTooltip, FormField, Input, Modal, ModalActions } from "@box-ds";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { PlusCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import posthog from "posthog-js";
 import * as React from "react";
-import { Controller, useForm } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { addProduct, getAllProductNames } from "@/actions/stock/inventory";
-import { NotesField } from "@/components/ui/NotesField";
-import { StatusToggle } from "@/components/ui/StatusToggle";
-import { toCalendarDay } from "@/lib/date";
-import { generateLotIdentity } from "@/lib/formatting";
 import {
-  buyPriceSchema,
-  lotIdentitySchema,
-  optionalDateSchema,
-  quantitySchema,
-} from "@/lib/schemas";
-import type { DatePickerValue } from "@/lib/types";
+  LotFormFields,
+  lotFormDefaults,
+  lotFormSchema,
+} from "@/components/stock/lotFormFields";
+import { toCalendarDay } from "@/lib/date";
 
 function fuzzyScore(query: string, target: string): number {
   const q = query.toLowerCase();
@@ -46,15 +32,17 @@ function fuzzyScore(query: string, target: string): number {
     : -1;
 }
 
-const schema = z.object({
+// The same lot fields as `addLotModal`, plus the name of the product the first
+// lot belongs to.
+const schema = lotFormSchema.extend({
   name: z.string().min(1, "Product name is required"),
-  quantity: quantitySchema,
-  buyPrice: buyPriceSchema,
-  dateReceived: optionalDateSchema,
-  lotIdentity: lotIdentitySchema,
 });
 
 type FormData = z.infer<typeof schema>;
+
+function formDefaults() {
+  return { name: "", ...lotFormDefaults() };
+}
 
 interface AddProductModalProps {
   children?: ((open: () => void) => React.ReactNode) | React.ReactNode;
@@ -72,26 +60,20 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
   const [nameQuery, setNameQuery] = React.useState("");
   const router = useRouter();
 
-  const {
-    register,
-    control,
-    handleSubmit,
-    formState: { errors },
-    reset,
-    setValue,
-  } = useForm<FormData>({
+  const form = useForm<FormData>({
     resolver: zodResolver(schema),
     mode: "onSubmit",
     reValidateMode: "onChange",
     shouldFocusError: true,
-    defaultValues: {
-      name: "",
-      quantity: 1,
-      buyPrice: undefined,
-      dateReceived: new Date(),
-      lotIdentity: generateLotIdentity(),
-    },
+    defaultValues: formDefaults(),
   });
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+  } = form;
 
   React.useEffect(() => {
     getAllProductNames()
@@ -111,13 +93,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
   }, [nameQuery, recentProducts]);
 
   const resetForm = () => {
-    reset({
-      name: "",
-      quantity: 1,
-      buyPrice: undefined,
-      dateReceived: new Date(),
-      lotIdentity: generateLotIdentity(),
-    });
+    form.reset(formDefaults());
     setIsStocked(true);
     setNotes("");
     setNameQuery("");
@@ -175,138 +151,66 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
         }}
         title="Add Stock"
       >
-        <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
-          <div className="space-y-5">
-            <FormField label="Product Name" htmlFor="name" error={undefined}>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Product Name"
-                error={!!errors.name}
-                {...register("name", {
-                  onChange: (e) => setNameQuery(e.target.value),
-                })}
-              />
-              {suggestions.length > 0 && (
-                <div className="flex items-center gap-2 flex-wrap pt-0.5">
-                  <span className="text-caption text-muted-foreground/50 shrink-0 uppercase tracking-wide">
-                    {nameQuery.trim() ? "Matches:" : "Suggested:"}
-                  </span>
-                  {suggestions.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => {
-                        setValue("name", p.name);
-                        setNameQuery(p.name);
-                      }}
-                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-caption bg-primary/10 text-primary/80 border border-primary/20 hover:bg-primary/20 hover:text-primary hover:border-primary/40 transition-all cursor-pointer"
-                    >
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </FormField>
-
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+        <FormProvider {...form}>
+          <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
+            <div className="space-y-5">
               <FormField
-                label="Initial Lot Quantity"
-                htmlFor="quantity"
-                error={errors.quantity?.message}
+                label="Product Name"
+                htmlFor="name"
+                error={errors.name?.message}
               >
                 <Input
-                  id="quantity"
-                  type="number"
-                  min="1"
-                  step="1"
-                  error={!!errors.quantity}
-                  {...register("quantity", { valueAsNumber: true })}
+                  id="name"
+                  type="text"
+                  placeholder="Product Name"
+                  error={!!errors.name}
+                  {...register("name", {
+                    onChange: (e) => setNameQuery(e.target.value),
+                  })}
                 />
-              </FormField>
-              <FormField
-                label="Unit Buy Price"
-                htmlFor="buyPrice"
-                error={errors.buyPrice?.message}
-              >
-                <Controller
-                  name="buyPrice"
-                  control={control}
-                  render={({ field }) => (
-                    <CurrencyInput
-                      id="buyPrice"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                      error={!!errors.buyPrice}
-                      {...field}
-                      value={field.value ?? ""}
-                      onChange={(e) => {
-                        const n = parseFloat(e.target.value);
-                        field.onChange(Number.isNaN(n) ? undefined : n);
-                      }}
-                    />
-                  )}
-                />
-              </FormField>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              <Controller
-                name="dateReceived"
-                control={control}
-                render={({ field, fieldState }) => (
-                  <FormField
-                    label={isStocked ? "Date Received" : "Date Ordered"}
-                    className="flex flex-col"
-                    error={fieldState.error?.message}
-                  >
-                    <div className="w-full flex">
-                      <DatePickerInput
-                        onChange={(val) =>
-                          field.onChange(val as DatePickerValue)
-                        }
-                        value={field.value ?? null}
-                      />
-                    </div>
-                  </FormField>
+                {suggestions.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap pt-0.5">
+                    <span className="text-caption text-muted-foreground/50 shrink-0 uppercase tracking-wide">
+                      {nameQuery.trim() ? "Matches:" : "Suggested:"}
+                    </span>
+                    {suggestions.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setValue("name", p.name);
+                          setNameQuery(p.name);
+                        }}
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-caption bg-primary/10 text-primary/80 border border-primary/20 hover:bg-primary/20 hover:text-primary hover:border-primary/40 transition-all cursor-pointer"
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                  </div>
                 )}
-              />
-
-              <FormField label="Lot Identity" htmlFor="lotIdentity">
-                <Input
-                  id="lotIdentity"
-                  placeholder="e.g. L-20260430-143052"
-                  {...register("lotIdentity")}
-                />
               </FormField>
+
+              <LotFormFields
+                idPrefix="product"
+                quantityLabel="Initial Lot Quantity"
+                isStocked={isStocked}
+                onStockedChange={setIsStocked}
+                notes={notes}
+                onNotesChange={setNotes}
+              />
             </div>
 
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <StatusToggle value={isStocked} onChange={setIsStocked} />
-            </div>
-
-            <FormField
-              label="Notes"
-              htmlFor="notes"
-              hint="optional, max 75 chars"
-            >
-              <NotesField id="notes" value={notes} onChange={setNotes} />
-            </FormField>
-          </div>
-
-          <ModalActions
-            submitLabel="Add to Inventory"
-            loadingLabel="Adding..."
-            isLoading={isSubmitting}
-            onCancel={() => {
-              resetForm();
-              setIsOpen(false);
-            }}
-          />
-        </form>
+            <ModalActions
+              submitLabel="Add to Inventory"
+              loadingLabel="Adding..."
+              isLoading={isSubmitting}
+              onCancel={() => {
+                resetForm();
+                setIsOpen(false);
+              }}
+            />
+          </form>
+        </FormProvider>
       </Modal>
     </>
   );

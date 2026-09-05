@@ -37,12 +37,32 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+/**
+ * Which half of the row this modal edits. The stock row's action menu offers
+ * name and sell price as separate entries, so each opens the modal focused on
+ * one field; "all" keeps both in a single form for any caller that wants it.
+ */
+export type EditProductField = "all" | "name" | "sellPrice";
+
+const TITLES: Record<EditProductField, string> = {
+  all: "Edit Row",
+  name: "Edit Name",
+  sellPrice: "Edit Sell Price",
+};
+
 interface EditProductModalProps {
   product: ProductWithLots;
+  field?: EditProductField;
   children: (open: () => void) => React.ReactNode;
 }
 
-export function EditProductModal({ product, children }: EditProductModalProps) {
+export function EditProductModal({
+  product,
+  field = "all",
+  children,
+}: EditProductModalProps) {
+  const showName = field !== "sellPrice";
+  const showSellPrice = field !== "name";
   const [isOpen, setIsOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   // Lowest price this name has ever sold for. Fetched on open rather than
@@ -85,6 +105,7 @@ export function EditProductModal({ product, children }: EditProductModalProps) {
   const handleOpen = () => {
     reset(defaults);
     setIsOpen(true);
+    if (!showSellPrice) return;
     // Advisory only — a failure here just means no "lowest past sale" hint.
     getSuggestedSellPrice(product.name)
       .then(setSuggestedSellPrice)
@@ -128,94 +149,105 @@ export function EditProductModal({ product, children }: EditProductModalProps) {
   return (
     <>
       {children(handleOpen)}
-      <Modal isOpen={isOpen} onClose={handleClose} title="Edit Row">
+      <Modal isOpen={isOpen} onClose={handleClose} title={TITLES[field]}>
         <form onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
-          <p className="text-body-sm text-foreground/80 bg-primary/10 p-3 rounded-lg border border-primary/20">
-            <strong className="text-primary">{quantity}</strong> units remaining
-            at an average cost of{" "}
-            <strong className="text-primary">${avgBuyPrice.toFixed(2)}</strong>{" "}
-            each.
-          </p>
+          {showSellPrice && (
+            <p className="text-body-sm text-foreground/80 bg-primary/10 p-3 rounded-lg border border-primary/20">
+              <strong className="text-primary">{quantity}</strong> units
+              remaining at an average cost of{" "}
+              <strong className="text-primary">
+                ${avgBuyPrice.toFixed(2)}
+              </strong>{" "}
+              each.
+            </p>
+          )}
 
           <div className="space-y-5">
-            <FormField
-              label="Product Name"
-              htmlFor="edit-product-name"
-              error={errors.name?.message}
-            >
-              <Input
-                id="edit-product-name"
-                error={!!errors.name}
-                {...register("name")}
-              />
-            </FormField>
+            {showName && (
+              <FormField
+                label="Product Name"
+                htmlFor="edit-product-name"
+                error={errors.name?.message}
+              >
+                <Input
+                  id="edit-product-name"
+                  error={!!errors.name}
+                  {...register("name")}
+                />
+              </FormField>
+            )}
 
-            <FormField
-              label="Sell Price (per unit)"
-              htmlFor="edit-sellPrice"
-              hint="leave blank for NA"
-              error={errors.sellPrice?.message}
-            >
-              <Controller
-                name="sellPrice"
-                control={control}
-                render={({ field }) => (
-                  <CurrencyInput
-                    id="edit-sellPrice"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    placeholder="NA"
-                    error={!!errors.sellPrice}
-                    {...field}
-                    value={field.value ?? ""}
-                    onChange={(e) => {
-                      const n = parseFloat(e.target.value);
-                      field.onChange(Number.isNaN(n) ? null : n);
-                    }}
-                    onBlur={(e) => {
-                      field.onBlur();
-                      const n = parseFloat(e.target.value);
-                      if (Number.isFinite(n)) setValue("sellPrice", round2(n));
-                    }}
-                  />
-                )}
-              />
-            </FormField>
-
-            {/* Derived read-out, not an input — mirrors the table's two views. */}
-            <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
-              <span className="text-body-sm text-muted-foreground">
-                Projected profit
-              </span>
-              {profitPerUnit === null ? (
-                <span className="text-body-sm-strong text-muted-foreground">
-                  NA
-                </span>
-              ) : (
-                <span className="text-body-sm-strong text-foreground">
-                  {formatSignedAmount(profitPerUnit)}
-                  <span className="text-muted-foreground"> / unit · </span>
-                  {formatSignedAmount(profitTotal ?? 0)}
-                  <span className="text-muted-foreground">
-                    {" "}
-                    across {quantity}
-                  </span>
-                </span>
-              )}
-            </div>
-
-            {suggestedSellPrice !== null && (
-              <p className="text-caption text-foreground/50">
-                Lowest past sale price was ${suggestedSellPrice.toFixed(2)}.{" "}
-                <button
-                  type="button"
-                  onClick={applySuggested}
-                  className="text-primary hover:text-primary-active underline underline-offset-2 transition-colors cursor-pointer"
+            {showSellPrice && (
+              <>
+                <FormField
+                  label="Sell Price (per unit)"
+                  htmlFor="edit-sellPrice"
+                  hint="leave blank for NA"
+                  error={errors.sellPrice?.message}
                 >
-                  Use it
-                </button>
-              </p>
+                  <Controller
+                    name="sellPrice"
+                    control={control}
+                    render={({ field }) => (
+                      <CurrencyInput
+                        id="edit-sellPrice"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="NA"
+                        error={!!errors.sellPrice}
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => {
+                          const n = parseFloat(e.target.value);
+                          field.onChange(Number.isNaN(n) ? null : n);
+                        }}
+                        onBlur={(e) => {
+                          field.onBlur();
+                          const n = parseFloat(e.target.value);
+                          if (Number.isFinite(n))
+                            setValue("sellPrice", round2(n));
+                        }}
+                      />
+                    )}
+                  />
+                </FormField>
+
+                {/* Derived read-out, not an input — mirrors the table's two views. */}
+                <div className="flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
+                  <span className="text-body-sm text-muted-foreground">
+                    Est. profit
+                  </span>
+                  {profitPerUnit === null ? (
+                    <span className="text-body-sm-strong text-muted-foreground">
+                      NA
+                    </span>
+                  ) : (
+                    <span className="text-body-sm-strong text-foreground">
+                      {formatSignedAmount(profitPerUnit)}
+                      <span className="text-muted-foreground"> / unit · </span>
+                      {formatSignedAmount(profitTotal ?? 0)}
+                      <span className="text-muted-foreground">
+                        {" "}
+                        across {quantity}
+                      </span>
+                    </span>
+                  )}
+                </div>
+
+                {suggestedSellPrice !== null && (
+                  <p className="text-caption text-foreground/50">
+                    Lowest past sale price was ${suggestedSellPrice.toFixed(2)}.{" "}
+                    <button
+                      type="button"
+                      onClick={applySuggested}
+                      className="text-primary hover:text-primary-active underline underline-offset-2 transition-colors cursor-pointer"
+                    >
+                      Use it
+                    </button>
+                  </p>
+                )}
+              </>
             )}
           </div>
 
