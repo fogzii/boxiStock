@@ -9,6 +9,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { parseInventoryWithAI, parseSalesWithAI } from "@/actions/ai";
 import { type ImportType, useAIImport } from "@/context/AIImportContext";
+import { todayCalendarDay } from "@/lib/date";
 import { cn } from "@/lib/utils";
 
 const schema = z.object({
@@ -83,7 +84,10 @@ export function AIImportModal({
 
     try {
       if (importType === "stock") {
-        const result = await parseInventoryWithAI(data.prompt);
+        const result = await parseInventoryWithAI(
+          data.prompt,
+          todayCalendarDay(),
+        );
         if (!result.ok) {
           setErrorMsg(result.error);
           return;
@@ -99,7 +103,7 @@ export function AIImportModal({
           items_parsed: (result.data as unknown[]).length,
         });
       } else {
-        const result = await parseSalesWithAI(data.prompt);
+        const result = await parseSalesWithAI(data.prompt, todayCalendarDay());
         if (!result.ok) {
           setErrorMsg(result.error);
           return;

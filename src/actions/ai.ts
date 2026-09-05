@@ -2,6 +2,11 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 import { jsonSchemaOutputFormat } from "@anthropic-ai/sdk/helpers/json-schema";
+import {
+  type CalendarDay,
+  parseCalendarDayInput,
+  todayCalendarDay,
+} from "@/lib/date";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getAuthUser } from "@/lib/supabase/auth";
 import { cleanRequiredString, MAX_AI_PROMPT_LENGTH } from "@/lib/validation";
@@ -10,6 +15,21 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || "",
 });
 const MODEL = "claude-haiku-4-5-20251001" as const;
+
+/**
+ * The day the prompt should fall back to when the text names no date, in the
+ * DD-MM-YYYY the prompt asks for.
+ *
+ * This is a server action, so `new Date()` here is the *server's* day - UTC on
+ * Vercel - which stamps yesterday on a user east of Greenwich importing before
+ * ~10am, the same skew `src/lib/date.ts` removes from every other date path.
+ * The caller sends its own day; the server day is only a last resort.
+ */
+function promptFallbackDay(clientToday: CalendarDay | undefined): string {
+  const day = parseCalendarDayInput(clientToday, "today") ?? todayCalendarDay();
+  const [year, month, date] = day.split("-");
+  return `${date}-${month}-${year}`;
+}
 
 async function enforceAiRateLimit(userId: string, kind: "stock" | "sales") {
   await enforceRateLimit(
@@ -158,6 +178,7 @@ const salesOutputSchema = {
 
 export async function parseInventoryWithAI(
   prompt: string,
+  clientToday?: CalendarDay,
 ): Promise<AIResult<unknown[]>> {
   try {
     const {
@@ -179,8 +200,7 @@ export async function parseInventoryWithAI(
     });
     await enforceAiRateLimit(userId, "stock");
 
-    const _d = new Date();
-    const today = `${String(_d.getDate()).padStart(2, "0")}-${String(_d.getMonth() + 1).padStart(2, "0")}-${_d.getFullYear()}`;
+    const today = promptFallbackDay(clientToday);
 
     const userContent = `
 Extract the stock purchases from the following text. Fill the "lots" array in the required output shape.
@@ -215,6 +235,7 @@ ${cleanPrompt}
 
 export async function parseSalesWithAI(
   prompt: string,
+  clientToday?: CalendarDay,
 ): Promise<AIResult<unknown[]>> {
   try {
     const {
@@ -236,8 +257,7 @@ export async function parseSalesWithAI(
     });
     await enforceAiRateLimit(userId, "sales");
 
-    const _d = new Date();
-    const today = `${String(_d.getDate()).padStart(2, "0")}-${String(_d.getMonth() + 1).padStart(2, "0")}-${_d.getFullYear()}`;
+    const today = promptFallbackDay(clientToday);
 
     const userContent = `
 Extract the sales records from the following text. Fill the "sales" array in the required output shape.
