@@ -1,6 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  type CalendarDay,
+  parseCalendarDayInput,
+  toStoredTimestamp,
+} from "@/lib/date";
 import { getCombinedSalesGroupedForUser } from "@/lib/stock/readers";
 import type {
   ProductGroupHeaderRow,
@@ -18,7 +23,6 @@ import {
   cleanRequiredString,
   escapeLikePattern,
   MAX_LOT_NOTES_LENGTH,
-  parseOptionalDate,
 } from "@/lib/validation";
 import {
   gateStockMutation,
@@ -203,7 +207,7 @@ export async function updateSale(
   data: {
     quantitySold: number;
     salePricePerUnit: number;
-    dateSold?: Date;
+    dateSold?: CalendarDay;
     notes?: string;
   },
 ) {
@@ -217,7 +221,7 @@ export async function updateSale(
   const cleanId = cleanRequiredString(saleId, "saleId");
   assertPositiveInt(data?.quantitySold, "quantitySold");
   assertNonNegativeNumber(data?.salePricePerUnit, "salePricePerUnit");
-  const dateSold = parseOptionalDate(data?.dateSold, "dateSold");
+  const dateSold = parseCalendarDayInput(data?.dateSold, "dateSold");
   const notes = cleanOptionalString(data?.notes, "notes", {
     maxLength: MAX_LOT_NOTES_LENGTH,
   });
@@ -254,7 +258,7 @@ export async function updateSale(
       quantitySold: data.quantitySold,
       totalSalePrice: newTotalSalePrice,
       totalProfit: newTotalProfit,
-      dateSold: dateSold ? dateSold.toISOString() : undefined,
+      dateSold: dateSold ? toStoredTimestamp(dateSold) : undefined,
       notes: notes ?? null,
     })
     .eq("id", cleanId);

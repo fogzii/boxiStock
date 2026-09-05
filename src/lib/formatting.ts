@@ -1,3 +1,5 @@
+import { parseCalendarDay } from "./date";
+
 export function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -21,8 +23,16 @@ const dateFormatter = new Intl.DateTimeFormat("en-AU", {
   day: "numeric",
 });
 
+/**
+ * Renders `dateSold` / `dateAcquired` style values. These are calendar days
+ * (see `@/lib/date`), so the day is read straight off the string rather than
+ * through an instant - otherwise the same row renders one day on the server
+ * (UTC) and another in the browser.
+ */
 export function formatDate(dateStr: string | null | undefined): string {
   if (!dateStr) return "-";
+  const day = parseCalendarDay(dateStr);
+  if (day) return dateFormatter.format(day);
   const date = new Date(dateStr);
   if (Number.isNaN(date.getTime())) return "-";
   return dateFormatter.format(date);

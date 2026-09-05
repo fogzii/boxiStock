@@ -17,6 +17,7 @@ import { z } from "zod";
 import { sellAllLots } from "@/actions/stock/inventory";
 import type { ProductWithLots } from "@/components/stock/stockTable";
 import { saleToastIcon } from "@/components/ui/toaster";
+import { toCalendarDay } from "@/lib/date";
 import { formatCurrency, round2 } from "@/lib/formatting";
 import { optionalDateSchema, sellPriceSchema } from "@/lib/schemas";
 import type { DatePickerValue } from "@/lib/types";
@@ -80,7 +81,9 @@ export function SellAllModal({ product, children }: SellAllModalProps) {
       await sellAllLots(
         product.id,
         round2(Number(data.sellPrice) || 0),
-        data.dateSold instanceof Date ? data.dateSold : new Date(),
+        toCalendarDay(
+          data.dateSold instanceof Date ? data.dateSold : new Date(),
+        ),
       );
       toast.success(`Sold all ${totalQty} units of "${product.name}".`, {
         icon: saleToastIcon,

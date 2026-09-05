@@ -84,7 +84,8 @@ export type InventoryLot = Pick<
   StockLotRow,
   "id" | "initialQuantity" | "remainingQuantity" | "buyPrice" | "isStocked"
 > & {
-  dateAcquired: Date;
+  /** Calendar day (`YYYY-MM-DD...`) as stored - never an instant. See `@/lib/date`. */
+  dateAcquired: StockLotRow["dateAcquired"];
   lotIdentity?: StockLotRow["lotIdentity"];
   notes?: StockLotRow["notes"];
 };

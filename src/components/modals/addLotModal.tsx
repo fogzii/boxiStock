@@ -19,6 +19,7 @@ import { z } from "zod";
 import { addStockLot } from "@/actions/stock/inventory";
 import { NotesField } from "@/components/ui/NotesField";
 import { StatusToggle } from "@/components/ui/StatusToggle";
+import { toCalendarDay } from "@/lib/date";
 import { generateLotIdentity } from "@/lib/formatting";
 import {
   buyPriceSchema,
@@ -91,7 +92,7 @@ export function AddLotModal({
         initialQuantity: data.quantity,
         buyPrice: Math.round(data.buyPrice * 100) / 100,
         isStocked,
-        dateAcquired: data.dateReceived ?? new Date(),
+        dateAcquired: toCalendarDay(data.dateReceived ?? new Date()),
         lotIdentity: data.lotIdentity ?? "",
         notes,
       });
@@ -173,7 +174,7 @@ export function AddLotModal({
                 control={control}
                 render={({ field, fieldState }) => (
                   <FormField
-                    label="Date Received"
+                    label={isStocked ? "Date Received" : "Date Ordered"}
                     className="flex flex-col"
                     error={fieldState.error?.message}
                   >

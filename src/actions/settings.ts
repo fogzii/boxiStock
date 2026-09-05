@@ -2,6 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { revalidateStockData } from "@/actions/stock/_helpers";
+import {
+  parseCalendarDayInput,
+  todayCalendarDay,
+  toStoredTimestamp,
+} from "@/lib/date";
 import { enforceRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import type { InventoryCsvRow, SalesCsvRow } from "@/lib/stock/types";
 import { getAuthUser } from "@/lib/supabase/auth";
@@ -165,7 +170,7 @@ export async function importInventoryData(
       }
       assertNonNegativeNumber(buyPrice, `rows[${idx}].buyPrice`);
       const isStocked = String(row?.isStocked).toLowerCase() === "true";
-      const dateAcquired = parseOptionalDate(
+      const dateAcquired = parseCalendarDayInput(
         row?.dateAcquired,
         `rows[${idx}].dateAcquired`,
       );
@@ -180,7 +185,7 @@ export async function importInventoryData(
         remainingQuantity,
         buyPrice,
         isStocked,
-        dateAcquired: dateAcquired ?? new Date(),
+        dateAcquired: dateAcquired ?? todayCalendarDay(),
         lotIdentity,
       };
     });
@@ -241,7 +246,7 @@ export async function importInventoryData(
         remainingQuantity: row.remainingQuantity,
         buyPrice: row.buyPrice,
         isStocked: row.isStocked,
-        dateAcquired: row.dateAcquired.toISOString(),
+        dateAcquired: toStoredTimestamp(row.dateAcquired),
         lotIdentity: row.lotIdentity ?? null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),

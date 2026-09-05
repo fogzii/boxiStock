@@ -21,6 +21,7 @@ import { z } from "zod";
 import { addProduct, getAllProductNames } from "@/actions/stock/inventory";
 import { NotesField } from "@/components/ui/NotesField";
 import { StatusToggle } from "@/components/ui/StatusToggle";
+import { toCalendarDay } from "@/lib/date";
 import { generateLotIdentity } from "@/lib/formatting";
 import {
   buyPriceSchema,
@@ -131,7 +132,7 @@ export function AddProductModal({ children, trigger }: AddProductModalProps) {
         initialQuantity: data.quantity,
         buyPrice: parsedPrice,
         isStocked,
-        dateAcquired: data.dateReceived ?? new Date(),
+        dateAcquired: toCalendarDay(data.dateReceived ?? new Date()),
         lotIdentity: data.lotIdentity ?? "",
         notes,
       });

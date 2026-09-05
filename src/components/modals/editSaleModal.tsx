@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { updateSale } from "@/actions/stock/sales";
 import { NotesField } from "@/components/ui/NotesField";
+import { parseCalendarDay, toCalendarDay } from "@/lib/date";
 import { formatCurrency } from "@/lib/formatting";
 import {
   optionalDateSchema,
@@ -68,7 +69,7 @@ export function EditSaleModal({ sale, children }: EditSaleModalProps) {
     defaultValues: {
       quantity: sale.quantitySold,
       sellPrice: sellPricePerUnit,
-      dateSold: new Date(sale.dateSold || sale.createdAt),
+      dateSold: parseCalendarDay(sale.dateSold || sale.createdAt) ?? new Date(),
     },
   });
 
@@ -84,7 +85,7 @@ export function EditSaleModal({ sale, children }: EditSaleModalProps) {
     reset({
       quantity: sale.quantitySold,
       sellPrice: sellPricePerUnit,
-      dateSold: new Date(sale.dateSold || sale.createdAt),
+      dateSold: parseCalendarDay(sale.dateSold || sale.createdAt) ?? new Date(),
     });
     setNotes(sale.notes ?? "");
   };
@@ -102,7 +103,11 @@ export function EditSaleModal({ sale, children }: EditSaleModalProps) {
       await updateSale(sale.id, {
         quantitySold: parsedQtyVal,
         salePricePerUnit: parsedSellVal,
-        dateSold: data.dateSold ?? new Date(sale.dateSold || sale.createdAt),
+        dateSold: toCalendarDay(
+          data.dateSold ??
+            parseCalendarDay(sale.dateSold || sale.createdAt) ??
+            new Date(),
+        ),
         notes,
       });
       setIsOpen(false);

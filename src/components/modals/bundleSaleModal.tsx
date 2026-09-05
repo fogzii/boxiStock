@@ -28,6 +28,7 @@ import { z } from "zod";
 import { createBundle } from "@/actions/stock/bundles";
 import { getInventoryPaginated } from "@/actions/stock/inventory";
 import { saleToastIcon } from "@/components/ui/toaster";
+import { toCalendarDay } from "@/lib/date";
 import { formatCurrency, round2 } from "@/lib/formatting";
 import { optionalDateSchema, sellPriceSchema } from "@/lib/schemas";
 import type {
@@ -58,9 +59,11 @@ function computeFifo(
   lots: PaginatedLot[],
   quantity: number,
 ): { breakdown: FifoBreakdownEntry[]; totalBuy: number; hasEnough: boolean } {
+  // Calendar days sort lexicographically; lot id breaks same-day ties so the
+  // preview matches the server's FIFO order.
   const sorted = [...lots].sort(
     (a, b) =>
-      new Date(a.dateAcquired).getTime() - new Date(b.dateAcquired).getTime(),
+      a.dateAcquired.localeCompare(b.dateAcquired) || a.id.localeCompare(b.id),
   );
   const breakdown: FifoBreakdownEntry[] = [];
   let remaining = quantity;
@@ -251,7 +254,9 @@ function BundleSaleModal({ isOpen, onClose }: BundleSaleModalProps) {
       await createBundle({
         name: data.bundleName.trim(),
         totalSellPrice: round2(Number(data.sellPrice) || 0),
-        dateSold: data.dateSold instanceof Date ? data.dateSold : new Date(),
+        dateSold: toCalendarDay(
+          data.dateSold instanceof Date ? data.dateSold : new Date(),
+        ),
         items: bundleItems.map((i) => ({
           productId: i.productId,
           quantity: i.quantity,

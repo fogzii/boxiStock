@@ -15,6 +15,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { updateBundle } from "@/actions/stock/bundles";
+import { parseCalendarDay, toCalendarDay } from "@/lib/date";
 import { formatCurrency, round2 } from "@/lib/formatting";
 import { optionalDateSchema, sellPriceSchema } from "@/lib/schemas";
 import type { DatePickerValue } from "@/lib/types";
@@ -58,7 +59,9 @@ export function EditBundleModal({ children, bundle }: EditBundleModalProps) {
     defaultValues: {
       name: bundle.bundleName,
       sellPrice: bundle.totalSellPrice,
-      dateSold: bundle.dateSold ? new Date(bundle.dateSold) : undefined,
+      dateSold: bundle.dateSold
+        ? (parseCalendarDay(bundle.dateSold) ?? undefined)
+        : undefined,
     },
   });
 
@@ -66,7 +69,9 @@ export function EditBundleModal({ children, bundle }: EditBundleModalProps) {
     reset({
       name: bundle.bundleName,
       sellPrice: bundle.totalSellPrice,
-      dateSold: bundle.dateSold ? new Date(bundle.dateSold) : undefined,
+      dateSold: bundle.dateSold
+        ? (parseCalendarDay(bundle.dateSold) ?? undefined)
+        : undefined,
     });
     setIsOpen(true);
   }
@@ -81,7 +86,7 @@ export function EditBundleModal({ children, bundle }: EditBundleModalProps) {
       await updateBundle(bundle.bundleId, {
         name: data.name.trim(),
         totalSellPrice: round2(Number(data.sellPrice) || 0),
-        dateSold: data.dateSold,
+        dateSold: data.dateSold ? toCalendarDay(data.dateSold) : undefined,
       });
       toast.success("Bundle updated.");
       setIsOpen(false);

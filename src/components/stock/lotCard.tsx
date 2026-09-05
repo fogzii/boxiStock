@@ -24,7 +24,14 @@ import { EditLotModal } from "@/components/modals/editLotModal";
 import { SellUnitsModal } from "@/components/modals/sellUnitsModal";
 import { StockStatusBadge } from "@/components/stock/StockStatusBadge";
 import { useHideStockAmounts, useReadOnly } from "@/lib/context/readOnly";
+import { parseCalendarDay } from "@/lib/date";
 import type { InventoryLot } from "@/lib/stock/types";
+
+/** The stored calendar day, rendered without re-reading it as an instant. */
+function formatLotDay(dateAcquired: string): string {
+  const day = parseCalendarDay(dateAcquired);
+  return day ? format(day, "MMM dd, yyyy") : "-";
+}
 
 export type StockLot = InventoryLot;
 
@@ -111,7 +118,7 @@ export function LotCard({
             </div>
             <p className="text-caption text-muted-foreground">
               {lot.isStocked ? "Received" : "Ordered"}{" "}
-              {format(new Date(lot.dateAcquired), "MMM dd, yyyy")}
+              {formatLotDay(lot.dateAcquired)}
             </p>
           </div>
         </div>

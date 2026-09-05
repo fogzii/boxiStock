@@ -1,13 +1,18 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+// Server actions for bundle sales: create, list, edit, delete, and restore
+// stock consumed by bundles where possible.
+import {
+  type CalendarDay,
+  parseCalendarDayInput,
+  toStoredTimestamp,
+} from "@/lib/date";
 import type {
   BundleHeaderRow,
   BundleItemListRow,
   BundleItemRestoreRow,
 } from "@/lib/stock/types";
-// Server actions for bundle sales: create, list, edit, delete, and restore
-// stock consumed by bundles where possible.
 import { getAuthUser } from "@/lib/supabase/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -15,14 +20,13 @@ import {
   assertPositiveInt,
   cleanRequiredString,
   escapeLikePattern,
-  parseOptionalDate,
 } from "@/lib/validation";
 import { gateStockMutation, revalidateStockData } from "./_helpers";
 
 export async function createBundle(data: {
   name: string;
   totalSellPrice: number;
-  dateSold?: Date;
+  dateSold?: CalendarDay;
   items: Array<{ productId: string; quantity: number }>;
 }) {
   const {
@@ -34,7 +38,7 @@ export async function createBundle(data: {
 
   const cleanName = cleanRequiredString(data.name, "name");
   assertNonNegativeNumber(data.totalSellPrice, "totalSellPrice");
-  const cleanDate = parseOptionalDate(data.dateSold, "dateSold");
+  const cleanDate = parseCalendarDayInput(data.dateSold, "dateSold");
 
   if (!Array.isArray(data.items) || data.items.length === 0)
     throw new Error("Bundle must have at least one item");
@@ -70,7 +74,10 @@ export async function createBundle(data: {
       .eq("productId", item.productId)
       .eq("Product.userId", userId)
       .gt("remainingQuantity", 0)
-      .order("dateAcquired", { ascending: true });
+      .order("dateAcquired", { ascending: true })
+      // dateAcquired is a calendar day, so same-day lots tie: fall back to
+      // insertion order to keep FIFO deterministic.
+      .order("createdAt", { ascending: true });
 
     if (!lots || lots.length === 0)
       throw new Error(`No stock available for the selected product`);
@@ -129,7 +136,7 @@ export async function createBundle(data: {
       totalSellPrice: data.totalSellPrice,
       totalBuyCost,
       totalProfit,
-      dateSold: cleanDate?.toISOString() ?? null,
+      dateSold: cleanDate ? toStoredTimestamp(cleanDate) : null,
       createdAt: new Date().toISOString(),
     },
   ]);
@@ -328,7 +335,7 @@ export async function getBundlesGrouped(
 
 export async function updateBundle(
   bundleId: string,
-  data: { name: string; totalSellPrice: number; dateSold?: Date },
+  data: { name: string; totalSellPrice: number; dateSold?: CalendarDay },
 ) {
   const {
     data: { user },
@@ -340,7 +347,7 @@ export async function updateBundle(
   const cleanId = cleanRequiredString(bundleId, "bundleId");
   const cleanName = cleanRequiredString(data.name, "name");
   assertNonNegativeNumber(data.totalSellPrice, "totalSellPrice");
-  const cleanDate = parseOptionalDate(data.dateSold, "dateSold");
+  const cleanDate = parseCalendarDayInput(data.dateSold, "dateSold");
 
   const supabase = await createClient();
 
@@ -362,7 +369,7 @@ export async function updateBundle(
       name: cleanName,
       totalSellPrice: data.totalSellPrice,
       totalProfit,
-      dateSold: cleanDate?.toISOString() ?? null,
+      dateSold: cleanDate ? toStoredTimestamp(cleanDate) : null,
     })
     .eq("id", cleanId);
 

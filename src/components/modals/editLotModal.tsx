@@ -19,6 +19,7 @@ import { updateLot } from "@/actions/stock/inventory";
 import type { StockLot } from "@/components/stock/lotCard";
 import { NotesField } from "@/components/ui/NotesField";
 import { StatusToggle } from "@/components/ui/StatusToggle";
+import { parseCalendarDay, toCalendarDay } from "@/lib/date";
 import {
   buyPriceSchema,
   lotIdentitySchema,
@@ -69,7 +70,7 @@ export function EditLotModal({
     defaultValues: {
       quantity: lot.remainingQuantity,
       buyPrice: lot.buyPrice,
-      dateAcquired: new Date(lot.dateAcquired),
+      dateAcquired: parseCalendarDay(lot.dateAcquired) ?? new Date(),
       lotIdentity: lot.lotIdentity ?? "",
     },
   });
@@ -78,7 +79,7 @@ export function EditLotModal({
     reset({
       quantity: lot.remainingQuantity,
       buyPrice: lot.buyPrice,
-      dateAcquired: new Date(lot.dateAcquired),
+      dateAcquired: parseCalendarDay(lot.dateAcquired) ?? new Date(),
       lotIdentity: lot.lotIdentity ?? "",
     });
     setIsStocked(lot.isStocked);
@@ -98,7 +99,9 @@ export function EditLotModal({
         remainingQuantity: data.quantity,
         buyPrice: parsedPrice,
         isStocked,
-        dateAcquired: data.dateAcquired ?? new Date(lot.dateAcquired),
+        dateAcquired: toCalendarDay(
+          data.dateAcquired ?? parseCalendarDay(lot.dateAcquired) ?? new Date(),
+        ),
         lotIdentity: data.lotIdentity ?? "",
         notes,
       });

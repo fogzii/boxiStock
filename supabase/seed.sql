@@ -98,7 +98,7 @@ insert into "Sale" (id, "productId", "quantitySold", "totalSalePrice", "totalPro
 select sync_product_sale_stats(id) from "Product" where "userId" = '11111111-1111-1111-1111-111111111111';
 
 insert into "Bundle" (id, "userId", name, "totalSellPrice", "totalBuyCost", "totalProfit", "dateSold") values
-  ('a1-bundle-starter', '11111111-1111-1111-1111-111111111111', 'Starter pack', 45.00, 20.00, 25.00, now());
+  ('a1-bundle-starter', '11111111-1111-1111-1111-111111111111', 'Starter pack', 45.00, 20.00, 25.00, current_date);
 
 insert into "BundleItem" (id, "bundleId", "productId", "productName", "lotId", "quantityConsumed", "buyPricePerUnit", "totalBuyCost") values
   ('a1-bundleitem-1', 'a1-bundle-starter', 'a1-camera', 'Vintage Camera', 'a1-lot-camera-1', 1, 60.00, 60.00),

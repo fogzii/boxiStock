@@ -1,6 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  type CalendarDay,
+  parseCalendarDayInput,
+  todayCalendarDay,
+  toStoredTimestamp,
+} from "@/lib/date";
 import { getInventoryPaginatedForUser } from "@/lib/stock/readers";
 import type { RecentProductRow } from "@/lib/stock/types";
 // Server actions for product and lot inventory workflows: add/edit/delete stock,
@@ -16,7 +22,6 @@ import {
   escapeLikePattern,
   MAX_LOT_IDENTITY_LENGTH,
   MAX_LOT_NOTES_LENGTH,
-  parseOptionalDate,
 } from "@/lib/validation";
 import {
   gateStockMutation,
@@ -89,7 +94,7 @@ export async function addProduct(data: {
   initialQuantity: number;
   buyPrice: number;
   isStocked: boolean;
-  dateAcquired?: Date;
+  dateAcquired?: CalendarDay;
   lotIdentity?: string;
   notes?: string;
 }) {
@@ -104,7 +109,10 @@ export async function addProduct(data: {
   assertPositiveInt(data?.initialQuantity, "initialQuantity");
   assertNonNegativeNumber(data?.buyPrice, "buyPrice");
   assertBoolean(data?.isStocked, "isStocked");
-  const dateAcquired = parseOptionalDate(data?.dateAcquired, "dateAcquired");
+  const dateAcquired = parseCalendarDayInput(
+    data?.dateAcquired,
+    "dateAcquired",
+  );
   const lotIdentity = cleanOptionalString(data?.lotIdentity, "lotIdentity", {
     maxLength: MAX_LOT_IDENTITY_LENGTH,
   });
@@ -164,7 +172,7 @@ export async function addProduct(data: {
       remainingQuantity: data.initialQuantity,
       buyPrice: data.buyPrice,
       isStocked: data.isStocked,
-      dateAcquired: (dateAcquired ?? new Date()).toISOString(),
+      dateAcquired: toStoredTimestamp(dateAcquired ?? todayCalendarDay()),
       lotIdentity,
       notes: notes ?? null,
       createdAt: now,
@@ -184,7 +192,7 @@ export async function addStockLot(data: {
   initialQuantity: number;
   buyPrice: number;
   isStocked: boolean;
-  dateAcquired?: Date;
+  dateAcquired?: CalendarDay;
   lotIdentity?: string;
   notes?: string;
 }) {
@@ -199,7 +207,10 @@ export async function addStockLot(data: {
   assertPositiveInt(data?.initialQuantity, "initialQuantity");
   assertNonNegativeNumber(data?.buyPrice, "buyPrice");
   assertBoolean(data?.isStocked, "isStocked");
-  const dateAcquired = parseOptionalDate(data?.dateAcquired, "dateAcquired");
+  const dateAcquired = parseCalendarDayInput(
+    data?.dateAcquired,
+    "dateAcquired",
+  );
   const lotIdentity = cleanOptionalString(data?.lotIdentity, "lotIdentity", {
     maxLength: MAX_LOT_IDENTITY_LENGTH,
   });
@@ -230,7 +241,7 @@ export async function addStockLot(data: {
         remainingQuantity: data.initialQuantity,
         buyPrice: data.buyPrice,
         isStocked: data.isStocked,
-        dateAcquired: (dateAcquired ?? new Date()).toISOString(),
+        dateAcquired: toStoredTimestamp(dateAcquired ?? todayCalendarDay()),
         lotIdentity,
         notes: notes ?? null,
         createdAt: now,
@@ -256,7 +267,7 @@ export async function updateLot(
     remainingQuantity: number;
     buyPrice: number;
     isStocked: boolean;
-    dateAcquired: Date;
+    dateAcquired: CalendarDay;
     lotIdentity?: string;
     notes?: string;
   },
@@ -277,7 +288,10 @@ export async function updateLot(
     throw new Error("remainingQuantity must be a positive integer");
   assertNonNegativeNumber(data?.buyPrice, "buyPrice");
   assertBoolean(data?.isStocked, "isStocked");
-  const dateAcquired = parseOptionalDate(data?.dateAcquired, "dateAcquired");
+  const dateAcquired = parseCalendarDayInput(
+    data?.dateAcquired,
+    "dateAcquired",
+  );
   const lotIdentity = cleanOptionalString(data?.lotIdentity, "lotIdentity", {
     maxLength: MAX_LOT_IDENTITY_LENGTH,
   });
@@ -305,7 +319,7 @@ export async function updateLot(
       initialQuantity: Math.max(data.remainingQuantity, lot.initialQuantity),
       buyPrice: data.buyPrice,
       isStocked: data.isStocked,
-      dateAcquired: (dateAcquired ?? new Date()).toISOString(),
+      dateAcquired: toStoredTimestamp(dateAcquired ?? todayCalendarDay()),
       lotIdentity,
       notes: notes ?? null,
       updatedAt: now,
@@ -547,7 +561,7 @@ export async function sellLotUnits(
   lotId: string,
   quantitySold: number,
   salePricePerUnit: number,
-  dateSold: Date,
+  dateSold: CalendarDay,
 ) {
   const {
     data: { user },
@@ -559,6 +573,8 @@ export async function sellLotUnits(
   const cleanLotId = cleanRequiredString(lotId, "lotId");
   assertPositiveInt(quantitySold, "quantitySold");
   assertNonNegativeNumber(salePricePerUnit, "salePricePerUnit");
+  const cleanDateSold =
+    parseCalendarDayInput(dateSold, "dateSold") ?? todayCalendarDay();
 
   const supabase = await createClient();
 
@@ -596,7 +612,7 @@ export async function sellLotUnits(
       quantitySold,
       totalSalePrice,
       totalProfit,
-      dateSold: dateSold.toISOString(),
+      dateSold: toStoredTimestamp(cleanDateSold),
       createdAt: new Date().toISOString(),
     },
   ]);
@@ -612,7 +628,7 @@ export async function sellLotUnits(
 export async function sellAllLots(
   productId: string,
   totalSellPrice: number,
-  dateSold: Date,
+  dateSold: CalendarDay,
 ) {
   const {
     data: { user },
@@ -632,13 +648,18 @@ export async function sellAllLots(
     .eq("productId", cleanProductId)
     .eq("Product.userId", userId)
     .gt("remainingQuantity", 0)
-    .order("dateAcquired", { ascending: true });
+    .order("dateAcquired", { ascending: true })
+    // dateAcquired is a calendar day, so same-day lots tie: fall back to
+    // insertion order to keep FIFO deterministic.
+    .order("createdAt", { ascending: true });
 
   if (!lots || lots.length === 0) throw new Error("No stock to sell");
 
   const totalQty = lots.reduce((s, l) => s + l.remainingQuantity, 0);
   const perUnitPrice = Math.round((totalSellPrice / totalQty) * 100) / 100;
-  const dateSoldIso = dateSold.toISOString();
+  const dateSoldIso = toStoredTimestamp(
+    parseCalendarDayInput(dateSold, "dateSold") ?? todayCalendarDay(),
+  );
   const now = new Date().toISOString();
 
   // Pre-compute each lot's sale price, then adjust last lot for any cent remainder.

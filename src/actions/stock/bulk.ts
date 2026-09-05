@@ -1,6 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  parseCalendarDayInput,
+  todayCalendarDay,
+  toStoredTimestamp,
+} from "@/lib/date";
 import type { ProductSaleMatch } from "@/lib/stock/types";
 // Server actions for high-volume stock changes: AI-assisted bulk imports for
 // lots and sales.
@@ -15,7 +20,6 @@ import {
   cleanRequiredString,
   escapeLikePattern,
   MAX_LOT_NOTES_LENGTH,
-  parseOptionalDate,
 } from "@/lib/validation";
 import {
   gateStockBulk,
@@ -49,7 +53,7 @@ export async function bulkAddLotsAndProducts(
     const notes = cleanOptionalString(item?.notes, `items[${idx}].notes`, {
       maxLength: MAX_LOT_NOTES_LENGTH,
     });
-    const dateAcquired = parseOptionalDate(
+    const dateAcquired = parseCalendarDayInput(
       item?.dateAcquired,
       `items[${idx}].dateAcquired`,
     );
@@ -101,7 +105,9 @@ export async function bulkAddLotsAndProducts(
         buyPrice: item.buyPrice,
         isStocked: item.isStocked,
         notes: item.notes ?? null,
-        dateAcquired: (item.dateAcquired ?? new Date()).toISOString(),
+        dateAcquired: toStoredTimestamp(
+          item.dateAcquired ?? todayCalendarDay(),
+        ),
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
@@ -148,7 +154,7 @@ export async function bulkAddSales(
       assertNonNegativeNumber(rounded, `items[${idx}].buyPrice`);
       buyPrice = rounded;
     }
-    const dateSold = parseOptionalDate(
+    const dateSold = parseCalendarDayInput(
       item?.dateSold,
       `items[${idx}].dateSold`,
     );
@@ -285,9 +291,7 @@ export async function bulkAddSales(
           quantitySold: qtyFromLot,
           totalSalePrice,
           totalProfit,
-          dateSold: item.dateSold
-            ? item.dateSold.toISOString()
-            : new Date().toISOString(),
+          dateSold: toStoredTimestamp(item.dateSold ?? todayCalendarDay()),
           notes: item.notes ?? null,
           createdAt: new Date().toISOString(),
         },

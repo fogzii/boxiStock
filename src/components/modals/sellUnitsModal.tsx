@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { z } from "zod";
 import { sellLotUnits } from "@/actions/stock/inventory";
 import { saleToastIcon } from "@/components/ui/toaster";
+import { toCalendarDay } from "@/lib/date";
 import { formatCurrency, round2 } from "@/lib/formatting";
 import type { DatePickerValue } from "@/lib/types";
 
@@ -156,7 +157,12 @@ export function SellUnitsModal({
     setIsSubmitting(true);
     const salePrice = Math.round(data.perUnit * 100) / 100;
     try {
-      await sellLotUnits(lot.id, data.quantity, salePrice, data.dateSold);
+      await sellLotUnits(
+        lot.id,
+        data.quantity,
+        salePrice,
+        toCalendarDay(data.dateSold),
+      );
       const total = round2(data.quantity * salePrice);
       posthog.capture("units_sold", {
         product_name: productName,
